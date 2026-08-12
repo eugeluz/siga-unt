@@ -1,0 +1,7 @@
+allowBuilds:
+  '@firebase/util': set this to true or false
+  protobufjs: set this to true or false
+minimumReleaseAgeExclude:
+  - vite@8.1.1
+  - eventsource-parser@3.1.1
+

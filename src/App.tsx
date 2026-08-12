@@ -1,0 +1,517 @@
+import { useState, useEffect, lazy, Suspense } from 'react';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User
+} from 'firebase/auth';
+import {
+  collection,
+  onSnapshot,
+  getDocs,
+  doc,
+  getDoc
+} from 'firebase/firestore';
+import { auth, db } from './firebase';
+import { LandingPage } from './components/LandingPage';
+
+function onSnapshotError(err: unknown) {
+  console.error('Firestore listener error:', err);
+}
+
+// Lazy load subcomponents to optimize initial bundle size and application startup
+const DashboardHome = lazy(() => import('./components/DashboardHome').then(m => ({ default: m.DashboardHome })));
+const StudentManagement = lazy(() => import('./components/StudentManagement').then(m => ({ default: m.StudentManagement })));
+const EnrollmentTab = lazy(() => import('./components/EnrollmentTab').then(m => ({ default: m.EnrollmentTab })));
+const AttendanceTab = lazy(() => import('./components/AttendanceTab').then(m => ({ default: m.AttendanceTab })));
+const StudentHistoryTab = lazy(() => import('./components/StudentHistoryTab').then(m => ({ default: m.StudentHistoryTab })));
+const FacultiesTab = lazy(() => import('./components/FacultiesTab').then(m => ({ default: m.FacultiesTab })));
+const CoursesTab = lazy(() => import('./components/CoursesTab').then(m => ({ default: m.CoursesTab })));
+const NewsTab = lazy(() => import('./components/NewsTab').then(m => ({ default: m.NewsTab })));
+const PersonalTab = lazy(() => import('./components/PersonalTab').then(m => ({ default: m.PersonalTab })));
+const DatesTab = lazy(() => import('./components/DatesTab').then(m => ({ default: m.DatesTab })));
+const UsersTab = lazy(() => import('./components/UsersTab').then(m => ({ default: m.UsersTab })));
+import { Home, Users, UserPlus, ClipboardCheck, History, Building2, BookOpen, LogOut, Key, Calendar, X, Sun, Moon, UserCog, Megaphone } from 'lucide-react';
+import logoImg from './img/logoCentro.png';
+
+type Theme = 'dark' | 'light';
+
+function getInitialTheme(): Theme {
+  const saved = localStorage.getItem('siga-theme');
+  if (saved === 'dark' || saved === 'light') return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+const MOCK_CURSOS = [
+  {
+    idCurso: 2,
+    curso: 'Excel Inicial',
+    programa: 'Herramientas de Planilla de Cálculo para principiantes.',
+    cargaHoraria: '20 hs',
+    showOnLanding: true
+  },
+  {
+    idCurso: 3,
+    curso: 'Excel Avanzado',
+    programa: 'Análisis de datos, macros y funciones avanzadas.',
+    cargaHoraria: '24 hs',
+    showOnLanding: true
+  },
+  {
+    idCurso: 22,
+    curso: 'Ley de Procedimientos Administrativos',
+    programa: 'Marco legal y normativas administrativas de la UNT.',
+    cargaHoraria: '30 hs',
+    showOnLanding: true
+  },
+  {
+    idCurso: 26,
+    curso: 'Redacción de Actos Administrativos',
+    programa: 'Técnicas de redacción legislativa y formal para la administración.',
+    cargaHoraria: '15 hs',
+    showOnLanding: true
+  }
+];
+
+const MOCK_FECHAS = [
+  { idCurso: 2, inicio: '2026-07-15' },
+  { idCurso: 2, inicio: '2026-08-05' },
+  { idCurso: 3, inicio: '2026-07-20' },
+  { idCurso: 22, inicio: '2026-08-10' },
+  { idCurso: 26, inicio: '2026-07-25' }
+];
+
+const MOCK_DOCENTES = [
+  { idDocente: 1, apellido: 'PEREZ', nombre: 'JUAN', email: 'juanperez@unt.edu.ar', celular: '154123456' },
+  { idDocente: 2, apellido: 'GOMEZ', nombre: 'MARIA', email: 'mariagomez@unt.edu.ar', celular: '154987654' }
+];
+
+const MOCK_FACULTADES = [
+  { idFac: 1, facultad: 'Agronomía y Zootecnia' },
+  { idFac: 2, facultad: 'Bioquímica, Química y Farmacia' },
+  { idFac: 3, facultad: 'Ciencias Exactas y Tecnología' },
+  { idFac: 4, facultad: 'Filosofía y Letras' }
+];
+
+/**
+ * Main application container.
+ * Coordinates user authentication and reference lists loading.
+ * Delegates layout routes to subcomponents.
+ */
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Theme (dark / light)
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('siga-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+
+  // Login modal visibility (for public landing page)
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showLandingPreview, setShowLandingPreview] = useState(false);
+
+  // App Tabs Navigation State
+  const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'facultades' | 'cursos' | 'fechas' | 'usuarios' | 'noticias'>('inicio');
+
+
+  // Usuario del panel (nombre, activo) para trazabilidad
+  const [userNombre, setUserNombre] = useState('');
+
+  // Database empty warning
+  const [dbEmptyWarning, setDbEmptyWarning] = useState(false);
+
+  // Global reference data lists
+  const [cursos, setCursos] = useState<any[]>([]);
+  const [docentes, setDocentes] = useState<any[]>([]);
+  const [fechas, setFechas] = useState<any[]>([]);
+  const [facultades, setFacultades] = useState<any[]>([]);
+  const [inscripciones, setInscripciones] = useState<any[]>([]);
+  const [alumnos, setAlumnos] = useState<any[]>([]);
+
+  // --- 1. Authentication ---
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Cargar datos del usuario en la colección `usuarios` (nombre + estado activo)
+        try {
+          const snap = await getDoc(doc(db, 'usuarios', currentUser.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            setUserNombre(data.nombre || currentUser.displayName || '');
+            if (data.activo === false) {
+              await signOut(auth);
+              setUser(null);
+              alert('Su cuenta fue desactivada. Contacte al administrador.');
+            }
+          } else {
+            setUserNombre(currentUser.displayName || '');
+          }
+        } catch (err) {
+          console.error('Error cargando perfil de usuario:', err);
+          setUserNombre(currentUser.displayName || '');
+        }
+      } else {
+        setUserNombre('');
+      }
+      setAuthLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err: unknown) {
+      setAuthError(err instanceof Error ? err.message : 'Error en las credenciales');
+    }
+  };
+
+  const handleSignOut = () => {
+    signOut(auth);
+    setUser(null);
+  };
+
+  // --- 2. Public data for landing page (when not logged in) ---
+  useEffect(() => {
+    if (user) return;
+    const fetchPublic = async () => {
+      try {
+        const [cs, fs] = await Promise.all([
+          getDocs(collection(db, 'cursos')),
+          getDocs(collection(db, 'fechas')),
+        ]);
+        const loadedCursos = cs.docs.map(d => d.data());
+        const loadedFechas = fs.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (loadedCursos.length === 0) {
+          console.log('Using mock courses for public landing');
+          setCursos(MOCK_CURSOS);
+          setFechas(MOCK_FECHAS);
+        } else {
+          setCursos(loadedCursos);
+          setFechas(loadedFechas);
+        }
+      } catch (err) {
+        console.error('Error fetching public data, falling back to mock courses:', err);
+        setCursos(MOCK_CURSOS);
+        setFechas(MOCK_FECHAS);
+      }
+    };
+    fetchPublic();
+  }, [user]);
+
+  // --- 3. Listen to Reference Lists (authenticated) ---
+  useEffect(() => {
+    if (!user) {
+      setDocentes([]);
+      setFacultades([]);
+      setInscripciones([]);
+      return;
+    }
+
+    const unsubCursos = onSnapshot(collection(db, 'cursos'), (snap) => {
+      const data = snap.docs.map(d => d.data());
+      if (data.length === 0) {
+        setCursos(MOCK_CURSOS);
+        setDbEmptyWarning(false);
+      } else {
+        setCursos(data);
+        setDbEmptyWarning(false);
+      }
+    }, (err) => {
+      console.error("Error listening to cursos, using mock:", err);
+      setCursos(MOCK_CURSOS);
+      setDbEmptyWarning(false);
+    });
+
+    const unsubDocentes = onSnapshot(collection(db, 'docentes'), (snap) => {
+      const data = snap.docs.map(d => d.data());
+      if (data.length === 0) {
+        setDocentes(MOCK_DOCENTES);
+      } else {
+        setDocentes(data);
+      }
+    }, (err) => {
+      console.error("Error listening to docentes, using mock:", err);
+      setDocentes(MOCK_DOCENTES);
+    });
+
+    const unsubFechas = onSnapshot(collection(db, 'fechas'), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (data.length === 0) {
+        setFechas(MOCK_FECHAS);
+      } else {
+        setFechas(data);
+      }
+    }, (err) => {
+      console.error("Error listening to fechas, using mock:", err);
+      setFechas(MOCK_FECHAS);
+    });
+
+    const unsubFacultades = onSnapshot(collection(db, 'facultades'), (snap) => {
+      const data = snap.docs.map(d => d.data());
+      if (data.length === 0) {
+        setFacultades(MOCK_FACULTADES);
+      } else {
+        setFacultades(data);
+      }
+    }, (err) => {
+      console.error("Error listening to facultades, using mock:", err);
+      setFacultades(MOCK_FACULTADES);
+    });
+
+    const unsubInscripciones = onSnapshot(collection(db, 'inscripciones'), (snap) => {
+      setInscripciones(snap.docs.map(d => d.data()));
+    }, onSnapshotError);
+
+    const unsubAlumnos = onSnapshot(collection(db, 'alumnos'), (snap) => {
+      const list = snap.docs.map(d => d.data());
+      list.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || ''));
+      setAlumnos(list);
+    }, onSnapshotError);
+
+    return () => {
+      unsubCursos();
+      unsubDocentes();
+      unsubFechas();
+      unsubFacultades();
+      unsubInscripciones();
+      unsubAlumnos();
+    };
+  }, [user]);
+
+  // Loading indicator for authentication
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div className="spinner"></div>
+      </div>
+    );
+  }
+
+  // --- Public landing page (not authenticated) ---
+  if (!user) {
+    return (
+      <>
+        <LandingPage cursos={cursos} fechas={fechas} onLoginClick={() => setShowLoginModal(true)} theme={theme} onToggleTheme={toggleTheme} />
+
+        {/* Login Modal */}
+        {showLoginModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 1000, padding: '20px',
+            backdropFilter: 'blur(4px)',
+          }} onClick={() => setShowLoginModal(false)}>
+            <div className="login-card" style={{ position: 'relative', maxWidth: '400px', margin: 0 }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => setShowLoginModal(false)} style={{
+                position: 'absolute', top: '12px', right: '12px',
+                background: 'none', border: 'none', color: 'var(--text-muted)',
+                cursor: 'pointer', padding: '4px',
+              }}><X size={20} /></button>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '15px' }}>
+                <img src={logoImg} alt="SIGA Logo" style={{ height: '60px', background: '#ffffff', padding: '3px 7px', borderRadius: '8px', marginBottom: '10px', objectFit: 'contain' }} />
+                <h2 style={{ margin: 0 }}>SIGA 2026</h2>
+              </div>
+              <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Acceso administrativo al sistema
+              </p>
+
+              {authError && (
+                <div className="error-message" style={{ padding: '10px 12px', fontSize: '0.8rem' }}>{authError}</div>
+              )}
+
+              <form onSubmit={handleLogin}>
+                <div className="form-group">
+                  <label htmlFor="email">Correo Electrónico</label>
+                  <input
+                    id="email"
+                    type="email"
+                    className="form-control"
+                    placeholder="ejemplo@correo.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="password">Contraseña</label>
+                  <input
+                    id="password"
+                    type="password"
+                    className="form-control"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <button type="submit" className="btn-primary">
+                  Ingresar
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div className="app-container">
+      {!showLandingPreview && (
+        <header className="app-header">
+          <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <img src={logoImg} alt="CCUNT Logo" style={{ height: '66px', background: '#ffffff', padding: '3px 7px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)', objectFit: 'contain' }} />
+            <h1 style={{ margin: 0, fontSize: '1.35rem', color: '#ffffff', fontFamily: 'var(--font-display)', fontWeight: 700 }}>SIGA 2026</h1>
+          </div>
+          <div className="user-badge">
+            <button className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <span className="user-badge-email" style={{ fontWeight: 500 }}>
+              {userNombre || user.email}
+            </span>
+            <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.8rem', minHeight: '40px' }} onClick={() => setShowLandingPreview(true)}>
+              Vista Principal
+            </button>
+            <button className="btn-signout" onClick={handleSignOut}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <LogOut size={14} /> Cerrar Sesión
+              </span>
+            </button>
+          </div>
+        </header>
+      )}
+
+      {showLandingPreview ? (
+        <LandingPage cursos={cursos} fechas={fechas} onLoginClick={() => setShowLandingPreview(false)} backLabel="Volver al Panel" theme={theme} onToggleTheme={toggleTheme} />
+      ) : (
+        <div className="main-layout">
+          {/* Nav Tabs */}
+          <nav className="tabs-nav">
+            <button className={`tab-btn ${activeTab === 'inicio' ? 'active' : ''}`} onClick={() => setActiveTab('inicio')}>
+              <span className="tab-icon"><Home color="#259AD6" size={18} /></span>
+              <span className="tab-label">Inicio</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'alumnos' ? 'active' : ''}`} onClick={() => setActiveTab('alumnos')}>
+              <span className="tab-icon"><Users color="#E25E20" size={18} /></span>
+              <span className="tab-label">Alumnos</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'inscripciones' ? 'active' : ''}`} onClick={() => setActiveTab('inscripciones')}>
+              <span className="tab-icon"><UserPlus color="#10B981" size={18} /></span>
+              <span className="tab-label">Inscripción</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'asistencia' ? 'active' : ''}`} onClick={() => setActiveTab('asistencia')}>
+              <span className="tab-icon"><ClipboardCheck color="#F59E0B" size={18} /></span>
+              <span className="tab-label">Asistencia</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'cursos' ? 'active' : ''}`} onClick={() => setActiveTab('cursos')}>
+              <span className="tab-icon"><BookOpen color="#06B6D4" size={18} /></span>
+              <span className="tab-label">Cursos</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'fechas' ? 'active' : ''}`} onClick={() => setActiveTab('fechas')}>
+              <span className="tab-icon"><Calendar color="#14B8A6" size={18} /></span>
+              <span className="tab-label">Fechas</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'noticias' ? 'active' : ''}`} onClick={() => setActiveTab('noticias')}>
+              <span className="tab-icon"><Megaphone color="#E25E20" size={18} /></span>
+              <span className="tab-label">Noticias</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'facultades' ? 'active' : ''}`} onClick={() => setActiveTab('facultades')}>
+              <span className="tab-icon"><Building2 color="#EC4899" size={18} /></span>
+              <span className="tab-label">Facultades</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>
+              <span className="tab-icon"><Users color="#259AD6" size={18} /></span>
+              <span className="tab-label">Personal</span>
+            </button>
+          </nav>
+
+          {/* Content Area wrapper */}
+          <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0 }}>
+            {/* Main warning if database is empty */}
+            {dbEmptyWarning && (
+              <div className="error-message" style={{ marginBottom: '20px', borderRadius: '12px' }}>
+                <strong>Base de Datos Vacía:</strong> No se encontraron registros de cursos en Firestore.
+                Por favor, generá tus llaves en <code>serviceAccountKey.json</code> y cargá la base de datos ejecutando
+                <code>node import_to_firestore.js</code> en la terminal.
+              </div>
+            )}
+
+            <main className="tab-content">
+              <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}><div className="spinner"></div></div>}>
+                {activeTab === 'inicio' && (
+                  <DashboardHome
+                    cursosCount={cursos.length}
+                    facultadesCount={facultades.length}
+                    docentesCount={docentes.length}
+                    inscripciones={inscripciones}
+                    cursos={cursos}
+                  />
+                )}
+                {activeTab === 'alumnos' && (
+                  <StudentManagement
+                    facultades={facultades}
+                    activeTab={activeTab}
+                    alumnos={alumnos}
+                  />
+                )}
+                {activeTab === 'inscripciones' && (
+                  <EnrollmentTab
+                    cursos={cursos}
+                    fechas={fechas}
+                  />
+                )}
+                {activeTab === 'asistencia' && (
+                  <AttendanceTab
+                    cursos={cursos}
+                    fechas={fechas}
+                  />
+                )}
+                {activeTab === 'cursos' && (
+                  <CoursesTab
+                    cursos={cursos}
+                    docentes={docentes}
+                    fechas={fechas}
+                  />
+                )}
+                {activeTab === 'fechas' && (
+                  <DatesTab
+                    cursos={cursos}
+                    fechas={fechas}
+                  />
+                )}
+                {activeTab === 'noticias' && (
+                  <NewsTab />
+                )}
+                {activeTab === 'facultades' && (
+                  <FacultiesTab
+                    facultades={facultades}
+                  />
+                )}
+                {activeTab === 'usuarios' && (
+                  <PersonalTab />
+                )}
+              </Suspense>
+            </main>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
