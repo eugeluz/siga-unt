@@ -78,3 +78,14 @@ export interface Facultad {
   idFac: number;
   facultad: string;
 }
+
+export interface Usuario {
+  id: string;
+  email: string;
+  nombre: string;
+  legajo?: string;
+  categoria?: string;
+  activo: boolean;
+  rol?: string;
+  createdAt?: string;
+}

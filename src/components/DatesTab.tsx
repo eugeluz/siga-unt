@@ -123,8 +123,6 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
 
   return (
     <div>
-      <h2 className="section-title">Gestión de Fechas de Cursos</h2>
-
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {/* Formulario de Alta de Fecha en 1 sola fila compacta superior */}
         <div className="details-box" style={{ width: '100%', padding: '16px 20px', marginBottom: '15px', boxSizing: 'border-box' }}>

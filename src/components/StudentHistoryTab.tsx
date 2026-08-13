@@ -74,27 +74,36 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, d
 
   return (
     <div>
-      <h2 className="section-title">Historial de Capacitaciones de Alumnos</h2>
-
-      <div className="details-box" style={{ marginBottom: '25px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ margin: 0, flex: '1', minWidth: '200px' }}>
-            <label>DNI del Alumno</label>
+      <div className="details-box" style={{ marginBottom: '25px', padding: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', gap: '16px', maxWidth: '650px', width: '100%' }}>
+          <div className="form-group" style={{ margin: 0 }}>
             <input
               type="number"
               className="form-control"
-              placeholder="Ingrese el DNI..."
+              placeholder="Ingresar el DNI del alumno..."
               value={consultaDni}
               onChange={e => setConsultaDni(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSearchClick(); }}
+              style={{ width: '100%', height: '44px', fontSize: '0.95rem' }}
             />
           </div>
           <button
             className="btn-primary"
-            style={{ margin: 0, height: '42px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              margin: 0,
+              height: '44px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              whiteSpace: 'nowrap',
+              padding: '0 24px',
+              fontSize: '0.95rem',
+              fontWeight: 600
+            }}
             onClick={handleSearchClick}
           >
-            <Search size={16} /> Consultar Historial
+            <Search size={18} /> Consultar Historial
           </button>
         </div>
       </div>

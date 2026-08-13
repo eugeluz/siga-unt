@@ -26,12 +26,15 @@ const EnrollmentTab = lazy(() => import('./components/EnrollmentTab').then(m => 
 const AttendanceTab = lazy(() => import('./components/AttendanceTab').then(m => ({ default: m.AttendanceTab })));
 const StudentHistoryTab = lazy(() => import('./components/StudentHistoryTab').then(m => ({ default: m.StudentHistoryTab })));
 const FacultiesTab = lazy(() => import('./components/FacultiesTab').then(m => ({ default: m.FacultiesTab })));
+const ReportsTab = lazy(() => import('./components/ReportsTab').then(m => ({ default: m.ReportsTab })));
 const CoursesTab = lazy(() => import('./components/CoursesTab').then(m => ({ default: m.CoursesTab })));
+const CoursesAndDatesTab = lazy(() => import('./components/CoursesAndDatesTab').then(m => ({ default: m.CoursesAndDatesTab })));
 const NewsTab = lazy(() => import('./components/NewsTab').then(m => ({ default: m.NewsTab })));
 const PersonalTab = lazy(() => import('./components/PersonalTab').then(m => ({ default: m.PersonalTab })));
+const PersonalAndUsersTab = lazy(() => import('./components/PersonalAndUsersTab').then(m => ({ default: m.PersonalAndUsersTab })));
 const DatesTab = lazy(() => import('./components/DatesTab').then(m => ({ default: m.DatesTab })));
 const UsersTab = lazy(() => import('./components/UsersTab').then(m => ({ default: m.UsersTab })));
-import { Home, Users, UserPlus, ClipboardCheck, History, Building2, BookOpen, LogOut, Key, Calendar, X, Sun, Moon, UserCog, Megaphone } from 'lucide-react';
+import { Home, Users, UserPlus, ClipboardCheck, History, Building2, BookOpen, LogOut, Key, Calendar, X, Sun, Moon, UserCog, Megaphone, FileText } from 'lucide-react';
 import logoImg from './img/logoCentro.png';
 
 type Theme = 'dark' | 'light';
@@ -120,7 +123,7 @@ export default function App() {
   const [showLandingPreview, setShowLandingPreview] = useState(false);
 
   // App Tabs Navigation State
-  const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'facultades' | 'cursos' | 'fechas' | 'usuarios' | 'noticias'>('inicio');
+  const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'reportes' | 'facultades' | 'cursos' | 'fechas' | 'personal' | 'usuarios' | 'noticias'>('inicio');
 
 
   // Usuario del panel (nombre, activo) para trazabilidad
@@ -422,21 +425,17 @@ export default function App() {
             </button>
             <button className={`tab-btn ${activeTab === 'cursos' ? 'active' : ''}`} onClick={() => setActiveTab('cursos')}>
               <span className="tab-icon"><BookOpen color="#06B6D4" size={18} /></span>
-              <span className="tab-label">Cursos</span>
+              <span className="tab-label">Cursos y Fechas</span>
             </button>
-            <button className={`tab-btn ${activeTab === 'fechas' ? 'active' : ''}`} onClick={() => setActiveTab('fechas')}>
-              <span className="tab-icon"><Calendar color="#14B8A6" size={18} /></span>
-              <span className="tab-label">Fechas</span>
+            <button className={`tab-btn ${(activeTab === 'reportes' || activeTab === 'facultades') ? 'active' : ''}`} onClick={() => setActiveTab('reportes')}>
+              <span className="tab-icon"><FileText color="#EC4899" size={18} /></span>
+              <span className="tab-label">Reportes</span>
             </button>
             <button className={`tab-btn ${activeTab === 'noticias' ? 'active' : ''}`} onClick={() => setActiveTab('noticias')}>
               <span className="tab-icon"><Megaphone color="#E25E20" size={18} /></span>
               <span className="tab-label">Noticias</span>
             </button>
-            <button className={`tab-btn ${activeTab === 'facultades' ? 'active' : ''}`} onClick={() => setActiveTab('facultades')}>
-              <span className="tab-icon"><Building2 color="#EC4899" size={18} /></span>
-              <span className="tab-label">Facultades</span>
-            </button>
-            <button className={`tab-btn ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>
+            <button className={`tab-btn ${(activeTab === 'personal' || activeTab === 'usuarios') ? 'active' : ''}`} onClick={() => setActiveTab('personal')}>
               <span className="tab-icon"><Users color="#259AD6" size={18} /></span>
               <span className="tab-label">Personal</span>
             </button>
@@ -483,29 +482,23 @@ export default function App() {
                     fechas={fechas}
                   />
                 )}
-                {activeTab === 'cursos' && (
-                  <CoursesTab
+                {(activeTab === 'cursos' || activeTab === 'fechas') && (
+                  <CoursesAndDatesTab
                     cursos={cursos}
                     docentes={docentes}
-                    fechas={fechas}
-                  />
-                )}
-                {activeTab === 'fechas' && (
-                  <DatesTab
-                    cursos={cursos}
                     fechas={fechas}
                   />
                 )}
                 {activeTab === 'noticias' && (
                   <NewsTab />
                 )}
-                {activeTab === 'facultades' && (
-                  <FacultiesTab
+                {(activeTab === 'reportes' || activeTab === 'facultades') && (
+                  <ReportsTab
                     facultades={facultades}
                   />
                 )}
-                {activeTab === 'usuarios' && (
-                  <PersonalTab />
+                {(activeTab === 'personal' || activeTab === 'usuarios') && (
+                  <PersonalAndUsersTab />
                 )}
               </Suspense>
             </main>

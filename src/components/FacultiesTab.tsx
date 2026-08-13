@@ -193,7 +193,9 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
 
   return (
     <div>
-      <h2 className="section-title">Consulta de Inscriptos por Facultad / Dependencia</h2>
+      <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <FileText size={22} color="var(--primary)" /> Reportes y Consultas por Facultad / Dependencia
+      </h2>
 
       <div className="details-box" style={{ marginBottom: '25px' }}>
         <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>

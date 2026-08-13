@@ -3,7 +3,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { FormField } from './FormField';
 import { ImportModal } from './ImportModal';
-import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText } from 'lucide-react';
+import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ArrowLeft, ChevronRight } from 'lucide-react';
 import { downloadExcel } from '../utils/excel';
 import { StudentHistoryTab } from './StudentHistoryTab';
 
@@ -19,7 +19,7 @@ interface StudentManagementProps {
  * and encapsulates local state workflows (such as importing and searching).
  */
 export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades, activeTab, alumnos }) => {
-  const [currentSubTab, setCurrentSubTab] = useState<'alta' | 'historial'>('alta');
+  const [currentSubTab, setCurrentSubTab] = useState<'inicio' | 'alta' | 'historial'>('inicio');
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [selectedStudentDni, setSelectedStudentDni] = useState<string | null>(null);
   const [showDetailOnMobile, setShowDetailOnMobile] = useState(false);
@@ -101,7 +101,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
         interno: studentForm.interno,
         medios: studentForm.medios
       };
-      
+
       await setDoc(doc(db, 'alumnos', studentForm.dni), studentData);
       alert(type === 'alta' ? 'Alumno registrado con éxito.' : 'Datos del alumno actualizados.');
       setAlumnoEncontrado(true);
@@ -186,257 +186,446 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
 
   return (
     <div>
-      {/* Submenú / Tabs de navegación interno */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-card)', paddingBottom: '10px' }}>
-        <button 
-          className={`btn-${currentSubTab === 'alta' ? 'primary' : 'secondary'}`}
-          style={{ margin: 0, height: '38px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          onClick={() => setCurrentSubTab('alta')}
-        >
-          <GraduationCap size={16} /> Alta y modificación
-        </button>
-        <button 
-          className={`btn-${currentSubTab === 'historial' ? 'primary' : 'secondary'}`}
-          style={{ margin: 0, height: '38px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          onClick={() => setCurrentSubTab('historial')}
-        >
-          <FileText size={16} /> Cursos por alumno
-        </button>
-      </div>
+      {currentSubTab !== 'inicio' ? (
+        <div style={{ marginBottom: '24px' }}>
+          {/* Cabecera de la sección seleccionada con título a la izquierda y Volver al menú a la derecha */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+              gap: '12px',
+              background: 'var(--card-bg)',
+              padding: '14px 20px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)'
+            }}
+          >
+            <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {currentSubTab === 'alta' ? (
+                <>
+                  <GraduationCap size={22} color="var(--primary)" /> Gestión de Alumnos             </>
+              ) : (
+                <>
+                  <Search size={22} color="#10b981" /> Cursos por Alumno
+                </>
+              )}
+            </h2>
 
-      {currentSubTab === 'historial' ? (
-        <StudentHistoryTab alumnos={alumnos} defaultDni={studentForm.dni} />
-      ) : (
-        <div>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Gestión de Alumnos y Altas</h2>
-
-          <div className="details-box">
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '20px', flexWrap: 'nowrap', gap: '8px', width: '100%', overflowX: 'auto' }}>
-              {/* Bloque Destacado y Claro de Búsqueda por DNI a la izquierda */}
-              <div style={{
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setCurrentSubTab('inicio')}
+              style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0',
-                background: 'var(--input-bg)',
-                padding: '2px',
-                borderRadius: '8px',
-                border: '1.5px solid var(--border-focus)',
-                boxShadow: '0 2px 6px var(--accent-glow)',
-                flexShrink: 0,
-                width: 'auto'
-              }}>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Search size={14} style={{ position: 'absolute', left: '8px', color: 'var(--accent)', pointerEvents: 'none' }} />
-                  <input
-                    type="number"
-                    className="form-control"
-                    placeholder="Ingrese DNI..."
-                    value={studentForm.dni}
-                    onChange={e => {
-                      setStudentForm({ ...studentForm, dni: e.target.value });
-                      if (searchFeedback) setSearchFeedback(null);
-                    }}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSearchByDni(); }}
-                    style={{
-                      width: '115px',
-                      padding: '6px 8px 6px 26px',
-                      fontSize: '0.825rem',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontWeight: 500,
-                      boxShadow: 'none'
-                    }}
-                  />
-                </div>
-                <button
-                  className="btn-primary"
-                  style={{
-                    margin: 0,
-                    height: '32px',
-                    padding: '0 10px',
-                    fontSize: '0.75rem',
-                    borderRadius: '6px',
+                gap: '8px',
+                margin: 0,
+                padding: '8px 16px',
+                fontSize: '0.9rem',
+                height: '40px'
+              }}
+            >
+              <ArrowLeft size={16} /> Volver al menú
+            </button>
+          </div>
+
+          {currentSubTab === 'historial' ? (
+            <StudentHistoryTab alumnos={alumnos} defaultDni={studentForm.dni} />
+          ) : (
+            <div>
+
+              <div className="details-box">
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '20px', flexWrap: 'nowrap', gap: '8px', width: '100%', overflowX: 'auto' }}>
+                  {/* Bloque Destacado y Claro de Búsqueda por DNI a la izquierda */}
+                  <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    border: 'none'
+                    gap: '0',
+                    background: 'var(--input-bg)',
+                    padding: '2px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border-focus)',
+                    boxShadow: '0 2px 6px var(--accent-glow)',
+                    flexShrink: 0,
+                    width: 'auto'
+                  }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <Search size={14} style={{ position: 'absolute', left: '8px', color: 'var(--accent)', pointerEvents: 'none' }} />
+                      <input
+                        type="number"
+                        className="form-control"
+                        placeholder="Ingrese DNI..."
+                        value={studentForm.dni}
+                        onChange={e => {
+                          setStudentForm({ ...studentForm, dni: e.target.value });
+                          if (searchFeedback) setSearchFeedback(null);
+                        }}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSearchByDni(); }}
+                        style={{
+                          width: '115px',
+                          padding: '6px 8px 6px 26px',
+                          fontSize: '0.825rem',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-primary)',
+                          fontWeight: 500,
+                          boxShadow: 'none'
+                        }}
+                      />
+                    </div>
+                    <button
+                      className="btn-primary"
+                      style={{
+                        margin: 0,
+                        height: '32px',
+                        padding: '0 10px',
+                        fontSize: '0.75rem',
+                        borderRadius: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        border: 'none'
+                      }}
+                      onClick={handleSearchByDni}
+                      title="Buscar por DNI"
+                    >
+                      <Search size={16} />
+                    </button>
+                  </div>
+
+                  {/* Resultado / Feedback a continuación */}
+                  {searchFeedback && (
+                    <div style={{
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      background: searchFeedback.found ? 'rgba(16, 185, 129, 0.15)' : 'var(--danger-bg)',
+                      border: searchFeedback.found ? '1px solid rgba(16, 185, 129, 0.3)' : 'var(--danger-border)',
+                      color: searchFeedback.found ? 'var(--success)' : 'var(--danger)',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      flexShrink: 0
+                    }}>
+                      {searchFeedback.found ? '✓ ' : '✕ '}
+                      {searchFeedback.message}
+                    </div>
+                  )}
+
+                  {/* Botones de acción: Nuevo Alumno, Importar, Exportar */}
+                  <button className="btn-primary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => { handleNewStudent(); setSearchFeedback(null); }}>
+                    <Plus size={15} /> Nuevo Alumno
+                  </button>
+                  <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => setShowImportModal(true)}>
+                    <Download size={15} /> Importar
+                  </button>
+                  <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
+                    downloadExcel(
+                      alumnos,
+                      ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Tel. Particular', 'Nivel Estudio', 'Título', 'Unidad Académica', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
+                      ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
+                      `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
+                    );
+                  }}>
+                    <Upload size={15} /> Exportar
+                  </button>
+                </div>
+
+                <div className="form-row">
+                  <FormField
+                    label="DNI"
+                    type="number"
+                    disabled={alumnoEncontrado}
+                    value={studentForm.dni}
+                    onChange={e => setStudentForm({ ...studentForm, dni: e.target.value })}
+                  />
+                  <FormField
+                    label="Apellido"
+                    value={studentForm.apellido}
+                    onChange={e => setStudentForm({ ...studentForm, apellido: e.target.value })}
+                  />
+                  <FormField
+                    label="Nombre"
+                    value={studentForm.nombre}
+                    onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <FormField
+                    label="Fecha de Nacimiento"
+                    type="date"
+                    value={studentForm.fechaNac}
+                    onChange={e => setStudentForm({ ...studentForm, fechaNac: e.target.value })}
+                  />
+                  <FormField
+                    label="Edad Calculada"
+                    disabled
+                    value={studentForm.edad}
+                  />
+                  <FormField
+                    label="Teléfono Particular"
+                    value={studentForm.telPart}
+                    onChange={e => setStudentForm({ ...studentForm, telPart: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <FormField
+                    label="Nivel Estudio"
+                    value={studentForm.nivelEstudio}
+                    onChange={e => setStudentForm({ ...studentForm, nivelEstudio: e.target.value })}
+                    options={[
+                      { value: 'Sin dato', label: 'Sin dato' },
+                      { value: 'Primario incompleto', label: 'Primario incompleto' },
+                      { value: 'Primario completo', label: 'Primario completo' },
+                      { value: 'Secundario incompleto', label: 'Secundario incompleto' },
+                      { value: 'Secundario completo', label: 'Secundario completo' },
+                      { value: 'Terciario incompleto', label: 'Terciario incompleto' },
+                      { value: 'Terciario completo', label: 'Terciario completo' },
+                      { value: 'Universitario incompleto', label: 'Universitario incompleto' },
+                      { value: 'Universitario completo', label: 'Universitario completo' },
+                    ]}
+                  />
+                  <FormField
+                    label="Título obtenido"
+                    value={studentForm.titulo}
+                    onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })}
+                  />
+                  <FormField
+                    label="Unidad Académica / Dependencia"
+                    value={studentForm.unidadAcademica}
+                    onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
+                    options={[
+                      { value: 'Sin dato', label: 'Sin dato' },
+                      ...facultades.map(f => ({ value: f.facultad, label: f.facultad }))
+                    ]}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <FormField
+                    label="Área de trabajo"
+                    value={studentForm.area}
+                    onChange={e => setStudentForm({ ...studentForm, area: e.target.value })}
+                  />
+                  <FormField
+                    label="Cargo / Función"
+                    value={studentForm.cargoFuncion}
+                    onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}
+                  />
+                  <FormField
+                    label="Personas a cargo"
+                    type="number"
+                    value={studentForm.personas}
+                    onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <FormField
+                    label="Correo Electrónico"
+                    type="email"
+                    value={studentForm.email}
+                    onChange={e => setStudentForm({ ...studentForm, email: e.target.value })}
+                  />
+                  <FormField
+                    label="Teléfono Laboral"
+                    value={studentForm.telLab}
+                    onChange={e => setStudentForm({ ...studentForm, telLab: e.target.value })}
+                  />
+                  <FormField
+                    label="Interno"
+                    value={studentForm.interno}
+                    onChange={e => setStudentForm({ ...studentForm, interno: e.target.value })}
+                  />
+                </div>
+                <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                  {alumnoEncontrado ? (
+                    <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('actualizar')}>
+                      <Save size={16} /> Modificar Datos
+                    </button>
+                  ) : (
+                    <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('alta')}>
+                      <UserPlus size={16} /> Registrar Alumno (Alta)
+                    </button>
+                  )}
+                  <button className="btn-secondary" onClick={handleNewStudent}>Limpiar Formulario</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Vista de inicio con 2 cajitas de igual tamaño para Alumnos */
+        <div style={{ padding: '10px 0' }}>
+          <h2 className="section-title" style={{ marginBottom: '8px' }}>
+            <GraduationCap size={24} /> Gestión de Alumnos
+          </h2>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px',
+              maxWidth: '900px',
+              margin: '0 auto'
+            }}
+          >
+            {/* Cajita 1: Alta y modificación */}
+            <div
+              className="details-box"
+              onClick={() => setCurrentSubTab('alta')}
+              style={{
+                cursor: 'pointer',
+                padding: '32px 24px',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                transition: 'all 0.25s ease',
+                border: '2px solid var(--border-color)',
+                background: 'var(--card-bg)',
+                height: '100%',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '18px',
+                    background: 'var(--primary-alpha-15, rgba(59, 130, 246, 0.12))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px'
                   }}
-                  onClick={handleSearchByDni}
                 >
-                  Buscar
-                </button>
+                  <GraduationCap size={36} color="var(--primary, #3b82f6)" />
+                </div>
+
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                  Alta y modificación de datos de alumnos
+                </p>
               </div>
 
-              {/* Resultado / Feedback a continuación */}
-              {searchFeedback && (
-                <div style={{
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  background: searchFeedback.found ? 'rgba(16, 185, 129, 0.15)' : 'var(--danger-bg)',
-                  border: searchFeedback.found ? '1px solid rgba(16, 185, 129, 0.3)' : 'var(--danger-border)',
-                  color: searchFeedback.found ? 'var(--success)' : 'var(--danger)',
-                  whiteSpace: 'nowrap',
-                  display: 'inline-flex',
+              <button
+                className="btn-primary"
+                style={{
+                  marginTop: '28px',
+                  width: '100%',
+                  height: '46px',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  flexShrink: 0
-                }}>
-                  {searchFeedback.found ? '✓ ' : '✕ '}
-                  {searchFeedback.message}
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  margin: 0
+                }}
+              >
+                Ingresar a Alumnos <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {/* Cajita 2: Cursos por alumno (Lupa) */}
+            <div
+              className="details-box"
+              onClick={() => setCurrentSubTab('historial')}
+              style={{
+                cursor: 'pointer',
+                padding: '32px 24px',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                transition: 'all 0.25s ease',
+                border: '2px solid var(--border-color)',
+                background: 'var(--card-bg)',
+                height: '100%',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#10b981';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '18px',
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px'
+                  }}
+                >
+                  <Search size={36} color="#10b981" />
                 </div>
-              )}
 
-              {/* Botones de acción: Nuevo Alumno, Importar, Exportar */}
-              <button className="btn-primary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => { handleNewStudent(); setSearchFeedback(null); }}>
-                <Plus size={15} /> Nuevo Alumno
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                  Consulta e historial de cursos por alumno
+                </p>
+              </div>
+
+              <button
+                className="btn-primary"
+                style={{
+                  marginTop: '28px',
+                  width: '100%',
+                  height: '46px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  backgroundColor: '#10b981',
+                  borderColor: '#10b981',
+                  margin: 0
+                }}
+              >
+                Ingresar a Historial <ChevronRight size={18} />
               </button>
-              <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => setShowImportModal(true)}>
-                <Download size={15} /> Importar
-              </button>
-              <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
-                downloadExcel(
-                  alumnos,
-                  ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Tel. Particular', 'Nivel Estudio', 'Título', 'Unidad Académica', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
-                  ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
-                  `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
-                );
-              }}>
-                <Upload size={15} /> Exportar
-              </button>
-            </div>
-
-            <div className="form-row">
-              <FormField 
-                label="DNI" 
-                type="number" 
-                disabled={alumnoEncontrado} 
-                value={studentForm.dni} 
-                onChange={e => setStudentForm({ ...studentForm, dni: e.target.value })} 
-              />
-              <FormField 
-                label="Apellido" 
-                value={studentForm.apellido} 
-                onChange={e => setStudentForm({ ...studentForm, apellido: e.target.value })} 
-              />
-              <FormField 
-                label="Nombre" 
-                value={studentForm.nombre} 
-                onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value })} 
-              />
-            </div>
-
-            <div className="form-row">
-              <FormField 
-                label="Fecha de Nacimiento" 
-                type="date" 
-                value={studentForm.fechaNac} 
-                onChange={e => setStudentForm({ ...studentForm, fechaNac: e.target.value })} 
-              />
-              <FormField 
-                label="Edad Calculada" 
-                disabled 
-                value={studentForm.edad} 
-              />
-              <FormField 
-                label="Teléfono Particular" 
-                value={studentForm.telPart} 
-                onChange={e => setStudentForm({ ...studentForm, telPart: e.target.value })} 
-              />
-            </div>
-
-            <div className="form-row">
-              <FormField 
-                label="Nivel Estudio" 
-                value={studentForm.nivelEstudio} 
-                onChange={e => setStudentForm({ ...studentForm, nivelEstudio: e.target.value })} 
-                options={[
-                  { value: 'Sin dato', label: 'Sin dato' },
-                  { value: 'Primario incompleto', label: 'Primario incompleto' },
-                  { value: 'Primario completo', label: 'Primario completo' },
-                  { value: 'Secundario incompleto', label: 'Secundario incompleto' },
-                  { value: 'Secundario completo', label: 'Secundario completo' },
-                  { value: 'Terciario incompleto', label: 'Terciario incompleto' },
-                  { value: 'Terciario completo', label: 'Terciario completo' },
-                  { value: 'Universitario incompleto', label: 'Universitario incompleto' },
-                  { value: 'Universitario completo', label: 'Universitario completo' },
-                ]}
-              />
-              <FormField 
-                label="Título obtenido" 
-                value={studentForm.titulo} 
-                onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })} 
-              />
-              <FormField 
-                label="Unidad Académica / Dependencia" 
-                value={studentForm.unidadAcademica} 
-                onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })} 
-                options={[
-                  { value: 'Sin dato', label: 'Sin dato' },
-                  ...facultades.map(f => ({ value: f.facultad, label: f.facultad }))
-                ]}
-              />
-            </div>
-
-            <div className="form-row">
-              <FormField 
-                label="Área de trabajo" 
-                value={studentForm.area} 
-                onChange={e => setStudentForm({ ...studentForm, area: e.target.value })} 
-              />
-              <FormField 
-                label="Cargo / Función" 
-                value={studentForm.cargoFuncion} 
-                onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })} 
-              />
-              <FormField 
-                label="Personas a cargo" 
-                type="number" 
-                value={studentForm.personas} 
-                onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })} 
-              />
-            </div>
-
-            <div className="form-row">
-              <FormField 
-                label="Correo Electrónico" 
-                type="email" 
-                value={studentForm.email} 
-                onChange={e => setStudentForm({ ...studentForm, email: e.target.value })} 
-              />
-              <FormField 
-                label="Teléfono Laboral" 
-                value={studentForm.telLab} 
-                onChange={e => setStudentForm({ ...studentForm, telLab: e.target.value })} 
-              />
-              <FormField 
-                label="Interno" 
-                value={studentForm.interno} 
-                onChange={e => setStudentForm({ ...studentForm, interno: e.target.value })} 
-              />
-            </div>
-            <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-              {alumnoEncontrado ? (
-                <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('actualizar')}>
-                  <Save size={16} /> Modificar Datos
-                </button>
-              ) : (
-                <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('alta')}>
-                  <UserPlus size={16} /> Registrar Alumno (Alta)
-                </button>
-              )}
-              <button className="btn-secondary" onClick={handleNewStudent}>Limpiar Formulario</button>
             </div>
           </div>
         </div>
       )}
 
       {showImportModal && (
-        <ImportModal 
-          onClose={() => setShowImportModal(false)} 
-          onImportComplete={() => setShowImportModal(false)} 
+        <ImportModal
+          onClose={() => setShowImportModal(false)}
+          onImportComplete={() => setShowImportModal(false)}
         />
       )}
     </div>

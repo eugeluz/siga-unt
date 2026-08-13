@@ -386,51 +386,6 @@ export const PersonalTab: React.FC = () => {
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
-        <h3 style={{ margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <History size={18} color="var(--primary)" /> Registro de Actividad (Auditoría)
-        </h3>
-        <button
-          className="btn-secondary"
-          style={{ margin: 0, height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          onClick={loadAuditoria}
-        >
-          <RefreshCw size={14} /> Actualizar
-        </button>
-      </div>
-
-      <div className="listbox-wrapper">
-        <table className="listbox-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Usuario</th>
-              <th>Acción</th>
-              <th>Detalle</th>
-            </tr>
-          </thead>
-          <tbody>
-            {auditoria.map(item => (
-              <tr key={item.id}>
-                <td data-label="Fecha" style={{ whiteSpace: 'nowrap' }}>{formatFecha(item.fecha)}</td>
-                <td data-label="Usuario">{item.nombre || item.usuario}</td>
-                <td data-label="Acción">
-                  <span className="badge" style={{ background: 'var(--primary-alpha-15)', color: 'var(--accent)' }}>
-                    {item.accion}
-                  </span>
-                </td>
-                <td data-label="Detalle">{item.detalle}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {auditoria.length === 0 && (
-          <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Sin actividad registrada todavía.
-          </p>
-        )}
-      </div>
-
       {/* Modal Registrar Falta */}
       {showFaltaModal && (
         <div className="modal-overlay" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, overflowY: 'auto', paddingTop: '40px', paddingBottom: '40px' }} onClick={() => setShowFaltaModal(false)}>

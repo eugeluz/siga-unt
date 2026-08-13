@@ -34,7 +34,6 @@ const ESTUDIOS = ['Sin dato', 'Primario completo', 'Primario incompleto', 'Secun
 const CARGOS = ['', 'Administrativo/a', 'Docente', 'JTP/Aux. Docente', 'Técnicos/Profesional', 'Mantenimiento', 'Producción', 'Servicios Grales.'];
 const MEDIOS_OPTS = [
   { key: 'web_unt', label: 'Sitio web de la UNT' },
-  { key: 'folleto', label: 'Folleto/Afiches' },
   { key: 'companero', label: 'Compañero de trabajo' },
   { key: 'nota_invitacion', label: 'Nota de invitación' },
   { key: 'web_centro', label: 'Sitio web del Centro' },
@@ -77,7 +76,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
   const [consultaLoading, setConsultaLoading] = useState(false);
 
   // Noticias de la página principal
-  const [noticias, setNoticias] = useState<{ titulo: string; texto: string }[]>([]);
+  const [noticias, setNoticias] = useState<{ titulo: string; texto: string; imagenUrl?: string }[]>([]);
 
   const fechasMap = new Map<string, any[]>();
   fechas.forEach(f => {
@@ -96,8 +95,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
           getDoc(doc(db, 'noticias', '2'))
         ]);
         if (!active) return;
-        const list = [doc1, doc2].map(d => ({ titulo: d.data()?.titulo || '', texto: d.data()?.texto || '' }));
-        if (list.some(n => n.titulo || n.texto)) setNoticias(list);
+        const list = [doc1, doc2].map(d => ({
+          titulo: d.data()?.titulo || '',
+          texto: d.data()?.texto || '',
+          imagenUrl: d.data()?.imagenUrl || ''
+        }));
+        if (list.some(n => n.titulo || n.texto || n.imagenUrl)) setNoticias(list);
       } catch (err) {
         console.error('Error cargando noticias:', err);
       }
@@ -526,17 +529,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
               flexDirection: 'column',
               gap: '20px',
             }}>
-              {noticias.map((n, i) => n.titulo || n.texto ? (
+              {noticias.map((n, i) => n.titulo || n.texto || n.imagenUrl ? (
                 <div key={i} style={{
                   background: 'var(--bg-card)', borderRadius: '14px',
                   border: '1px solid var(--border-card)', padding: '24px',
+                  overflow: 'hidden'
                 }}>
-                  <h3 style={{ margin: '0 0 10px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {n.titulo}
-                  </h3>
-                  <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                    {n.texto}
-                  </p>
+                  {n.imagenUrl && (
+                    <img
+                      src={n.imagenUrl}
+                      alt={n.titulo || `Noticia ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        maxHeight: '220px',
+                        objectFit: 'cover',
+                        borderRadius: '10px',
+                        marginBottom: '14px',
+                        display: 'block'
+                      }}
+                    />
+                  )}
+                  {n.titulo && (
+                    <h3 style={{ margin: '0 0 10px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {n.titulo}
+                    </h3>
+                  )}
+                  {n.texto && (
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                      {n.texto}
+                    </p>
+                  )}
                 </div>
               ) : null)}
             </div>

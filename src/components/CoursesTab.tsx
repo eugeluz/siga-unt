@@ -188,8 +188,6 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
 
   return (
     <div>
-      <h2 className="section-title">Gestión de Cursos de Capacitación</h2>
-
       <div className="details-box" style={{ width: '100%', boxSizing: 'border-box' }}>
         {/* Encabezado y 3 Botones en la misma línea */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
