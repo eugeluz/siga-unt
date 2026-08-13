@@ -9,20 +9,30 @@ import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
 
 const MOTIVOS_FALTA = [
+  'Familiar enfermo',
+  'Lic. Enfermedad',
+  'Paro Administrativo',
+  'Paro Gral. Tpte.',
   'Razones particulares',
-  'Lic. anual Nodocente',
-  'Art 10a Enf. corto tratto.',
-  'Art. 93 Enf. largo tratto.',
-  'Art. 97 (h-i) Rendir Examen',
-  'Art 100 Razones Particulares',
-  'Paro Gral. Tpte.'
+  'Rendir Examen',
+  'Vacaciones'
 ];
+
+const calcularDiasCorridos = (desdeStr: string, hastaStr: string): number => {
+  if (!desdeStr || !hastaStr) return 1;
+  const d1 = new Date(desdeStr + 'T00:00:00');
+  const d2 = new Date(hastaStr + 'T00:00:00');
+  const diffTime = d2.getTime() - d1.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? diffDays + 1 : 1;
+};
 
 export const PersonalTab: React.FC = () => {
   const [personalList, setPersonalList] = useState<any[]>([]);
   const [selectedPersonal, setSelectedPersonal] = useState<any[]>([]);
   const [fechaPlanilla, setFechaPlanilla] = useState(new Date().toISOString().split('T')[0]);
   const [motivosSeleccionados, setMotivosSeleccionados] = useState<Record<string, string>>({}); // dni -> motivo
+  const [turnoTarde, setTurnoTarde] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
 
   // Cargar lista de Personal (usuarios registrados en la colección 'usuarios')
@@ -94,6 +104,26 @@ export const PersonalTab: React.FC = () => {
     hasta: new Date().toISOString().split('T')[0],
     dias: '1'
   });
+
+  const handleDesdeChange = (newDesde: string) => {
+    const newHasta = faltaForm.hasta < newDesde ? newDesde : faltaForm.hasta;
+    const computedDias = calcularDiasCorridos(newDesde, newHasta);
+    setFaltaForm(prev => ({
+      ...prev,
+      desde: newDesde,
+      hasta: newHasta,
+      dias: String(computedDias)
+    }));
+  };
+
+  const handleHastaChange = (newHasta: string) => {
+    const computedDias = calcularDiasCorridos(faltaForm.desde, newHasta);
+    setFaltaForm(prev => ({
+      ...prev,
+      hasta: newHasta,
+      dias: String(computedDias)
+    }));
+  };
 
   const handleConfirmFalta = async () => {
     if (!faltaForm.userId || !faltaForm.motivo) {
@@ -202,12 +232,12 @@ export const PersonalTab: React.FC = () => {
 
     // Preparar filas de la tabla con todo el personal (personalList ya viene ordenado por nombre/apellido)
     const bodyRows = personalList.map((p, idx) => {
-      const motivo = motivosSeleccionados[p.id] || '';
+      const isTurnoTarde = !!turnoTarde[p.id];
       return [
         idx + 1,
         p.nombre || p.email,
         p.legajo,
-        motivo ? `Ausente: ${motivo}` : '', // Dejar vacío para firmar a mano
+        isTurnoTarde ? 'TURNO TARDE' : '', // Si está en turno tarde poner TURNO TARDE, si no vacío
       ];
     });
 
@@ -216,7 +246,7 @@ export const PersonalTab: React.FC = () => {
       head: [['Nro.', 'Apellido y Nombre', 'Legajo', 'Firma / Observación']],
       body: bodyRows,
       theme: 'grid',
-      headStyles: { fillColor: [30, 78, 140], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+      headStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       styles: { fontSize: 8.5, cellPadding: 4 },
       columnStyles: {
@@ -227,7 +257,48 @@ export const PersonalTab: React.FC = () => {
       }
     });
 
-    const fileName = `planilla_asistencia_personal_${fechaPlanilla}.pdf`;
+    // Sección de Turno Tarde después de la tabla principal
+    const tardePeople = personalList.filter(p => !!turnoTarde[p.id]);
+    if (tardePeople.length > 0) {
+      let startY = (doc as any).lastAutoTable?.finalY || 150;
+      startY += 10;
+
+      // Verificar si cabe en la página actual o crear una nueva
+      if (startY + (tardePeople.length * 12) + 25 > 280) {
+        doc.addPage();
+        startY = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(30, 78, 140);
+      doc.text('TURNO TARDE - REGISTRO DE FIRMAS', 14, startY);
+
+      const tardeRows = tardePeople.map((p, idx) => [
+        idx + 1,
+        p.nombre || p.email,
+        p.legajo,
+        '' // Espacio libre para la firma física del Turno Tarde
+      ]);
+
+      autoTable(doc, {
+        startY: startY + 4,
+        head: [['Nro.', 'Apellido y Nombre', 'Legajo', 'Firma (Turno Tarde)']],
+        body: tardeRows,
+        theme: 'grid',
+        headStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 8.5, cellPadding: 4 },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 62, fontStyle: 'bold' },
+          2: { cellWidth: 26 },
+          3: { cellWidth: 89 }
+        }
+      });
+    }
+
+    const fileName = `AP_${fechaPlanilla}.pdf`;
     doc.save(fileName);
     logAudit('Planilla de personal impresa', `Fecha: ${fechaPlanilla} - ${personalList.length} personas`);
   };
@@ -332,6 +403,7 @@ export const PersonalTab: React.FC = () => {
               <th style={{ width: '50px', textAlign: 'center' }}>N°</th>
               <th>Nombre y Apellido</th>
               <th>Legajo / Email</th>
+              <th style={{ width: '110px', textAlign: 'center' }}>Turno Tarde</th>
               <th>Razón de Inasistencia (Opcional)</th>
               <th style={{ width: '100px', textAlign: 'center' }}>Historial</th>
             </tr>
@@ -345,6 +417,15 @@ export const PersonalTab: React.FC = () => {
                   <td data-label="Legajo / Email">
                     <div style={{ fontSize: '0.85rem' }}>Legajo: {p.legajo || '—'}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{p.email}</div>
+                  </td>
+                  <td data-label="Turno Tarde" style={{ textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!turnoTarde[p.id]}
+                      onChange={e => setTurnoTarde(prev => ({ ...prev, [p.id]: e.target.checked }))}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                      title="Marcar si esta persona asiste en Turno Tarde"
+                    />
                   </td>
                   <td data-label="Observaciones" style={{ fontWeight: 500, color: motivosSeleccionados[p.id] ? 'var(--danger)' : 'var(--text-secondary)' }}>
                     {motivosSeleccionados[p.id] ? (
@@ -449,7 +530,7 @@ export const PersonalTab: React.FC = () => {
                       type="date" 
                       className="form-control" 
                       value={faltaForm.desde}
-                      onChange={e => setFaltaForm(prev => ({ ...prev, desde: e.target.value }))}
+                      onChange={e => handleDesdeChange(e.target.value)}
                     />
                   </div>
                   <div className="form-group" style={{ margin: 0, flex: '1 1 140px' }}>
@@ -458,7 +539,7 @@ export const PersonalTab: React.FC = () => {
                       type="date" 
                       className="form-control" 
                       value={faltaForm.hasta}
-                      onChange={e => setFaltaForm(prev => ({ ...prev, hasta: e.target.value }))}
+                      onChange={e => handleHastaChange(e.target.value)}
                     />
                   </div>
                   <div className="form-group" style={{ margin: 0, flex: '1 1 100px' }}>
@@ -494,6 +575,36 @@ export const PersonalTab: React.FC = () => {
             <div style={{ marginBottom: '16px' }}>
               Empleado: <strong>{historialUser.nombre || historialUser.email}</strong> (Legajo: {historialUser.legajo})
             </div>
+
+            {(() => {
+              const resumenMotivos = historialList.reduce((acc: Record<string, number>, item: any) => {
+                const m = item.motivo || 'Otros';
+                const count = Number(item.dias) || 1;
+                acc[m] = (acc[m] || 0) + count;
+                return acc;
+              }, {});
+              const totalDiasInasistencias = Object.values(resumenMotivos).reduce((a, b) => a + b, 0);
+
+              return (
+                <div style={{ marginBottom: '18px', padding: '14px 16px', background: 'rgba(30, 78, 140, 0.06)', borderRadius: '8px', border: '1px solid rgba(30, 78, 140, 0.2)' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px', fontSize: '0.95rem' }}>
+                    Total Inasistencias Acumuladas: <span style={{ color: 'var(--danger)', fontWeight: 700 }}>{totalDiasInasistencias} día{totalDiasInasistencias !== 1 ? 's' : ''}</span>
+                  </div>
+                  {Object.keys(resumenMotivos).length > 0 ? (
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {Object.entries(resumenMotivos).map(([motivo, total]) => (
+                        <div key={motivo} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem' }}>
+                          <strong style={{ color: 'var(--text-primary)' }}>{motivo}:</strong>{' '}
+                          <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{total}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Sin inasistencias registradas.</span>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="listbox-wrapper" style={{ maxHeight: '360px', overflowY: 'auto' }}>
               <table className="listbox-table">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, deleteDoc, writeBatch, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, writeBatch, addDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { auth } from '../firebase';
 import { logAudit } from '../utils/audit';
@@ -182,6 +182,16 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     }
   };
 
+  const handleResultadoChange = async (regId: string, newResultado: string) => {
+    try {
+      await updateDoc(doc(db, 'inscripciones', regId), { resultado: newResultado });
+      setAlumnosAsistencia(prev => prev.map(a => a.id === regId ? { ...a, resultado: newResultado } : a));
+    } catch (err) {
+      console.error('Error al actualizar la condición:', err);
+      alert('Error al actualizar la condición del alumno.');
+    }
+  };
+
   // Ordenar lista automáticamente por Apellido (A-Z)
   const sortedAlumnos = [...alumnosAsistencia].sort((a, b) => {
     const apA = (a.apellido || '').toLowerCase();
@@ -209,7 +219,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       exportData,
       ['Apellido', 'Nombre', 'DNI', 'Firma'],
       ['apellido', 'nombre', 'dni', 'firma'],
-      `planilla_asistencia_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.csv`
+      `AC_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.csv`
     );
   };
 
@@ -228,7 +238,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
         data,
         ['Apellido', 'Nombre', 'DNI', 'Firma'],
         ['apellido', 'nombre', 'dni', 'firma'],
-        `planilla_asistencia_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.xlsx`
+        `AC_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.xlsx`
       );
     } catch (err) {
       console.error(err);
@@ -302,7 +312,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       }
     });
 
-    const fileName = `planilla_asistencia_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.pdf`;
+    const fileName = `AC_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.pdf`;
     doc.save(fileName);
   };
 
@@ -533,6 +543,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                   </th>
                   <th>Nombre</th>
                   <th>DNI</th>
+                  <th>Condición</th>
                   <th>Firma (Asistencia)</th>
                   <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                 </tr>
@@ -543,6 +554,28 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                     <td data-label="Apellido" style={{ fontWeight: 600 }}>{item.apellido}</td>
                     <td data-label="Nombre">{item.nombre}</td>
                     <td data-label="DNI">{item.dni}</td>
+                    <td data-label="Condición">
+                      <select
+                        className="form-control"
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '0.8rem',
+                          height: '30px',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          width: 'auto',
+                          minWidth: '120px'
+                        }}
+                        value={item.resultado || item.condicion || 'Cursando'}
+                        onChange={(e) => handleResultadoChange(item.id, e.target.value)}
+                      >
+                        <option value="Cursando">Cursando</option>
+                        <option value="Aprobado">Aprobado</option>
+                        <option value="Desaprobado">Desaprobado</option>
+                        <option value="Abandonó">Abandonó</option>
+                      </select>
+                    </td>
                     <td data-label="Firma" style={{ minWidth: '160px' }}>
                       <span style={{ display: 'inline-block', width: '100%', borderBottom: '1px dashed var(--text-muted)', height: '24px' }}></span>
                     </td>
