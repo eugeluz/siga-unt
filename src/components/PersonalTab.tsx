@@ -46,7 +46,7 @@ export const PersonalTab: React.FC = () => {
   // Cargar licencias/faltas guardadas para la fecha seleccionada 'fechaPlanilla'
   useEffect(() => {
     if (!fechaPlanilla) return;
-    const q = query(collection(db, 'licencias_personal'));
+    const q = query(collection(db, 'licencias_personal'), limit(150));
     const unsub = onSnapshot(q, (snap) => {
       const dailyMap: Record<string, string> = {};
       snap.docs.forEach(docSnap => {
