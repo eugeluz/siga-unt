@@ -115,15 +115,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     setConsultaHistorial([]);
     try {
       const alumnoRef = doc(db, 'alumnos', consultaDni.trim());
-      const [alumnoSnap, snapInsc, snapCursos, snapFechas] = await Promise.all([
+      const [alumnoSnap, snapInsc] = await Promise.all([
         getDoc(alumnoRef),
-        getDocs(query(collection(db, 'inscripciones'), where('dni', '==', Number(consultaDni)))),
-        getDocs(collection(db, 'cursos')),
-        getDocs(collection(db, 'fechas'))
+        getDocs(query(collection(db, 'inscripciones'), where('dni', '==', Number(consultaDni))))
       ]);
       if (alumnoSnap.exists()) setConsultaAlumno(alumnoSnap.data());
-      const cursosList = snapCursos.docs.map(d => d.data());
-      const fechasList = snapFechas.docs.map(d => d.data());
+      const cursosList = cursos;
+      const fechasList = fechas;
       const fullHistory = snapInsc.docs.map(d => {
         const insc = d.data();
         const cursoObj = cursosList.find(c => c.curso === insc.curso);

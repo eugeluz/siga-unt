@@ -10,7 +10,9 @@ import {
   onSnapshot,
   getDocs,
   doc,
-  getDoc
+  getDoc,
+  query,
+  limit
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { LandingPage } from './components/LandingPage';
@@ -274,11 +276,13 @@ export default function App() {
       setFacultades(MOCK_FACULTADES);
     });
 
-    const unsubInscripciones = onSnapshot(collection(db, 'inscripciones'), (snap) => {
+    const qInsc = query(collection(db, 'inscripciones'), limit(300));
+    const unsubInscripciones = onSnapshot(qInsc, (snap) => {
       setInscripciones(snap.docs.map(d => d.data()));
     }, onSnapshotError);
 
-    const unsubAlumnos = onSnapshot(collection(db, 'alumnos'), (snap) => {
+    const qAlum = query(collection(db, 'alumnos'), limit(300));
+    const unsubAlumnos = onSnapshot(qAlum, (snap) => {
       const list = snap.docs.map(d => d.data());
       list.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || ''));
       setAlumnos(list);
@@ -468,6 +472,8 @@ export default function App() {
                     facultades={facultades}
                     activeTab={activeTab}
                     alumnos={alumnos}
+                    cursos={cursos}
+                    fechas={fechas}
                   />
                 )}
                 {activeTab === 'inscripciones' && (

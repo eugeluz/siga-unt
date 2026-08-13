@@ -11,6 +11,8 @@ interface StudentManagementProps {
   facultades: any[];
   activeTab: string;
   alumnos: any[];
+  cursos?: any[];
+  fechas?: any[];
 }
 
 /**
@@ -18,7 +20,7 @@ interface StudentManagementProps {
  * Employs SOLID design patterns (SRP), DRY (by utilizing FormField sub-components), 
  * and encapsulates local state workflows (such as importing and searching).
  */
-export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades, activeTab, alumnos }) => {
+export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades, activeTab, alumnos, cursos = [], fechas = [] }) => {
   const [currentSubTab, setCurrentSubTab] = useState<'inicio' | 'alta' | 'historial'>('inicio');
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [selectedStudentDni, setSelectedStudentDni] = useState<string | null>(null);
@@ -233,7 +235,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
           </div>
 
           {currentSubTab === 'historial' ? (
-            <StudentHistoryTab alumnos={alumnos} defaultDni={studentForm.dni} />
+            <StudentHistoryTab alumnos={alumnos} cursos={cursos} fechas={fechas} defaultDni={studentForm.dni} />
           ) : (
             <div>
 

@@ -6,10 +6,12 @@ import { FolderOpen, Search } from 'lucide-react';
 
 interface StudentHistoryTabProps {
   alumnos: any[];
+  cursos?: any[];
+  fechas?: any[];
   defaultDni?: string;
 }
 
-export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, defaultDni = '' }) => {
+export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, cursos = [], fechas = [], defaultDni = '' }) => {
   const [consultaDni, setConsultaDni] = useState(defaultDni);
   const [alumnoSelected, setAlumnoSelected] = useState<any>(null);
   const [historialAlumno, setHistorialAlumno] = useState<any[]>([]);
@@ -31,7 +33,12 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, d
     setHistorialAlumno([]);
 
     try {
-      const studentObj = alumnos.find(a => String(a.dni) === searchVal.trim());
+      let studentObj = alumnos.find(a => String(a.dni) === searchVal.trim());
+      if (!studentObj) {
+        // Fetch student directly by DNI (1 single read)
+        const snapStud = await getDoc(doc(db, 'alumnos', searchVal.trim()));
+        if (snapStud.exists()) studentObj = snapStud.data();
+      }
       if (studentObj) {
         setAlumnoSelected(studentObj);
       }
@@ -40,13 +47,17 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, d
       const snapInsc = await getDocs(qInsc);
       const listInsc = snapInsc.docs.map(d => d.data());
 
-      const [snapCursos, snapFechas] = await Promise.all([
-        getDocs(collection(db, 'cursos')),
-        getDocs(collection(db, 'fechas'))
-      ]);
+      let cursosList = cursos;
+      let fechasList = fechas;
 
-      const cursosList = snapCursos.docs.map(d => d.data());
-      const fechasList = snapFechas.docs.map(d => d.data());
+      if (cursosList.length === 0 || fechasList.length === 0) {
+        const [snapCursos, snapFechas] = await Promise.all([
+          getDocs(collection(db, 'cursos')),
+          getDocs(collection(db, 'fechas'))
+        ]);
+        if (cursosList.length === 0) cursosList = snapCursos.docs.map(d => d.data());
+        if (fechasList.length === 0) fechasList = snapFechas.docs.map(d => d.data());
+      }
 
       const fullHistory = listInsc.map(insc => {
         const cursoObj = cursosList.find(c => c.curso === insc.curso);

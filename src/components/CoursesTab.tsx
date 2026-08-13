@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, getDoc, doc, setDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, setDoc, deleteDoc, addDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { FormField } from './FormField';
 import { logAudit } from '../utils/audit';
@@ -135,10 +135,10 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   };
 
   const loadDatesForCourse = async (idCurso: number) => {
-    const snap = await getDocs(collection(db, 'fechas'));
+    const q = query(collection(db, 'fechas'), where('idCurso', '==', idCurso));
+    const snap = await getDocs(q);
     const dates = snap.docs
       .map(d => ({ id: d.id, ...(d.data() as any) }))
-      .filter((d: any) => d.idCurso === idCurso)
       .sort((a: any, b: any) => (a.inicio || '').localeCompare(b.inicio || ''));
     setCourseDates(dates);
   };
