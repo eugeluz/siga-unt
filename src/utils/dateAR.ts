@@ -1,5 +1,5 @@
 /**
- * Formatting helper for dates in Argentina short format (DD/MM/YYYY)
+ * Formatting helper for dates in dd-mm-yy format (e.g., 13-08-26)
  */
 export const formatDateAR = (dateStr: string | Date | null | undefined): string => {
   if (!dateStr) return '—';
@@ -13,13 +13,17 @@ export const formatDateAR = (dateStr: string | Date | null | undefined): string 
     const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
     if (isoMatch) {
       const [, yyyy, mm, dd] = isoMatch;
-      return `${dd.padStart(2, '0')}/${mm.padStart(2, '0')}/${yyyy}`;
+      const yy = yyyy.slice(-2);
+      return `${dd.padStart(2, '0')}-${mm.padStart(2, '0')}-${yy}`;
     }
     
-    // If already DD/MM/YYYY
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
-      const [dd, mm, yyyy] = trimmed.split('/');
-      return `${dd.padStart(2, '0')}/${mm.padStart(2, '0')}/${yyyy}`;
+    // If already DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY or DD-MM-YY
+    if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(trimmed)) {
+      const parts = trimmed.split(/[/-]/);
+      const dd = parts[0].padStart(2, '0');
+      const mm = parts[1].padStart(2, '0');
+      const yy = parts[2].slice(-2);
+      return `${dd}-${mm}-${yy}`;
     }
 
     // Try parsing Date object
@@ -27,8 +31,8 @@ export const formatDateAR = (dateStr: string | Date | null | undefined): string 
     if (!isNaN(d.getTime())) {
       const dd = String(d.getDate()).padStart(2, '0');
       const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      return `${dd}/${mm}/${yyyy}`;
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${dd}-${mm}-${yy}`;
     }
     
     return trimmed;
@@ -37,8 +41,8 @@ export const formatDateAR = (dateStr: string | Date | null | undefined): string 
   if (dateStr instanceof Date && !isNaN(dateStr.getTime())) {
     const dd = String(dateStr.getDate()).padStart(2, '0');
     const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
-    const yyyy = dateStr.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
+    const yy = String(dateStr.getFullYear()).slice(-2);
+    return `${dd}-${mm}-${yy}`;
   }
 
   return '—';

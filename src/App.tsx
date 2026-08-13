@@ -36,7 +36,8 @@ const PersonalTab = lazy(() => import('./components/PersonalTab').then(m => ({ d
 const PersonalAndUsersTab = lazy(() => import('./components/PersonalAndUsersTab').then(m => ({ default: m.PersonalAndUsersTab })));
 const DatesTab = lazy(() => import('./components/DatesTab').then(m => ({ default: m.DatesTab })));
 const UsersTab = lazy(() => import('./components/UsersTab').then(m => ({ default: m.UsersTab })));
-import { Home, Users, UserPlus, ClipboardCheck, History, Building2, BookOpen, LogOut, Key, Calendar, X, Sun, Moon, UserCog, Megaphone, FileText } from 'lucide-react';
+const ConfigTab = lazy(() => import('./components/ConfigTab').then(m => ({ default: m.ConfigTab })));
+import { Home, Users, UserPlus, ClipboardCheck, History, Building2, BookOpen, LogOut, Key, Calendar, X, Sun, Moon, UserCog, Megaphone, FileText, Settings } from 'lucide-react';
 import logoImg from './img/logoCentro.png';
 
 type Theme = 'dark' | 'light';
@@ -125,7 +126,7 @@ export default function App() {
   const [showLandingPreview, setShowLandingPreview] = useState(false);
 
   // App Tabs Navigation State
-  const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'reportes' | 'facultades' | 'cursos' | 'fechas' | 'personal' | 'usuarios' | 'noticias'>('inicio');
+  const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'reportes' | 'facultades' | 'cursos' | 'fechas' | 'personal' | 'usuarios' | 'noticias' | 'configuracion'>('inicio');
 
 
   // Usuario del panel (nombre, activo) para trazabilidad
@@ -276,13 +277,11 @@ export default function App() {
       setFacultades(MOCK_FACULTADES);
     });
 
-    const qInsc = query(collection(db, 'inscripciones'), limit(300));
-    const unsubInscripciones = onSnapshot(qInsc, (snap) => {
+    const unsubInscripciones = onSnapshot(collection(db, 'inscripciones'), (snap) => {
       setInscripciones(snap.docs.map(d => d.data()));
     }, onSnapshotError);
 
-    const qAlum = query(collection(db, 'alumnos'), limit(300));
-    const unsubAlumnos = onSnapshot(qAlum, (snap) => {
+    const unsubAlumnos = onSnapshot(collection(db, 'alumnos'), (snap) => {
       const list = snap.docs.map(d => d.data());
       list.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || ''));
       setAlumnos(list);
@@ -443,6 +442,12 @@ export default function App() {
               <span className="tab-icon"><Users color="#259AD6" size={18} /></span>
               <span className="tab-label">Personal</span>
             </button>
+            {(user?.email || '').toLowerCase() === 'eugenia.gonzalez@webmail.unt.edu.ar' && (
+              <button className={`tab-btn ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => setActiveTab('configuracion')}>
+                <span className="tab-icon"><Settings color="#8B5CF6" size={18} /></span>
+                <span className="tab-label">Configuración</span>
+              </button>
+            )}
           </nav>
 
           {/* Content Area wrapper */}
@@ -505,6 +510,9 @@ export default function App() {
                 )}
                 {(activeTab === 'personal' || activeTab === 'usuarios') && (
                   <PersonalAndUsersTab />
+                )}
+                {activeTab === 'configuracion' && (
+                  <ConfigTab currentUserEmail={user?.email} />
                 )}
               </Suspense>
             </main>

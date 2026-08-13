@@ -9,14 +9,15 @@ import { excelDateToJSDate } from '../utils/date';
 interface ImportModalProps {
   onClose: () => void;
   onImportComplete: () => void;
+  defaultType?: 'alumnos' | 'inscripciones' | 'cursos' | 'fechas';
 }
 
 /**
  * ImportModal component that handles reading local Excel/CSV files, parsing them,
  * and loading them into Firestore in batch operations.
  */
-export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportComplete }) => {
-  const [importType, setImportType] = useState<'alumnos' | 'inscripciones'>('alumnos');
+export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportComplete, defaultType = 'alumnos' }) => {
+  const [importType, setImportType] = useState<'alumnos' | 'inscripciones' | 'cursos' | 'fechas'>(defaultType);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
   const [isImporting, setIsImporting] = useState(false);
@@ -114,7 +115,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           setIfPresent(['interno'], 'interno', (v) => String(v).trim());
 
           await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
-        } else {
+        } else if (importType === 'inscripciones') {
           const insData = {
             dni: dniVal,
             apellido: String(rowLower['apellido'] || '').toUpperCase().trim(),
@@ -144,6 +145,30 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             }
           } else {
             await addDoc(collection(db, 'inscripciones'), insData);
+          }
+        } else if (importType === 'cursos') {
+          const idCursoVal = Number(rowLower['idcurso'] || rowLower['id'] || rowLower['id_curso'] || count);
+          const cursoData: any = {
+            idCurso: idCursoVal,
+            curso: String(rowLower['curso'] || rowLower['nombre'] || '').trim(),
+            programa: String(rowLower['programa'] || '').trim(),
+            cargaHoraria: String(rowLower['cargahoraria'] || rowLower['carga horaria'] || rowLower['horas'] || '').trim(),
+            resolucion: String(rowLower['resolucion'] || rowLower['resolución'] || '').trim(),
+            showOnLanding: true
+          };
+          if (cursoData.curso) {
+            await setDoc(doc(db, 'cursos', String(idCursoVal)), cursoData, { merge: true });
+          }
+        } else if (importType === 'fechas') {
+          const idCursoVal = Number(rowLower['idcurso'] || rowLower['id'] || rowLower['id_curso'] || 0);
+          const fechaData = {
+            idCurso: idCursoVal,
+            curso: String(rowLower['curso'] || '').trim(),
+            inicio: excelDateToJSDate(rowLower['inicio'] || rowLower['fechainicio'] || rowLower['fecha inicio'] || ''),
+            certificado: excelDateToJSDate(rowLower['certificado'] || rowLower['fechacertificado'] || rowLower['fecha certificado'] || '')
+          };
+          if (fechaData.inicio) {
+            await addDoc(collection(db, 'fechas'), fechaData);
           }
         }
 
@@ -191,6 +216,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           >
             <option value="alumnos">Alumnos (Alta/Modificación)</option>
             <option value="inscripciones">Inscripciones a Cursos</option>
+            <option value="cursos">Cursos (Catálogo)</option>
+            <option value="fechas">Fechas de Cursos</option>
           </select>
         </div>
 

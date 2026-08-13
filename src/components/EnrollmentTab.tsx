@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getDoc, doc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { getDoc, doc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle } from 'lucide-react';
+import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { excelDateToJSDate } from '../utils/date';
 
@@ -338,12 +338,46 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
     }
   };
 
+  const handleClearAllInscripciones = async () => {
+    const firstConfirm = confirm(
+      '⚠️ ¿ATENCIÓN: Está seguro de que desea eliminar TODAS las inscripciones a cursos de la base de datos?\n\nEsta acción eliminará los registros de inscriptos a todos los cursos.'
+    );
+    if (!firstConfirm) return;
+
+    const secondConfirm = confirm('Confirmación final: ¿Eliminar TODAS las inscripciones a cursos?');
+    if (!secondConfirm) return;
+
+    try {
+      const snap = await getDocs(collection(db, 'inscripciones'));
+      let batch = writeBatch(db);
+      let count = 0;
+
+      for (const d of snap.docs) {
+        batch.delete(d.ref);
+        count++;
+        if (count % 400 === 0) {
+          await batch.commit();
+          batch = writeBatch(db);
+        }
+      }
+      if (count % 400 !== 0) {
+        await batch.commit();
+      }
+
+      await logAudit('Vaciamiento de inscripciones', `Se eliminaron ${count} inscripciones de la base de datos.`);
+      alert(`Se han eliminado los ${count} registros de inscripciones a cursos con éxito.`);
+    } catch (err) {
+      console.error('Error al vaciar inscripciones:', err);
+      alert('Error al eliminar las inscripciones.');
+    }
+  };
+
   return (
     <div>
       <h2 className="section-title">Inscripción a Cursos</h2>
 
       {/* Tab selector */}
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', borderBottom: '1px solid var(--border-card)', paddingBottom: '10px' }}>
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', borderBottom: '1px solid var(--border-card)', paddingBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => { if (!isImportingLote) setEnrollMode('individual'); }}
@@ -378,7 +412,6 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
             gap: '6px'
           }}
         >
-          <FileSpreadsheet size={16} /> Inscripción por Lotes (Excel/CSV)
         </button>
       </div>
 

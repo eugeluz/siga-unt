@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
+import { logAudit } from '../utils/audit';
 import { FormField } from './FormField';
 import { ImportModal } from './ImportModal';
-import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ArrowLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { downloadExcel } from '../utils/excel';
 import { StudentHistoryTab } from './StudentHistoryTab';
 
@@ -186,6 +187,64 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     }
   };
 
+  const handleDeleteSingleStudent = async () => {
+    if (!studentForm.dni) return;
+    const name = `${studentForm.apellido}, ${studentForm.nombre}`.trim();
+    if (!confirm(`¿Eliminar al alumno DNI ${studentForm.dni} (${name}) de la base de datos?`)) return;
+
+    try {
+      await deleteDoc(doc(db, 'alumnos', studentForm.dni.trim()));
+      await logAudit('Alumno eliminado', `DNI: ${studentForm.dni} — ${name}`);
+      alert('Alumno eliminado con éxito.');
+      handleNewStudent();
+      setSearchFeedback(null);
+    } catch (err) {
+      console.error('Error al eliminar alumno:', err);
+      alert('Error al eliminar el alumno.');
+    }
+  };
+
+  const handleClearAllStudents = async () => {
+    if (alumnos.length === 0) {
+      alert('No hay alumnos registrados para eliminar.');
+      return;
+    }
+
+    const firstConfirm = confirm(
+      `⚠️ ¿ATENCIÓN: Está seguro de que desea eliminar TODOS los registros de alumnos? (${alumnos.length} alumnos registrados)\n\nEsta acción eliminará todos los alumnos del padrón.`
+    );
+    if (!firstConfirm) return;
+
+    const secondConfirm = confirm('Confirmación final: ¿Eliminar TODOS los registros de alumnos?');
+    if (!secondConfirm) return;
+
+    try {
+      const snap = await getDocs(collection(db, 'alumnos'));
+      let batch = writeBatch(db);
+      let count = 0;
+
+      for (const d of snap.docs) {
+        batch.delete(d.ref);
+        count++;
+        if (count % 400 === 0) {
+          await batch.commit();
+          batch = writeBatch(db);
+        }
+      }
+      if (count % 400 !== 0) {
+        await batch.commit();
+      }
+
+      await logAudit('Vaciamiento de alumnos', `Se eliminaron ${count} alumnos de la base de datos.`);
+      alert(`Se han eliminado los ${count} registros de alumnos con éxito.`);
+      handleNewStudent();
+      setSearchFeedback(null);
+    } catch (err) {
+      console.error('Error al vaciar registros de alumnos:', err);
+      alert('Error al eliminar los registros de alumnos.');
+    }
+  };
+
   return (
     <div>
       {currentSubTab !== 'inicio' ? (
@@ -320,12 +379,9 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     </div>
                   )}
 
-                  {/* Botones de acción: Nuevo Alumno, Importar, Exportar */}
+                  {/* Botones de acción: Nuevo Alumno, Exportar */}
                   <button className="btn-primary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => { handleNewStudent(); setSearchFeedback(null); }}>
                     <Plus size={15} /> Nuevo Alumno
-                  </button>
-                  <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => setShowImportModal(true)}>
-                    <Download size={15} /> Importar
                   </button>
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
                     downloadExcel(
@@ -448,11 +504,16 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     onChange={e => setStudentForm({ ...studentForm, interno: e.target.value })}
                   />
                 </div>
-                <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                <div style={{ marginTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {alumnoEncontrado ? (
-                    <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('actualizar')}>
-                      <Save size={16} /> Modificar Datos
-                    </button>
+                    <>
+                      <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('actualizar')}>
+                        <Save size={16} /> Modificar Datos
+                      </button>
+                      <button className="btn-danger" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={handleDeleteSingleStudent}>
+                        <Trash2 size={16} /> Eliminar Alumno
+                      </button>
+                    </>
                   ) : (
                     <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => saveStudent('alta')}>
                       <UserPlus size={16} /> Registrar Alumno (Alta)
