@@ -21,6 +21,10 @@ export const UsersTab: React.FC = () => {
   const [form, setForm] = useState({ legajo: '', nombre: '', email: '', categoria: '', password: '' });
   const [creating, setCreating] = useState(false);
 
+  // Audit log pagination state
+  const [currentAuditPage, setCurrentAuditPage] = useState(1);
+  const auditItemsPerPage = 10;
+
   // User editing modal state
   const [editingUser, setEditingUser] = useState<UsuarioDoc | null>(null);
   const [editForm, setEditForm] = useState({ legajo: '', nombre: '', email: '', categoria: '' });
@@ -40,9 +44,10 @@ export const UsersTab: React.FC = () => {
 
   const loadAuditoria = async () => {
     try {
-      const q = query(collection(db, 'auditoria'), orderBy('fecha', 'desc'), limit(200));
+      const q = query(collection(db, 'auditoria'), orderBy('fecha', 'desc'), limit(500));
       const snap = await getDocs(q);
       setAuditoria(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setCurrentAuditPage(1);
     } catch (err) {
       console.error('Error leyendo auditoría:', err);
       alert('Error al cargar la auditoría.');
@@ -395,37 +400,80 @@ export const UsersTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="listbox-wrapper">
-        <table className="listbox-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Usuario</th>
-              <th>Acción</th>
-              <th>Detalle</th>
-            </tr>
-          </thead>
-          <tbody>
-            {auditoria.map(item => (
-              <tr key={item.id}>
-                <td data-label="Fecha" style={{ whiteSpace: 'nowrap' }}>{formatFecha(item.fecha)}</td>
-                <td data-label="Usuario">{item.nombre || item.usuario}</td>
-                <td data-label="Acción">
-                  <span className="badge" style={{ background: 'var(--primary-alpha-15)', color: 'var(--accent)' }}>
-                    {item.accion}
-                  </span>
-                </td>
-                <td data-label="Detalle">{item.detalle}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {auditoria.length === 0 && (
-          <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Sin actividad registrada todavía.
-          </p>
-        )}
-      </div>
+      {(() => {
+        const totalAuditPages = Math.ceil(auditoria.length / auditItemsPerPage);
+        const paginatedAuditoria = auditoria.slice(
+          (currentAuditPage - 1) * auditItemsPerPage,
+          currentAuditPage * auditItemsPerPage
+        );
+
+        return (
+          <>
+            <div className="listbox-wrapper">
+              <table className="listbox-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedAuditoria.map(item => (
+                    <tr key={item.id}>
+                      <td data-label="Fecha" style={{ whiteSpace: 'nowrap' }}>{formatFecha(item.fecha)}</td>
+                      <td data-label="Usuario">{item.nombre || item.usuario}</td>
+                      <td data-label="Acción">
+                        <span className="badge" style={{ background: 'var(--primary-alpha-15)', color: 'var(--accent)' }}>
+                          {item.accion}
+                        </span>
+                      </td>
+                      <td data-label="Detalle">{item.detalle}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {auditoria.length === 0 && (
+                <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Sin actividad registrada todavía.
+                </p>
+              )}
+            </div>
+
+            {auditoria.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '15px' }}>
+                {totalAuditPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem', margin: 0, height: '36px', display: 'inline-flex', alignItems: 'center' }}
+                      disabled={currentAuditPage === 1}
+                      onClick={() => setCurrentAuditPage(prev => Math.max(prev - 1, 1))}
+                    >
+                      Anterior
+                    </button>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      Página {currentAuditPage} de {totalAuditPages}
+                    </span>
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem', margin: 0, height: '36px', display: 'inline-flex', alignItems: 'center' }}
+                      disabled={currentAuditPage === totalAuditPages}
+                      onClick={() => setCurrentAuditPage(prev => Math.min(prev + 1, totalAuditPages))}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                  Mostrando {auditoria.length > 0 ? (currentAuditPage - 1) * auditItemsPerPage + 1 : 0} al {Math.min(currentAuditPage * auditItemsPerPage, auditoria.length)} de {auditoria.length} actividades registradas.
+                </span>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };
