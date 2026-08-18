@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   User
@@ -110,6 +111,8 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [resetSentMsg, setResetSentMsg] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Theme (dark / light)
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
@@ -177,10 +180,34 @@ export default function App() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+    setResetSentMsg('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : 'Error en las credenciales');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setAuthError('Por favor, ingrese su correo electrónico para solicitar el restablecimiento.');
+      return;
+    }
+    setAuthError('');
+    setResetSentMsg('');
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSentMsg(`Se envió un enlace para restablecer la contraseña a: ${email.trim()}`);
+    } catch (err: any) {
+      console.error('Error enviando correo de recuperación:', err);
+      if (err?.code === 'auth/user-not-found') {
+        setAuthError('No existe una cuenta registrada con ese correo electrónico.');
+      } else {
+        setAuthError('Error al enviar el enlace de recuperación. Verifique el correo e intente nuevamente.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -336,7 +363,12 @@ export default function App() {
               </p>
 
               {authError && (
-                <div className="error-message" style={{ padding: '10px 12px', fontSize: '0.8rem' }}>{authError}</div>
+                <div className="error-message" style={{ padding: '10px 12px', fontSize: '0.8rem', marginBottom: '12px' }}>{authError}</div>
+              )}
+              {resetSentMsg && (
+                <div style={{ padding: '10px 12px', fontSize: '0.8rem', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10B981', borderRadius: '6px', marginBottom: '12px' }}>
+                  ✓ {resetSentMsg}
+                </div>
               )}
 
               <form onSubmit={handleLogin}>
@@ -348,20 +380,39 @@ export default function App() {
                     className="form-control"
                     placeholder="ejemplo@correo.com"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => { setEmail(e.target.value); setAuthError(''); setResetSentMsg(''); }}
                     required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="password">Contraseña</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label htmlFor="password" style={{ margin: 0 }}>Contraseña</label>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={resetLoading}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--primary, #259AD6)',
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                        fontWeight: 500
+                      }}
+                    >
+                      {resetLoading ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
+                    </button>
+                  </div>
                   <input
                     id="password"
                     type="password"
                     className="form-control"
                     placeholder="••••••••"
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => { setPassword(e.target.value); setAuthError(''); }}
                     required
                   />
                 </div>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, setDoc, doc, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { UserPlus, UserCog, ShieldCheck, ShieldOff, RefreshCw, History, Pencil, X, Save } from 'lucide-react';
+import { UserPlus, UserCog, ShieldCheck, ShieldOff, RefreshCw, History, Pencil, X, Save, Key } from 'lucide-react';
 
 interface UsuarioDoc {
   id: string;
@@ -92,6 +92,27 @@ export const UsersTab: React.FC = () => {
       }
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleResetPassword = async (email: string, nombre: string) => {
+    if (!email) {
+      alert('El usuario no posee un correo electrónico válido.');
+      return;
+    }
+    if (!confirm(`¿Enviar correo de restablecimiento de contraseña a ${nombre} (${email})?`)) return;
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      await logAudit('Restablecimiento de clave enviado', `Se envió enlace a ${nombre} (${email})`);
+      alert(`Se envió exitosamente el correo para restablecer la contraseña a: ${email}`);
+    } catch (err: any) {
+      console.error('Error al enviar enlace de contraseña:', err);
+      if (err?.code === 'auth/user-not-found') {
+        alert('No se encontró una cuenta en el servidor de autenticación con ese email.');
+      } else {
+        alert('Error al procesar el restablecimiento: ' + (err?.message || 'intente nuevamente.'));
+      }
     }
   };
 
@@ -388,11 +409,20 @@ export const UsersTab: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '26px', borderTop: '1px solid var(--border-color, rgba(255,255,255,0.1))', paddingTop: '16px' }}>
-              <button className="btn-secondary" onClick={() => setEditingUser(null)} style={{ padding: '8px 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border-color, rgba(255,255,255,0.1))', paddingTop: '16px' }}>
+              <button
+                className="btn-secondary"
+                onClick={() => setEditingUser(null)}
+                style={{ margin: 0, height: '38px', padding: '0 16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', width: 'auto', flexShrink: 0 }}
+              >
                 Cancelar
               </button>
-              <button className="btn-primary" onClick={handleSaveEdit} disabled={savingEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px' }}>
+              <button
+                className="btn-primary"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                style={{ margin: 0, height: '38px', padding: '0 18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', width: 'auto', flexShrink: 0 }}
+              >
                 <Save size={16} /> {savingEdit ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
