@@ -229,20 +229,20 @@ export const PersonalTab: React.FC = () => {
     // 196 es el margen derecho estándar en un doc A4 de jsPDF (con 14 de margen izquierdo)
     doc.text(`Fecha: ${formatDateAR(fechaPlanilla)}`, 196, 30, { align: 'right' });
 
-    // Preparar filas de la tabla con todo el personal (personalList ya viene ordenado por nombre/apellido)
+    // Preparar filas de la tabla con todo el personal (sin incluir motivos de falta en el PDF impreso)
     const bodyRows = personalList.map((p, idx) => {
       const isTurnoTarde = !!turnoTarde[p.id];
       return [
         idx + 1,
         p.nombre || p.email,
         p.legajo,
-        isTurnoTarde ? 'TURNO TARDE' : '', // Si está en turno tarde poner TURNO TARDE, si no vacío
+        isTurnoTarde ? 'TURNO TARDE' : '', // Espacio libre para firma (sin motivo de falta)
       ];
     });
 
     autoTable(doc, {
       startY: 42,
-      head: [['Nro.', 'Apellido y Nombre', 'Legajo', 'Firma / Observación']],
+      head: [['Nro.', 'Apellido y Nombre', 'Legajo', 'Firma / Asistencia']],
       body: bodyRows,
       theme: 'grid',
       headStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9 },

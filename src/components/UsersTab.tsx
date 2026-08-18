@@ -150,73 +150,86 @@ export const UsersTab: React.FC = () => {
 
   return (
     <div>
-      <h2 className="section-title">
-        <UserCog size={22} /> Usuarios y Auditoría
-      </h2>
+      <h3 className="section-title">
+        <UserCog size={22} /> Alta de Usuarios
+      </h3>
 
       <div className="details-box" style={{ marginBottom: '25px' }}>
-        <h3 style={{ margin: '0 0 15px', fontSize: '1.05rem' }}>Crear Usuario</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontWeight: 600 }}>Legajo</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '12px' }}>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 120px' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.8rem' }}>Legajo</label>
             <input
               type="text"
               className="form-control"
               placeholder="Ej: 12345"
               value={form.legajo}
               onChange={e => setForm({ ...form, legajo: e.target.value })}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontWeight: 600 }}>Nombre y Apellido *</label>
+          <div className="form-group" style={{ margin: 0, flex: '2 1 170px' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.8rem' }}>Nombre y Apellido *</label>
             <input
               type="text"
               className="form-control"
               placeholder="Ej: María González"
               value={form.nombre}
               onChange={e => setForm({ ...form, nombre: e.target.value })}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontWeight: 600 }}>Email *</label>
+          <div className="form-group" style={{ margin: 0, flex: '2 1 170px' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.8rem' }}>Email *</label>
             <input
               type="email"
               className="form-control"
               placeholder="Ej: maria@unt.edu.ar"
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontWeight: 600 }}>Categoría</label>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 140px' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.8rem' }}>Categoría</label>
             <input
               type="text"
               className="form-control"
               placeholder="Ej: Nodocente / Cat. 4"
               value={form.categoria}
               onChange={e => setForm({ ...form, categoria: e.target.value })}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontWeight: 600 }}>Contraseña *</label>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 140px' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.8rem' }}>Contraseña *</label>
             <input
               type="password"
               className="form-control"
               placeholder="Mínimo 6 caracteres"
               value={form.password}
               onChange={e => setForm({ ...form, password: e.target.value })}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
-        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
             className="btn-primary"
-            style={{ margin: 0, height: '44px', display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+            style={{
+              margin: 0,
+              height: '38px',
+              padding: '0 14px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+              fontSize: '0.85rem',
+              flexShrink: 0
+            }}
             onClick={handleCreate}
             disabled={creating}
           >
-            <UserPlus size={16} /> {creating ? 'Creando...' : 'Crear Usuario'}
+            <UserPlus size={15} /> {creating ? 'Creando...' : 'Crear Usuario'}
           </button>
         </div>
       </div>
