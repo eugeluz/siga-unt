@@ -92,14 +92,29 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   };
 
   const handleDelete = async (idCurso: number) => {
-    const cursoName = courseList.find(c => c.idCurso === idCurso)?.curso || '';
+    const courseObj = courseList.find(c => Number(c.idCurso) === Number(idCurso));
+    const cursoName = courseObj?.curso || '';
     if (!confirm(`¿Eliminar el curso "${cursoName}"?`)) return;
     try {
-      await deleteDoc(doc(db, 'cursos', String(idCurso)));
+      // 1. Delete by docId if available
+      if (courseObj?.docId) {
+        await deleteDoc(doc(db, 'cursos', courseObj.docId));
+      }
+      // 2. Delete by String(idCurso) key as fallback
+      await deleteDoc(doc(db, 'cursos', String(idCurso))).catch(() => {});
+
+      // 3. Delete any other matching documents in Firestore with this idCurso
+      const q = query(collection(db, 'cursos'), where('idCurso', '==', Number(idCurso)));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, 'cursos', d.id));
+      }
+
       await logAudit('Curso eliminado', `${cursoName} (ID ${idCurso})`);
       alert('Curso eliminado con éxito.');
+      resetForm();
     } catch (err) {
-      console.error(err);
+      console.error('Error al eliminar el curso:', err);
       alert('Error al eliminar el curso.');
     }
   };

@@ -181,30 +181,49 @@ export default function App() {
     e.preventDefault();
     setAuthError('');
     setResetSentMsg('');
+    const cleanEmail = email.trim().toLowerCase();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: unknown) {
-      setAuthError(err instanceof Error ? err.message : 'Error en las credenciales');
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
+    } catch (err: any) {
+      console.error('Error de login:', err);
+      const code = err?.code || '';
+      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+        setAuthError('Correo o contraseña incorrectos. Si no recuerda su clave, haga clic en "¿Olvidaste tu contraseña?" abajo.');
+      } else if (code === 'auth/user-disabled') {
+        setAuthError('Esta cuenta ha sido deshabilitada. Contacte al administrador.');
+      } else if (code === 'auth/too-many-requests') {
+        setAuthError('Demasiados intentos fallidos. Por seguridad, intente nuevamente en unos minutos o restablezca la contraseña.');
+      } else if (code === 'auth/invalid-email') {
+        setAuthError('El formato del correo electrónico no es válido.');
+      } else {
+        setAuthError('Error en las credenciales o usuario no registrado.');
+      }
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setAuthError('Por favor, ingrese su correo electrónico para solicitar el restablecimiento.');
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setAuthError('Por favor, ingrese su correo electrónico en la casilla de arriba.');
       return;
     }
     setAuthError('');
     setResetSentMsg('');
     setResetLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email.trim());
-      setResetSentMsg(`Se envió un enlace para restablecer la contraseña a: ${email.trim()}`);
+      await sendPasswordResetEmail(auth, cleanEmail);
+      setResetSentMsg(`Se envió el enlace para restablecer la contraseña a: ${cleanEmail}. (Si no lo ve en la Bandeja de entrada, revise la carpeta SPAM / Correo no deseado).`);
     } catch (err: any) {
       console.error('Error enviando correo de recuperación:', err);
-      if (err?.code === 'auth/user-not-found') {
-        setAuthError('No existe una cuenta registrada con ese correo electrónico.');
+      const code = err?.code || '';
+      if (code === 'auth/user-not-found') {
+        setAuthError(`No existe ninguna cuenta registrada con el correo "${cleanEmail}".`);
+      } else if (code === 'auth/invalid-email') {
+        setAuthError('El correo electrónico ingresado no es válido.');
+      } else if (code === 'auth/too-many-requests') {
+        setAuthError('Se han realizado demasiados intentos. Por favor aguarde unos minutos e intente nuevamente.');
       } else {
-        setAuthError('Error al enviar el enlace de recuperación. Verifique el correo e intente nuevamente.');
+        setAuthError(`Error al enviar correo (${code || err?.message || 'Error desconocido'}). Verifique si el correo existe en el sistema.`);
       }
     } finally {
       setResetLoading(false);
@@ -225,7 +244,7 @@ export default function App() {
           getDocs(collection(db, 'cursos')),
           getDocs(collection(db, 'fechas')),
         ]);
-        const loadedCursos = cs.docs.map(d => d.data());
+        const loadedCursos = cs.docs.map(d => ({ docId: d.id, ...d.data() }));
         const loadedFechas = fs.docs.map(d => ({ id: d.id, ...d.data() }));
         if (loadedCursos.length === 0) {
           console.log('Using mock courses for public landing');
@@ -254,7 +273,7 @@ export default function App() {
     }
 
     const unsubCursos = onSnapshot(collection(db, 'cursos'), (snap) => {
-      const data = snap.docs.map(d => d.data());
+      const data = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
       if (data.length === 0) {
         setCursos(MOCK_CURSOS);
         setDbEmptyWarning(false);
