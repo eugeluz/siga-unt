@@ -49,44 +49,8 @@ function getInitialTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
-const MOCK_CURSOS = [
-  {
-    idCurso: 2,
-    curso: 'Excel Inicial',
-    programa: 'Herramientas de Planilla de Cálculo para principiantes.',
-    cargaHoraria: '20 hs',
-    showOnLanding: true
-  },
-  {
-    idCurso: 3,
-    curso: 'Excel Avanzado',
-    programa: 'Análisis de datos, macros y funciones avanzadas.',
-    cargaHoraria: '24 hs',
-    showOnLanding: true
-  },
-  {
-    idCurso: 22,
-    curso: 'Ley de Procedimientos Administrativos',
-    programa: 'Marco legal y normativas administrativas de la UNT.',
-    cargaHoraria: '30 hs',
-    showOnLanding: true
-  },
-  {
-    idCurso: 26,
-    curso: 'Redacción de Actos Administrativos',
-    programa: 'Técnicas de redacción legislativa y formal para la administración.',
-    cargaHoraria: '15 hs',
-    showOnLanding: true
-  }
-];
-
-const MOCK_FECHAS = [
-  { idCurso: 2, inicio: '2026-07-15' },
-  { idCurso: 2, inicio: '2026-08-05' },
-  { idCurso: 3, inicio: '2026-07-20' },
-  { idCurso: 22, inicio: '2026-08-10' },
-  { idCurso: 26, inicio: '2026-07-25' }
-];
+const MOCK_CURSOS: any[] = [];
+const MOCK_FECHAS: any[] = [];
 
 const MOCK_DOCENTES = [
   { idDocente: 1, apellido: 'PEREZ', nombre: 'JUAN', email: 'juanperez@unt.edu.ar', celular: '154123456' },
@@ -246,18 +210,12 @@ export default function App() {
         ]);
         const loadedCursos = cs.docs.map(d => ({ docId: d.id, ...d.data() }));
         const loadedFechas = fs.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (loadedCursos.length === 0) {
-          console.log('Using mock courses for public landing');
-          setCursos(MOCK_CURSOS);
-          setFechas(MOCK_FECHAS);
-        } else {
-          setCursos(loadedCursos);
-          setFechas(loadedFechas);
-        }
+        setCursos(loadedCursos);
+        setFechas(loadedFechas);
       } catch (err) {
-        console.error('Error fetching public data, falling back to mock courses:', err);
-        setCursos(MOCK_CURSOS);
-        setFechas(MOCK_FECHAS);
+        console.error('Error fetching public data:', err);
+        setCursos([]);
+        setFechas([]);
       }
     };
     fetchPublic();
@@ -274,16 +232,11 @@ export default function App() {
 
     const unsubCursos = onSnapshot(collection(db, 'cursos'), (snap) => {
       const data = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
-      if (data.length === 0) {
-        setCursos(MOCK_CURSOS);
-        setDbEmptyWarning(false);
-      } else {
-        setCursos(data);
-        setDbEmptyWarning(false);
-      }
+      setCursos(data);
+      setDbEmptyWarning(false);
     }, (err) => {
-      console.error("Error listening to cursos, using mock:", err);
-      setCursos(MOCK_CURSOS);
+      console.error("Error listening to cursos:", err);
+      setCursos([]);
       setDbEmptyWarning(false);
     });
 
