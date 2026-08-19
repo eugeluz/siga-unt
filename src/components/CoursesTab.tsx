@@ -3,6 +3,7 @@ import { collection, getDocs, getDoc, doc, setDoc, deleteDoc, addDoc, query, whe
 import { db } from '../firebase';
 import { FormField } from './FormField';
 import { logAudit } from '../utils/audit';
+import { formatDateAR } from '../utils/dateAR';
 import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download } from 'lucide-react';
 
 interface CoursesTabProps {
@@ -528,8 +529,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                     <tbody>
                       {courseDates.map((d, i) => (
                         <tr key={d.id || i}>
-                          <td data-label="Inicio">{d.inicio}</td>
-                          <td data-label="Certificado">{d.certificado || '—'}</td>
+                          <td data-label="Inicio">{formatDateAR(d.inicio)}</td>
+                          <td data-label="Certificado">{formatDateAR(d.certificado)}</td>
                           <td data-label="Acción">
                             <button
                               className="btn-danger"

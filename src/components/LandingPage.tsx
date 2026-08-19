@@ -226,13 +226,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     if (!fechaNac) missing.push('Fecha de Nacimiento');
     if (!telPart.trim()) missing.push('Teléfono Particular');
     if (!email.trim()) missing.push('Email');
-    if (!titulo.trim()) missing.push('Título');
     if (!unidadAcademica.trim()) missing.push('Unidad Académica / Dependencia');
     if (!area.trim()) missing.push('Área');
     if (!cargoFuncion) missing.push('Cargo / Función');
     if (!telLab.trim()) missing.push('Teléfono Laboral');
     if (!interno.trim()) missing.push('Interno');
-    if (medios.length === 0) missing.push('¿Cómo se enteró del curso?');
     if (!cursoId) missing.push('Curso');
     if (!fechaId) missing.push('Fecha de Inicio');
 
@@ -737,24 +735,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                   border: '1px solid var(--border-card)',
                 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 600 }}>
-                      DNI *
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+                      <label style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        DNI <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span>
+                      </label>
                       <input type="number" className="form-control" placeholder="Ingrese su DNI"
                         value={dni} onChange={e => setDni(e.target.value)}
-                        style={{ flex: 1, fontSize: '0.9rem' }} />
+                        style={{ flex: 1, fontSize: '0.9rem', height: '38px' }} />
                       <button onClick={handleBuscarDni} disabled={buscando || !dni.trim()} style={{
-                        display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px',
+                        display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '38px',
                         background: 'rgba(37,154,214,0.15)', border: '1px solid rgba(37,154,214,0.3)',
                         borderRadius: '8px', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600,
-                        fontSize: '0.85rem', whiteSpace: 'nowrap',
+                        fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0,
                       }}>
                         <Search size={14} /> {buscando ? 'Buscando...' : 'Buscar'}
                       </button>
                     </div>
                     {dniEncontrado && (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '4px' }}>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '6px', marginBottom: 0 }}>
                         Datos encontrados. Puede modificar si es necesario.
                       </p>
                     )}
@@ -767,33 +765,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                 </h4>
                 <div className="form-grid-2col">
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Apellido *</label>
+                    <label>Apellido <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={apellido} onChange={e => setApellido(e.target.value.toUpperCase())} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Nombre *</label>
+                    <label>Nombre <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Fecha de Nacimiento *</label>
+                    <label>Fecha de Nacimiento <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="date" className="form-control" value={fechaNac} onChange={e => setFechaNac(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Teléfono Particular *</label>
+                    <label>Teléfono Particular <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={telPart} onChange={e => setTelPart(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Email *</label>
+                    <label>Email <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Nivel de Estudio *</label>
+                    <label>Nivel de Estudio <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <select className="form-control" value={nivelEstudio} onChange={e => setNivelEstudio(e.target.value)}>
                       {ESTUDIOS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Título *</label>
+                    <label>Título</label>
                     <input type="text" className="form-control" value={titulo} onChange={e => setTitulo(e.target.value)} />
                   </div>
                 </div>
@@ -804,15 +802,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                 </h4>
                 <div className="form-grid-2col">
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Unidad Académica / Dependencia *</label>
+                    <label>Unidad Académica / Dependencia <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={unidadAcademica} onChange={e => setUnidadAcademica(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Área *</label>
+                    <label>Área <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={area} onChange={e => setArea(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Cargo / Función *</label>
+                    <label>Cargo / Función <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <select className="form-control" value={cargoFuncion} onChange={e => setCargoFuncion(e.target.value)}>
                       {CARGOS.map(c => <option key={c} value={c}>{c || '-- Sin cargo --'}</option>)}
                     </select>
@@ -822,16 +820,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                     <input type="number" className="form-control" value={personas} onChange={e => setPersonas(Number(e.target.value))} min={0} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Teléfono Laboral *</label>
+                    <label>Teléfono Laboral <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={telLab} onChange={e => setTelLab(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Interno *</label>
+                    <label>Interno <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={interno} onChange={e => setInterno(e.target.value)} />
                   </div>
                 </div>
 
-                {/* Medios */}
+                {/* Medios - Oculto temporalmente (comentado) */}
+                {/*
                 <h4 style={{ color: 'var(--accent)', fontSize: '0.9rem', marginBottom: '12px', fontWeight: 600 }}>
                   ¿Cómo se enteró del curso?
                 </h4>
@@ -851,6 +850,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                     </label>
                   ))}
                 </div>
+                */}
 
                 {/* Course Selection */}
                 <h4 style={{ color: 'var(--accent)', fontSize: '0.9rem', marginBottom: '12px', fontWeight: 600 }}>
@@ -871,7 +871,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                         </select>
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>Seleccionar Curso *</label>
+                        <label>Seleccionar Curso <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                         <select className="form-control" value={cursoId} onChange={e => handleCursoChange(e.target.value)}>
                           <option value="">-- Seleccione un Curso --</option>
                           {cursosFiltrados.map(c => (
@@ -880,11 +880,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                         </select>
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>Fecha de Inicio *</label>
+                        <label>Fecha de Inicio <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                         <select className="form-control" value={fechaId} onChange={e => setFechaId(e.target.value)} disabled={!cursoId}>
                           <option value="">-- Seleccione Fecha --</option>
                           {fechasDelCurso.map((f, i) => (
-                            <option key={i} value={f.inicio}>{f.inicio}</option>
+                            <option key={i} value={f.inicio}>{formatDateAR(f.inicio)}</option>
                           ))}
                         </select>
                       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, deleteDoc, writeBatch, addDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, deleteDoc, writeBatch, addDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { auth } from '../firebase';
 import { logAudit } from '../utils/audit';
@@ -248,6 +248,59 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     }
   };
 
+  // Exportar Planilla formato Certificados (para Google Drive script)
+  // Columnas: email | apellido | nombre | dni | curso | periodo | Enviado
+  const downloadPlanillaCertificados = async () => {
+    if (!asistenciaCurso || !asistenciaFecha) {
+      alert('Primero seleccione el curso y la fecha de inicio.');
+      return;
+    }
+    if (alumnosAsistencia.length === 0) {
+      alert('La planilla de asistencia está vacía.');
+      return;
+    }
+
+    const rowsWithEmail = await Promise.all(
+      alumnosAsistencia.map(async (a) => {
+        let emailVal = a.email || '';
+        let apellidoVal = a.apellido || '';
+        let nombreVal = a.nombre || '';
+        let dniVal = a.dni || '';
+
+        if (!emailVal && dniVal) {
+          try {
+            const snap = await getDoc(doc(db, 'alumnos', String(dniVal)));
+            if (snap.exists()) {
+              const sData = snap.data();
+              emailVal = sData.email || '';
+              if (!apellidoVal) apellidoVal = sData.apellido || '';
+              if (!nombreVal) nombreVal = sData.nombre || '';
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        return {
+          email: emailVal,
+          apellido: apellidoVal,
+          nombre: nombreVal,
+          dni: dniVal,
+          curso: asistenciaCurso,
+          periodo: '',
+          Enviado: ''
+        };
+      })
+    );
+
+    const headers = ['email', 'apellido', 'nombre', 'dni', 'curso', 'periodo', 'Enviado'];
+    const keys = ['email', 'apellido', 'nombre', 'dni', 'curso', 'periodo', 'Enviado'];
+    const filename = `certificados_${asistenciaCurso.replace(/[^a-zA-Z0-9]/g, '_')}_${asistenciaFecha}.xlsx`;
+
+    downloadExcel(rowsWithEmail, headers, keys, filename);
+    await logAudit('Exportación Certificados Drive', `${asistenciaCurso} (${asistenciaFecha}) — ${rowsWithEmail.length} alumnos`);
+  };
+
   // Exportar Planilla en PDF lista para imprimir
   const downloadPDF = () => {
     if (sortedAlumnos.length === 0) return;
@@ -356,7 +409,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
           >
             <option value="">-- Seleccione Fecha --</option>
             {asistenciaFechasFiltradas.map((f, i) => (
-              <option key={i} value={f.inicio}>{f.inicio}</option>
+              <option key={i} value={f.inicio}>{formatDateAR(f.inicio)}</option>
             ))}
           </select>
         </div>
@@ -383,6 +436,14 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
               title="Exportar archivo CSV"
             >
               <Upload size={16} /> Exportar CSV
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ margin: 0, width: '165px', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+              onClick={downloadPlanillaCertificados}
+              title="Exportar archivo Excel modelo para el script de envío de Certificados en Google Drive"
+            >
+              <FileSpreadsheet size={16} /> Planilla Certificados
             </button>
           </>
         )}

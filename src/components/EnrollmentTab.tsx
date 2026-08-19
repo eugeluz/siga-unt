@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { formatDateAR } from '../utils/dateAR';
 import { excelDateToJSDate } from '../utils/date';
 
 interface EnrollmentTabProps {
@@ -626,7 +627,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
               >
                 <option value="">-- Seleccione Fecha --</option>
                 {fechasFiltradas.map((f, i) => (
-                  <option key={i} value={f.inicio}>{f.inicio}</option>
+                  <option key={i} value={f.inicio}>{formatDateAR(f.inicio)}</option>
                 ))}
               </select>
             </div>

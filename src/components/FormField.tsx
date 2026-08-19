@@ -30,7 +30,10 @@ export const FormField: React.FC<FormFieldProps> = ({
 }) => {
   return (
     <div className="form-group">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label}
+        {required && <span style={{ color: 'var(--danger, #EF4444)', marginLeft: '3px', fontWeight: 700 }}>*</span>}
+      </label>
       {options ? (
         <select
           id={id}

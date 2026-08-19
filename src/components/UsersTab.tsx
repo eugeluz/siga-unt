@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, setDoc, doc, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, setDoc, doc, deleteDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { UserPlus, UserCog, ShieldCheck, ShieldOff, RefreshCw, History, Pencil, X, Save, Key } from 'lucide-react';
+import { UserPlus, UserCog, ShieldCheck, ShieldOff, RefreshCw, History, Pencil, X, Save, Key, Trash2 } from 'lucide-react';
 
 interface UsuarioDoc {
   id: string;
@@ -162,6 +162,18 @@ export const UsersTab: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async (u: UsuarioDoc) => {
+    if (!confirm(`¿Eliminar definitivamente el usuario "${u.nombre || u.email}"?`)) return;
+    try {
+      await deleteDoc(doc(db, 'usuarios', u.id));
+      await logAudit('Usuario eliminado', `${u.nombre || u.email} (${u.email})`);
+      alert('Usuario eliminado con éxito.');
+    } catch (err) {
+      console.error('Error al eliminar usuario:', err);
+      alert('Error al eliminar el usuario.');
+    }
+  };
+
   const formatFecha = (f: any) => {
     if (!f) return '—';
     if (typeof f === 'string') return new Date(f).toLocaleString('es-AR');
@@ -296,6 +308,14 @@ export const UsersTab: React.FC = () => {
                       title={u.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
                     >
                       {u.activo ? <><ShieldOff size={14} /> Desactivar</> : <><ShieldCheck size={14} /> Activar</>}
+                    </button>
+                    <button
+                      className="btn-danger"
+                      style={{ padding: '6px 10px', margin: 0, minHeight: '36px', fontSize: '0.8rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      onClick={() => handleDeleteUser(u)}
+                      title="Eliminar registro de usuario definitivamente"
+                    >
+                      <Trash2 size={14} /> Eliminar
                     </button>
                   </div>
                 </td>
