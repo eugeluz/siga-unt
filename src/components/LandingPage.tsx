@@ -55,6 +55,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
   const [nivelEstudio, setNivelEstudio] = useState('Sin dato');
   const [titulo, setTitulo] = useState('');
   const [unidadAcademica, setUnidadAcademica] = useState('');
+  const [direccionOficina, setDireccionOficina] = useState('');
   const [area, setArea] = useState('');
   const [cargoFuncion, setCargoFuncion] = useState('');
   const [personas, setPersonas] = useState(0);
@@ -153,6 +154,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     setNivelEstudio('Sin dato');
     setTitulo('');
     setUnidadAcademica('');
+    setDireccionOficina('');
     setArea('');
     setCargoFuncion('');
     setPersonas(0);
@@ -163,6 +165,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     setFechaId('');
     setBuscando(false);
     setDniEncontrado(false);
+    setSelectedCourse(null);
   };
 
   const openEnrollment = (course?: any) => {
@@ -191,6 +194,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
         setNivelEstudio(data.nivelEstudio || 'Sin dato');
         setTitulo(data.titulo || '');
         setUnidadAcademica(data.unidadAcademica || '');
+        setDireccionOficina(data.direccionOficina || '');
         setArea(data.area || '');
         setCargoFuncion(data.cargoFuncion || '');
         setPersonas(data.personas || 0);
@@ -254,6 +258,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
         email: email.toLowerCase() || '',
         cargoFuncion: cargoFuncion || '',
         unidadAcademica: unidadAcademica || '',
+        direccionOficina: direccionOficina || '',
         ua: courseObj?.idCurso || '',
         idCurso: courseObj?.idCurso || 0,
         createdAt: new Date().toISOString(),
@@ -283,6 +288,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
           nivelEstudio: nivelEstudio || '',
           titulo: titulo || '',
           unidadAcademica: unidadAcademica || '',
+          direccionOficina: direccionOficina || '',
           area: area || '',
           cargoFuncion: cargoFuncion || '',
           personas: personas || 0,
@@ -804,6 +810,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Unidad Académica / Dependencia <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={unidadAcademica} onChange={e => setUnidadAcademica(e.target.value)} />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Dirección u Oficina</label>
+                    <input type="text" className="form-control" value={direccionOficina} onChange={e => setDireccionOficina(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Área <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>

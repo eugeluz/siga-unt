@@ -45,6 +45,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
     telPart: '',
     nivelEstudio: 'Sin dato',
     titulo: '',
+    direccionOficina: '',
     area: '',
     personas: '0',
     telLab: '',
@@ -71,7 +72,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
 
   const resetAll = () => {
     setStudentForm({ dni: '', apellido: '', nombre: '', email: '', unidadAcademica: '', cargoFuncion: '' });
-    setAltaForm({ fechaNac: '', telPart: '', nivelEstudio: 'Sin dato', titulo: '', area: '', personas: '0', telLab: '', interno: '' });
+    setAltaForm({ fechaNac: '', telPart: '', nivelEstudio: 'Sin dato', titulo: '', direccionOficina: '', area: '', personas: '0', telLab: '', interno: '' });
     setSearchDni('');
     setSelectedCurso('');
     setSelectedFecha('');
@@ -120,6 +121,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
         nivelEstudio: altaForm.nivelEstudio,
         titulo: altaForm.titulo,
         unidadAcademica: studentForm.unidadAcademica || 'Sin dato',
+        direccionOficina: altaForm.direccionOficina,
         area: altaForm.area,
         cargoFuncion: studentForm.cargoFuncion || '',
         personas: Number(altaForm.personas),
@@ -140,6 +142,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
         email: (studentForm.email || '').toLowerCase(),
         cargoFuncion: studentForm.cargoFuncion || '',
         unidadAcademica: studentForm.unidadAcademica || 'Sin dato',
+        direccionOficina: altaForm.direccionOficina || '',
         ua: courseObj ? courseObj.idCurso : '',
         idCurso: courseObj ? courseObj.idCurso : ''
       };
@@ -275,6 +278,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
         setIfPresent(['nivel estudio', 'estudios', 'nivelestudio'], 'nivelEstudio', (v) => String(v).trim());
         setIfPresent(['titulo'], 'titulo', (v) => String(v).trim());
         setIfPresent(['unidad academica', 'facultad', 'dependencia', 'unidadacademica'], 'unidadAcademica', (v) => String(v).trim());
+        setIfPresent(['direccion u oficina', 'direccion', 'oficina', 'direccionoficina'], 'direccionOficina', (v) => String(v).trim());
         setIfPresent(['area'], 'area', (v) => String(v).trim());
         setIfPresent(['cargo', 'funcion', 'cargofuncion'], 'cargoFuncion', (v) => String(v).trim());
         setIfPresent(['personas'], 'personas', (v) => Number(v) || 0);
@@ -296,6 +300,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
           email: studentData.email || String(rowLower['email'] || '').toLowerCase().trim(),
           cargoFuncion: studentData.cargoFuncion || String(rowLower['cargo'] || ''),
           unidadAcademica: studentData.unidadAcademica || String(rowLower['unidad academica'] || rowLower['facultad'] || 'Sin dato'),
+          direccionOficina: studentData.direccionOficina || '',
           ua: idCursoVal,
           idCurso: idCursoVal
         };
@@ -487,10 +492,23 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Cargo / Función</label>
-                    <input type="text" className="form-control" value={studentForm.cargoFuncion} onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })} />
+                    <select className="form-control" value={studentForm.cargoFuncion} onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}>
+                      <option value="">-- Sin cargo / función --</option>
+                      <option value="Administrativo/a">Administrativo/a</option>
+                      <option value="Docente">Docente</option>
+                      <option value="JTP/Aux. Docente">JTP/Aux. Docente</option>
+                      <option value="Técnicos/Profesional">Técnicos/Profesional</option>
+                      <option value="Mantenimiento">Mantenimiento</option>
+                      <option value="Producción">Producción</option>
+                      <option value="Servicios Grales.">Servicios Grales.</option>
+                    </select>
                   </div>
                 </div>
                 <div className="form-row">
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Dirección u Oficina</label>
+                    <input type="text" className="form-control" value={altaForm.direccionOficina} onChange={e => setAltaForm({ ...altaForm, direccionOficina: e.target.value })} />
+                  </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Área de Trabajo</label>
                     <input type="text" className="form-control" value={altaForm.area} onChange={e => setAltaForm({ ...altaForm, area: e.target.value })} />
@@ -499,9 +517,15 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
                     <label>Personas a Cargo</label>
                     <input type="number" className="form-control" value={altaForm.personas} onChange={e => setAltaForm({ ...altaForm, personas: e.target.value })} />
                   </div>
+                </div>
+                <div className="form-row">
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Teléfono Laboral</label>
                     <input type="text" className="form-control" value={altaForm.telLab} onChange={e => setAltaForm({ ...altaForm, telLab: e.target.value })} />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Interno</label>
+                    <input type="text" className="form-control" value={altaForm.interno} onChange={e => setAltaForm({ ...altaForm, interno: e.target.value })} />
                   </div>
                 </div>
               </div>

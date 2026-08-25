@@ -58,7 +58,7 @@ const MOCK_DOCENTES = [
 ];
 
 const MOCK_FACULTADES = [
-  { idFac: 1, facultad: 'Agronomía y Zootecnia' },
+  { idFac: 1, facultad: 'Agronomía, Zootecnia y Veterinaria' },
   { idFac: 2, facultad: 'Bioquímica, Química y Farmacia' },
   { idFac: 3, facultad: 'Ciencias Exactas y Tecnología' },
   { idFac: 4, facultad: 'Filosofía y Letras' }

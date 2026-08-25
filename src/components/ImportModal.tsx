@@ -107,6 +107,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           setIfPresent(['nivel estudio', 'estudios', 'nivelestudio'], 'nivelEstudio', (v) => String(v).trim());
           setIfPresent(['titulo'], 'titulo', (v) => String(v).trim());
           setIfPresent(['unidad academica', 'facultad', 'dependencia', 'unidadacademica'], 'unidadAcademica', (v) => String(v).trim());
+          setIfPresent(['direccion u oficina', 'direccion', 'oficina', 'direccionoficina'], 'direccionOficina', (v) => String(v).trim());
           setIfPresent(['area'], 'area', (v) => String(v).trim());
           setIfPresent(['cargo', 'funcion', 'cargofuncion'], 'cargoFuncion', (v) => String(v).trim());
           setIfPresent(['personas'], 'personas', (v) => Number(v) || 0);
