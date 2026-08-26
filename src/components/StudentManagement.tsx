@@ -174,6 +174,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     setShowDetailOnMobile(true);
   };
 
+  const [searchFeedback, setSearchFeedback] = useState<{ found: boolean; message: string } | null>(null);
+
   const handleNewStudent = () => {
     setStudentForm({
       dni: '',
@@ -196,9 +198,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     setAlumnoEncontrado(false);
     setSelectedStudentDni(null);
     setShowDetailOnMobile(true);
+    setSearchFeedback(null);
   };
-
-  const [searchFeedback, setSearchFeedback] = useState<{ found: boolean; message: string } | null>(null);
 
   const handleSearchByDni = () => {
     if (!studentForm.dni.trim()) {
