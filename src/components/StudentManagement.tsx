@@ -379,9 +379,12 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     </div>
                   )}
 
-                  {/* Botones de acción: Nuevo Alumno, Exportar */}
+                  {/* Botones de acción: Nuevo Alumno, Importar, Exportar */}
                   <button className="btn-primary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => { handleNewStudent(); setSearchFeedback(null); }}>
                     <Plus size={15} /> Nuevo Alumno
+                  </button>
+                  <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => setShowImportModal(true)}>
+                    <Upload size={15} /> Importar
                   </button>
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
                     downloadExcel(
@@ -391,7 +394,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                       `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
                     );
                   }}>
-                    <Upload size={15} /> Exportar
+                    <Download size={15} /> Exportar ({alumnos.length})
                   </button>
                 </div>
 
@@ -456,15 +459,23 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     value={studentForm.titulo}
                     onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })}
                   />
-                  <FormField
-                    label="Unidad Académica / Dependencia"
-                    value={studentForm.unidadAcademica}
-                    onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
-                    options={[
-                      { value: 'Sin dato', label: 'Sin dato' },
-                      ...facultades.map(f => ({ value: f.facultad, label: f.facultad }))
-                    ]}
-                  />
+                  <div className="form-group">
+                    <label>Unidad Académica / Dependencia</label>
+                    <input
+                      type="text"
+                      list="lista-facultades"
+                      className="form-control"
+                      value={studentForm.unidadAcademica}
+                      onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
+                      placeholder="Seleccione o ingrese dependencia..."
+                    />
+                    <datalist id="lista-facultades">
+                      {facultades.map((f, i) => {
+                        const name = f.unidadAcademica || f.facultad || '';
+                        return <option key={i} value={name} />;
+                      })}
+                    </datalist>
+                  </div>
                 </div>
 
                 <div className="form-row">

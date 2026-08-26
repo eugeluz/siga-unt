@@ -66,6 +66,43 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     }
   };
 
+  // Normalizador de claves: elimina tildes, espacios extras y caracteres especiales
+  const normalizeKey = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // quita tildes
+      .replace(/[^a-z0-9]/g, '');     // deja solo letras y números
+
+  const getRowVal = (row: any, aliases: string[]) => {
+    if (!row) return undefined;
+    const rawKeys = Object.keys(row);
+    // 1. Coincidencia exacta insensible a mayúsculas
+    for (const alias of aliases) {
+      const trimmedAlias = alias.toLowerCase().trim();
+      for (const key of rawKeys) {
+        if (key.toLowerCase().trim() === trimmedAlias) {
+          const val = row[key];
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            return val;
+          }
+        }
+      }
+    }
+    // 2. Coincidencia normalizada sin tildes ni símbolos
+    const rowNormalized: Record<string, any> = {};
+    rawKeys.forEach(k => {
+      rowNormalized[normalizeKey(k)] = row[k];
+    });
+    for (const alias of aliases) {
+      const norm = normalizeKey(alias);
+      if (rowNormalized[norm] !== undefined && rowNormalized[norm] !== null && String(rowNormalized[norm]).trim() !== '') {
+        return rowNormalized[norm];
+      }
+    }
+    return undefined;
+  };
+
   const executeImport = async () => {
     if (parsedData.length === 0) return;
     setIsImporting(true);
@@ -75,58 +112,83 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     try {
       for (const row of parsedData) {
         count++;
-        const rowLower: any = {};
-        Object.keys(row).forEach(k => {
-          rowLower[k.toLowerCase().trim()] = row[k];
-        });
+        const getVal = (aliases: string[]) => getRowVal(row, aliases);
 
-        const dniVal = Number(rowLower['dni'] || rowLower['documento'] || rowLower['nro doc'] || rowLower['nro de documento'] || 0);
+        const rawDni = getVal(['dni', 'documento', 'nro doc', 'nro de documento', 'cedula', 'identificacion', 'doc']);
+        const dniVal = Number(String(rawDni || '').replace(/\D/g, ''));
 
         if (importType === 'alumnos') {
           if (!dniVal) continue;
           
-          // Construct student data dynamically using only present spreadsheet columns to preserve other DB fields
           const studentData: any = {
             dni: dniVal
           };
 
-          const setIfPresent = (keys: string[], targetKey: string, transform?: (val: any) => any) => {
-            for (const key of keys) {
-              if (rowLower[key] !== undefined) {
-                studentData[targetKey] = transform ? transform(rowLower[key]) : rowLower[key];
-                break;
-              }
+          const setIfPresent = (aliases: string[], targetKey: string, transform?: (val: any) => any) => {
+            const val = getVal(aliases);
+            if (val !== undefined) {
+              studentData[targetKey] = transform ? transform(val) : val;
             }
           };
 
-          setIfPresent(['apellido', 'apellidos'], 'apellido', (v) => String(v).toUpperCase().trim());
-          setIfPresent(['nombre', 'nombres'], 'nombre', (v) => String(v).toUpperCase().trim());
-          setIfPresent(['fecha nac', 'nacimiento', 'fechanac'], 'fechaNac', (v) => excelDateToJSDate(v));
-          setIfPresent(['edad'], 'edad', (v) => Number(v) || 0);
-          setIfPresent(['tel part', 'telefono', 'telpart'], 'telPart', (v) => String(v).trim());
-          setIfPresent(['nivel estudio', 'estudios', 'nivelestudio'], 'nivelEstudio', (v) => String(v).trim());
-          setIfPresent(['titulo'], 'titulo', (v) => String(v).trim());
-          setIfPresent(['unidad academica', 'facultad', 'dependencia', 'unidadacademica'], 'unidadAcademica', (v) => String(v).trim());
-          setIfPresent(['area'], 'area', (v) => String(v).trim());
-          setIfPresent(['cargo', 'funcion', 'cargofuncion'], 'cargoFuncion', (v) => String(v).trim());
-          setIfPresent(['personas'], 'personas', (v) => Number(v) || 0);
-          setIfPresent(['email', 'correo'], 'email', (v) => String(v).toLowerCase().trim());
-          setIfPresent(['tel lab', 'tellab'], 'telLab', (v) => String(v).trim());
-          setIfPresent(['interno'], 'interno', (v) => String(v).trim());
+          setIfPresent(['apellido', 'apellidos', 'surname', 'last name'], 'apellido', (v) => String(v).toUpperCase().trim());
+          setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => String(v).toUpperCase().trim());
+          setIfPresent(['e-mail', 'email', 'correo', 'mail', 'correo electronico', 'e mail', 'direccion de correo'], 'email', (v) => String(v).toLowerCase().trim());
+          setIfPresent(['telefono celular', 'tel part', 'celular', 'telefono', 'telpart', 'tel', 'whatsapp', 'movil', 'telefono particular', 'tel particular'], 'telPart', (v) => String(v).trim());
+          setIfPresent(['fecha de nacimiento', 'fecha nac', 'nacimiento', 'fechanac', 'fec nac', 'fecha nacimiento'], 'fechaNac', (v) => excelDateToJSDate(v));
+          setIfPresent(['estudios', 'nivel estudio', 'nivelestudio', 'nivel de estudios', 'estudio', 'nivel academico'], 'nivelEstudio', (v) => String(v).trim());
+          setIfPresent(['titulo obtenido', 'titulo', 'profesion', 'carrera'], 'titulo', (v) => String(v).trim());
+          
+          // Unidad Académica / Dependencia
+          setIfPresent([
+            'unidad academica / dependencia',
+            'unidad academica/dependencia',
+            'unidad académica / dependencia',
+            'unidad académica/dependencia',
+            'unidad academica',
+            'unidad académica',
+            'facultad / dependencia',
+            'facultad',
+            'dependencia'
+          ], 'unidadAcademica', (v) => String(v).trim());
+
+          // Área de trabajo
+          setIfPresent([
+            'area de trabajo',
+            'área de trabajo',
+            'area laboral',
+            'sector de trabajo',
+            'area',
+            'área',
+            'sector',
+            'departamento',
+            'seccion'
+          ], 'area', (v) => String(v).trim());
+
+          setIfPresent(['cargo o funcion', 'cargo / funcion', 'cargo/funcion', 'cargo', 'funcion', 'cargofuncion', 'puesto'], 'cargoFuncion', (v) => String(v).trim());
+          setIfPresent(['personas a cargo', 'personas', 'personal', 'personal a cargo'], 'personas', (v) => Number(v) || 0);
+          setIfPresent(['telefono laboral', 'tel lab', 'tellab', 'tel trabajo', 'laboral', 'tel oficina'], 'telLab', (v) => String(v).trim());
+          setIfPresent(['interno', 'int', 'nro interno', 'numero interno'], 'interno', (v) => String(v).trim());
 
           await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
         } else if (importType === 'inscripciones') {
           const insData = {
             dni: dniVal,
-            apellido: String(rowLower['apellido'] || '').toUpperCase().trim(),
-            nombre: String(rowLower['nombre'] || '').toUpperCase().trim(),
-            curso: String(rowLower['curso'] || '').trim(),
-            fechaInicio: excelDateToJSDate(rowLower['fecha inicio'] || rowLower['fecha'] || ''),
-            resultado: String(rowLower['resultado'] || rowLower['estado'] || 'Cursando').trim(),
-            email: String(rowLower['email'] || '').toLowerCase().trim(),
-            cargoFuncion: String(rowLower['cargo'] || ''),
-            unidadAcademica: String(rowLower['unidad academica'] || rowLower['facultad'] || ''),
-            ua: String(rowLower['ua'] || '')
+            apellido: String(getVal(['apellido', 'apellidos', 'surname', 'last name']) || '').toUpperCase().trim(),
+            nombre: String(getVal(['nombre', 'nombres', 'name', 'first name']) || '').toUpperCase().trim(),
+            curso: String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim(),
+            fechaInicio: excelDateToJSDate(getVal(['fecha inicio', 'fecha', 'inicio', 'fechainicio', 'fecha de inicio']) || ''),
+            resultado: String(getVal(['resultado', 'estado', 'condicion', 'situacion']) || 'Cursando').trim(),
+            email: String(getVal(['email', 'correo', 'mail', 'e-mail', 'correo electronico', 'e mail']) || '').toLowerCase().trim(),
+            cargoFuncion: String(getVal(['cargo', 'funcion', 'cargofuncion', 'cargo / funcion', 'cargo/funcion', 'puesto']) || ''),
+            unidadAcademica: String(getVal([
+              'unidad academica', 'unidad academica / dependencia', 'unidad academica/dependencia', 'unidad academica o dependencia',
+              'facultad', 'dependencia', 'unidadacademica', 'unidad', 'lugar de trabajo', 'facultad / dependencia', 'ua'
+            ]) || ''),
+            area: String(getVal([
+              'area', 'area de trabajo', 'areadetrabajo', 'sector', 'departamento', 'seccion', 'area laboral'
+            ]) || ''),
+            ua: String(getVal(['ua', 'idcurso']) || '')
           };
 
           if (insData.dni && insData.curso && insData.fechaInicio) {
@@ -147,25 +209,25 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             await addDoc(collection(db, 'inscripciones'), insData);
           }
         } else if (importType === 'cursos') {
-          const idCursoVal = Number(rowLower['idcurso'] || rowLower['id'] || rowLower['id_curso'] || count);
+          const idCursoVal = Number(getVal(['idcurso', 'id', 'id_curso']) || count);
           const cursoData: any = {
             idCurso: idCursoVal,
-            curso: String(rowLower['curso'] || rowLower['nombre'] || '').trim(),
-            programa: String(rowLower['programa'] || '').trim(),
-            cargaHoraria: String(rowLower['cargahoraria'] || rowLower['carga horaria'] || rowLower['horas'] || '').trim(),
-            resolucion: String(rowLower['resolucion'] || rowLower['resolución'] || '').trim(),
+            curso: String(getVal(['curso', 'nombre', 'nombre curso']) || '').trim(),
+            programa: String(getVal(['programa', 'area']) || '').trim(),
+            cargaHoraria: String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs']) || '').trim(),
+            resolucion: String(getVal(['resolucion', 'resolución', 'res']) || '').trim(),
             showOnLanding: true
           };
           if (cursoData.curso) {
             await setDoc(doc(db, 'cursos', String(idCursoVal)), cursoData, { merge: true });
           }
         } else if (importType === 'fechas') {
-          const idCursoVal = Number(rowLower['idcurso'] || rowLower['id'] || rowLower['id_curso'] || 0);
+          const idCursoVal = Number(getVal(['idcurso', 'id', 'id_curso']) || 0);
           const fechaData = {
             idCurso: idCursoVal,
-            curso: String(rowLower['curso'] || '').trim(),
-            inicio: excelDateToJSDate(rowLower['inicio'] || rowLower['fechainicio'] || rowLower['fecha inicio'] || ''),
-            certificado: excelDateToJSDate(rowLower['certificado'] || rowLower['fechacertificado'] || rowLower['fecha certificado'] || '')
+            curso: String(getVal(['curso', 'nombre']) || '').trim(),
+            inicio: excelDateToJSDate(getVal(['inicio', 'fechainicio', 'fecha inicio', 'fecha']) || ''),
+            certificado: excelDateToJSDate(getVal(['certificado', 'fechacertificado', 'fecha certificado']) || '')
           };
           if (fechaData.inicio) {
             await addDoc(collection(db, 'fechas'), fechaData);
@@ -278,6 +340,20 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Resumen de Mapeo Detectado */}
+            <div style={{ marginTop: '16px', padding: '12px', background: 'var(--card-bg, #f8fafc)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.825rem' }}>
+              <strong>Detección automática de columnas (1ª fila de prueba):</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginTop: '8px' }}>
+                <div><strong>DNI:</strong> {String(getRowVal(parsedData[0], ['dni', 'documento']) || '❌ No detectado')}</div>
+                <div><strong>Apellido:</strong> {String(getRowVal(parsedData[0], ['apellido']) || '❌ No detectado')}</div>
+                <div><strong>Nombre:</strong> {String(getRowVal(parsedData[0], ['nombre']) || '❌ No detectado')}</div>
+                <div><strong>Email:</strong> {String(getRowVal(parsedData[0], ['email', 'e-mail', 'correo']) || '—')}</div>
+                <div><strong>Unidad Académica / Dep.:</strong> <span style={{ color: 'var(--primary, #3b82f6)', fontWeight: 600 }}>{String(getRowVal(parsedData[0], ['unidad academica / dependencia', 'unidad academica', 'facultad']) || '❌ No detectado')}</span></div>
+                <div><strong>Área de trabajo:</strong> <span style={{ color: '#10b981', fontWeight: 600 }}>{String(getRowVal(parsedData[0], ['area de trabajo', 'area']) || '❌ No detectado')}</span></div>
+                <div><strong>Cargo/Función:</strong> {String(getRowVal(parsedData[0], ['cargo o funcion', 'cargo']) || '—')}</div>
+              </div>
             </div>
 
             {!isImporting ? (

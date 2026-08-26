@@ -245,12 +245,31 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
 
       for (const row of parsedLoteData) {
         count++;
-        const rowLower: any = {};
+        // Normalizador de claves: elimina tildes, espacios extras y caracteres especiales
+        const normalizeKey = (str: string) =>
+          str
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // quita tildes
+            .replace(/[^a-z0-9]/g, '');     // deja solo letras y números
+
+        const rowNormalized: Record<string, any> = {};
         Object.keys(row).forEach(k => {
-          rowLower[k.toLowerCase().trim()] = row[k];
+          rowNormalized[normalizeKey(k)] = row[k];
         });
 
-        const dniVal = Number(rowLower['dni'] || rowLower['documento'] || rowLower['nro doc'] || rowLower['nro de documento'] || 0);
+        const getVal = (aliases: string[]) => {
+          for (const alias of aliases) {
+            const norm = normalizeKey(alias);
+            if (rowNormalized[norm] !== undefined && rowNormalized[norm] !== null && String(rowNormalized[norm]).trim() !== '') {
+              return rowNormalized[norm];
+            }
+          }
+          return undefined;
+        };
+
+        const rawDni = getVal(['dni', 'documento', 'nro doc', 'nro de documento', 'cedula', 'identificacion', 'doc']);
+        const dniVal = Number(String(rawDni || '').replace(/\D/g, ''));
         if (!dniVal) continue;
 
         // 1. Save or update the student in 'alumnos' collection using merge (overwriting data)
@@ -258,29 +277,34 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
           dni: dniVal
         };
 
-        const setIfPresent = (keys: string[], targetKey: string, transform?: (val: any) => any) => {
-          for (const key of keys) {
-            if (rowLower[key] !== undefined) {
-              studentData[targetKey] = transform ? transform(rowLower[key]) : rowLower[key];
-              break;
-            }
+        const setIfPresent = (aliases: string[], targetKey: string, transform?: (val: any) => any) => {
+          const val = getVal(aliases);
+          if (val !== undefined) {
+            studentData[targetKey] = transform ? transform(val) : val;
           }
         };
 
-        setIfPresent(['apellido', 'apellidos'], 'apellido', (v) => String(v).toUpperCase().trim());
-        setIfPresent(['nombre', 'nombres'], 'nombre', (v) => String(v).toUpperCase().trim());
-        setIfPresent(['fecha nac', 'nacimiento', 'fechanac'], 'fechaNac', (v) => excelDateToJSDate(v));
-        setIfPresent(['edad'], 'edad', (v) => Number(v) || 0);
-        setIfPresent(['tel part', 'telefono', 'telpart'], 'telPart', (v) => String(v).trim());
-        setIfPresent(['nivel estudio', 'estudios', 'nivelestudio'], 'nivelEstudio', (v) => String(v).trim());
-        setIfPresent(['titulo'], 'titulo', (v) => String(v).trim());
-        setIfPresent(['unidad academica', 'facultad', 'dependencia', 'unidadacademica'], 'unidadAcademica', (v) => String(v).trim());
-        setIfPresent(['area'], 'area', (v) => String(v).trim());
-        setIfPresent(['cargo', 'funcion', 'cargofuncion'], 'cargoFuncion', (v) => String(v).trim());
-        setIfPresent(['personas'], 'personas', (v) => Number(v) || 0);
-        setIfPresent(['email', 'correo'], 'email', (v) => String(v).toLowerCase().trim());
-        setIfPresent(['tel lab', 'tellab'], 'telLab', (v) => String(v).trim());
-        setIfPresent(['interno'], 'interno', (v) => String(v).trim());
+          setIfPresent(['apellido', 'apellidos', 'surname', 'last name', 'apellido y nombre', 'apellidos y nombres'], 'apellido', (v) => String(v).toUpperCase().trim());
+          setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => String(v).toUpperCase().trim());
+          setIfPresent(['fecha nac', 'nacimiento', 'fechanac', 'fecha de nacimiento', 'fec nac', 'fecha nacimiento'], 'fechaNac', (v) => excelDateToJSDate(v));
+          setIfPresent(['edad', 'age'], 'edad', (v) => Number(v) || 0);
+          setIfPresent(['tel part', 'telefono', 'telpart', 'celular', 'tel', 'whatsapp', 'movil', 'telefono particular', 'tel particular', 'celular particular', 'telefono contacto'], 'telPart', (v) => String(v).trim());
+          setIfPresent(['nivel estudio', 'estudios', 'nivelestudio', 'nivel de estudios', 'estudio', 'nivel academico', 'nivel de estudio', 'estudios alcanzados'], 'nivelEstudio', (v) => String(v).trim());
+          setIfPresent(['titulo', 'titulo obtenido', 'profesion', 'carrera'], 'titulo', (v) => String(v).trim());
+          setIfPresent([
+            'unidad academica', 'unidad academica / dependencia', 'unidad academica/dependencia', 'unidad academica o dependencia',
+            'facultad', 'dependencia', 'unidadacademica', 'unidad', 'lugar de trabajo', 'lugar trabajo', 'facultad / dependencia',
+            'facultad/dependencia', 'unidad / dependencia', 'unidad/dependencia', 'organismo', 'instituto', 'escuela', 'ua'
+          ], 'unidadAcademica', (v) => String(v).trim());
+          setIfPresent([
+            'area', 'area de trabajo', 'areadetrabajo', 'sector', 'departamento', 'seccion', 'division', 'oficina', 'area laboral',
+            'sector de trabajo', 'lugar especifico', 'area sector', 'area / sector', 'area/sector'
+          ], 'area', (v) => String(v).trim());
+          setIfPresent(['cargo', 'funcion', 'cargofuncion', 'cargo / funcion', 'cargo/funcion', 'cargo o funcion', 'puesto', 'puesto de trabajo'], 'cargoFuncion', (v) => String(v).trim());
+          setIfPresent(['personas', 'personas a cargo', 'personal', 'personal a cargo', 'gente a cargo'], 'personas', (v) => Number(v) || 0);
+          setIfPresent(['email', 'correo', 'e-mail', 'mail', 'correo electronico', 'e mail', 'direccion de correo', 'email personal', 'email laboral'], 'email', (v) => String(v).toLowerCase().trim());
+          setIfPresent(['tel lab', 'tellab', 'telefono laboral', 'tel trabajo', 'laboral', 'telefono de trabajo', 'tel oficina'], 'telLab', (v) => String(v).trim());
+          setIfPresent(['interno', 'int', 'nro interno', 'numero interno'], 'interno', (v) => String(v).trim());
 
         // Save student
         await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
@@ -288,14 +312,14 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
         // 2. Inscribe the student in the selected course + date, checking for duplicates
         const enrollmentData = {
           dni: dniVal,
-          apellido: studentData.apellido || String(rowLower['apellido'] || '').toUpperCase().trim(),
-          nombre: studentData.nombre || String(rowLower['nombre'] || '').toUpperCase().trim(),
+          apellido: studentData.apellido || '',
+          nombre: studentData.nombre || '',
           curso: selectedCurso,
           fechaInicio: selectedFecha,
           resultado: 'Cursando',
-          email: studentData.email || String(rowLower['email'] || '').toLowerCase().trim(),
-          cargoFuncion: studentData.cargoFuncion || String(rowLower['cargo'] || ''),
-          unidadAcademica: studentData.unidadAcademica || String(rowLower['unidad academica'] || rowLower['facultad'] || 'Sin dato'),
+          email: studentData.email || '',
+          cargoFuncion: studentData.cargoFuncion || '',
+          unidadAcademica: studentData.unidadAcademica || 'Sin dato',
           ua: idCursoVal,
           idCurso: idCursoVal
         };
@@ -413,6 +437,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
             gap: '6px'
           }}
         >
+          <Upload size={16} /> Inscripción por Lotes
         </button>
       </div>
 
