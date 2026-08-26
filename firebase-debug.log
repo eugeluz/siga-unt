@@ -1,0 +1,22 @@
+[debug] [2026-08-26T21:01:58.547Z] ----------------------------------------------------------------------
+[debug] [2026-08-26T21:01:58.552Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\eugel\AppData\Local\pnpm\global\5\.pnpm\firebase-tools@15.26.0_@types+node@26.2.0\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-08-26T21:01:58.553Z] CLI Version:   15.26.0
+[debug] [2026-08-26T21:01:58.553Z] Platform:      win32
+[debug] [2026-08-26T21:01:58.553Z] Node Version:  v24.14.1
+[debug] [2026-08-26T21:01:58.554Z] Detected Agent: unknown
+[debug] [2026-08-26T21:01:58.554Z] Time:          Wed Aug 26 2026 18:01:58 GMT-0300 (hora estándar de Argentina)
+[debug] [2026-08-26T21:01:58.554Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-26T21:02:02.856Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-26T21:02:02.857Z] > authorizing via signed-in user (eugeluz@gmail.com)
+[debug] [2026-08-26T21:02:02.857Z] [iam] checking project siga-unt for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-08-26T21:02:02.896Z] Checked if tokens are valid: true, expires at: 1787781274374
+[debug] [2026-08-26T21:02:02.896Z] Checked if tokens are valid: true, expires at: 1787781274374
+[debug] [2026-08-26T21:02:02.899Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/siga-unt:testIamPermissions [none]
+[debug] [2026-08-26T21:02:02.899Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/siga-unt:testIamPermissions  x-goog-user-project=siga-unt
+[debug] [2026-08-26T21:02:02.899Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/siga-unt:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-08-26T21:02:03.901Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/siga-unt:testIamPermissions 200
+[debug] [2026-08-26T21:02:03.902Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/siga-unt:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-08-26T21:02:03.904Z] Checked if tokens are valid: true, expires at: 1787781274374
+[debug] [2026-08-26T21:02:03.904Z] Checked if tokens are valid: true, expires at: 1787781274374
+[debug] [2026-08-26T21:02:03.905Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/siga-unt [none]
