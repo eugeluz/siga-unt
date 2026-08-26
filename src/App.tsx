@@ -510,6 +510,8 @@ export default function App() {
                   <EnrollmentTab
                     cursos={cursos}
                     fechas={fechas}
+                    facultades={facultades}
+                    alumnos={alumnos}
                   />
                 )}
                 {activeTab === 'asistencia' && (

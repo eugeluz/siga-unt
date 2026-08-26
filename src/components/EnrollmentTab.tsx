@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getDoc, doc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
@@ -11,9 +11,11 @@ import { useModal } from './ModalProvider';
 interface EnrollmentTabProps {
   cursos: any[];
   fechas: any[];
+  facultades?: any[];
+  alumnos?: any[];
 }
 
-export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) => {
+export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, facultades = [], alumnos = [] }) => {
   const { confirm, alert } = useModal();
   // Toggle Mode
   const [enrollMode, setEnrollMode] = useState<'individual' | 'lotes'>('individual');
@@ -52,6 +54,15 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
     telLab: '',
     interno: ''
   });
+
+  const facultadesOptions = useMemo(() => {
+    const fromFac = (facultades || []).map((f: any) => (f.unidadAcademica || f.facultad || f.nombre || '').trim()).filter(Boolean);
+    const fromAlumnos = Array.from(new Set((alumnos || []).map((a: any) => String(a.unidadAcademica || '').trim()).filter((v: string) => v && v !== 'Sin dato')));
+    const merged = Array.from(new Set([...fromFac, ...fromAlumnos]));
+    merged.sort((a, b) => a.localeCompare(b));
+    if (!merged.includes('Sin dato')) merged.unshift('Sin dato');
+    return merged;
+  }, [facultades, alumnos]);
 
   useEffect(() => {
     if (selectedCurso) {
@@ -520,7 +531,12 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Unidad Académica / Dependencia</label>
-                    <input type="text" className="form-control" value={studentForm.unidadAcademica} onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })} />
+                    <input type="text" list="lista-facultades-enroll" className="form-control" value={studentForm.unidadAcademica} onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })} placeholder="Seleccione o ingrese dependencia..." />
+                    <datalist id="lista-facultades-enroll">
+                      {facultadesOptions.map((name, i) => (
+                        <option key={i} value={name} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Cargo / Función</label>

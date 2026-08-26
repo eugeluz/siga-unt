@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { doc, setDoc, deleteDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
@@ -44,6 +44,39 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
   const studentsPerPage = 20;
 
   const studentList = alumnos;
+
+  // Opciones robustas para Unidad Académica / Dependencia (facultades + alumnos distintos + fallback)
+  const facultadesOptions = useMemo(() => {
+    const fromFac = (facultades || [])
+      .map((f: any) => (f.unidadAcademica || f.facultad || f.nombre || '').trim())
+      .filter(Boolean);
+    const fromAlumnos = Array.from(
+      new Set(
+        (alumnos || [])
+          .map((a: any) => String(a.unidadAcademica || '').trim())
+          .filter((v: string) => v && v !== 'Sin dato')
+      )
+    );
+    const merged = Array.from(new Set([...fromFac, ...fromAlumnos]));
+    merged.sort((a, b) => a.localeCompare(b));
+    // Asegurar que "Sin dato" siempre esté al principio si no existe
+    if (!merged.includes('Sin dato')) merged.unshift('Sin dato');
+    else {
+      // mover Sin dato al inicio
+      const idx = merged.indexOf('Sin dato');
+      if (idx > 0) {
+        merged.splice(idx, 1);
+        merged.unshift('Sin dato');
+      }
+    }
+    // Fallback si aún está vacío (sin facultades ni alumnos)
+    if (merged.length === 1 && merged[0] === 'Sin dato') {
+      // usar lista de respaldo mínima para que el datalist no quede vacío
+      const fallback = ['Gymnasium', 'Bioquímica, Química y Farmacia', 'Agronomía y Zootecnia', 'Cs. Exactas y Tecnología', 'Medicina', 'Filosofía y Letras'];
+      fallback.forEach((v) => { if (!merged.includes(v)) merged.push(v); });
+    }
+    return merged;
+  }, [facultades, alumnos]);
 
   // Reset pagination on filter changes
   useEffect(() => {
@@ -489,10 +522,9 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                       placeholder="Seleccione o ingrese dependencia..."
                     />
                     <datalist id="lista-facultades">
-                      {facultades.map((f, i) => {
-                        const name = f.unidadAcademica || f.facultad || '';
-                        return <option key={i} value={name} />;
-                      })}
+                      {facultadesOptions.map((name, i) => (
+                        <option key={i} value={name} />
+                      ))}
                     </datalist>
                   </div>
                 </div>
