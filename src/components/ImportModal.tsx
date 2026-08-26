@@ -154,6 +154,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             'dependencia'
           ], 'unidadAcademica', (v) => String(v).trim());
 
+          // Dirección u Oficina
+          setIfPresent([
+            'direccion u oficina',
+            'dirección u oficina',
+            'direccion/oficina',
+            'direccion o oficina',
+            'direccion',
+            'dirección',
+            'oficina',
+            'direccion oficina'
+          ], 'direccionOficina', (v) => String(v).trim());
+
           // Área de trabajo
           setIfPresent([
             'area de trabajo',

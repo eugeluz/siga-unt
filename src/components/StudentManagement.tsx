@@ -45,38 +45,45 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
 
   const studentList = alumnos;
 
-  // Opciones robustas para Unidad Académica / Dependencia (facultades + alumnos distintos + fallback)
+  // Lista fija para Secr. de Rectorado/Unidad Académica según requerimiento
   const facultadesOptions = useMemo(() => {
-    const fromFac = (facultades || [])
-      .map((f: any) => (f.unidadAcademica || f.facultad || f.nombre || '').trim())
-      .filter(Boolean);
-    const fromAlumnos = Array.from(
-      new Set(
-        (alumnos || [])
-          .map((a: any) => String(a.unidadAcademica || '').trim())
-          .filter((v: string) => v && v !== 'Sin dato')
-      )
-    );
-    const merged = Array.from(new Set([...fromFac, ...fromAlumnos]));
-    merged.sort((a, b) => a.localeCompare(b));
-    // Asegurar que "Sin dato" siempre esté al principio si no existe
-    if (!merged.includes('Sin dato')) merged.unshift('Sin dato');
-    else {
-      // mover Sin dato al inicio
-      const idx = merged.indexOf('Sin dato');
-      if (idx > 0) {
-        merged.splice(idx, 1);
-        merged.unshift('Sin dato');
-      }
-    }
-    // Fallback si aún está vacío (sin facultades ni alumnos)
-    if (merged.length === 1 && merged[0] === 'Sin dato') {
-      // usar lista de respaldo mínima para que el datalist no quede vacío
-      const fallback = ['Gymnasium', 'Bioquímica, Química y Farmacia', 'Agronomía y Zootecnia', 'Cs. Exactas y Tecnología', 'Medicina', 'Filosofía y Letras'];
-      fallback.forEach((v) => { if (!merged.includes(v)) merged.push(v); });
-    }
-    return merged;
-  }, [facultades, alumnos]);
+    return [
+      'Sin dato',
+      'Sec. Académica (Rec)',
+      'Sec. de Ciencia, Arte e Innovación Tecnol.(Rec)',
+      'Sec. de Posgrado  (Rec)',
+      'Sec. Planeamto, Gestión de Proy. y Obras (Rec)',
+      'Sec. de Políticas y Comunic. Instit. (Rec)',
+      'Sec. Extensión Universitaria (Rec)',
+      'Sec. Económica Administrativa (Rec)',
+      'Sec. Bienestar Universitario (Rec)',
+      'Sec. Asuntos Estudiantiles (Rec)',
+      'Sec. General (Rec)',
+      'Agronomía, Zootecnia y Veterinaria',
+      'Arquitectura y Urbanismo',
+      'Artes',
+      'Bioquímica, Química y Farmacia',
+      'Cs. Económicas',
+      'Cs. Exactas y Tecnología',
+      'Cs. Naturales e Inst. M. Lillo',
+      'Derecho y Cs. Sociales',
+      'Educacion Física',
+      'Filosofía y Letras',
+      'Medicina',
+      'Odontología',
+      'Psicología',
+      'EU. Cine Video y Television',
+      'EU. de Enfermeria',
+      'Gymnasium',
+      'Esc. Agricultura y Sacarotecnia',
+      'Esc. Bellas Artes',
+      'Esc. y Lic. Vocacional Sarmiento',
+      'Inst. Sup. de Musica',
+      'Inst. Tecnico',
+      'Inst. Tecnico de Aguilares',
+      'Esc. Vialidad',
+    ];
+  }, []);
 
   // Reset pagination on filter changes
   useEffect(() => {
@@ -93,6 +100,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     nivelEstudio: 'Sin dato',
     titulo: '',
     unidadAcademica: 'Sin dato',
+    direccionOficina: '',
     area: '',
     cargoFuncion: '',
     personas: '0',
@@ -115,6 +123,23 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     }
   }, [studentForm.fechaNac]);
 
+  const cargoOptions = useMemo(() => {
+    const base: { value: string; label: string }[] = [
+      { value: '', label: '-- Seleccione --' },
+      { value: 'Administrativo/a', label: 'Administrativo/a' },
+      { value: 'Profesor', label: 'Profesor' },
+      { value: 'JTP/Aux. Docente', label: 'JTP/Aux. Docente' },
+      { value: 'Técnico/Profesional', label: 'Técnico/Profesional' },
+      { value: 'Mantenimiento', label: 'Mantenimiento' },
+      { value: 'Producción', label: 'Producción' },
+      { value: 'Servicios Grales.', label: 'Servicios Grales.' },
+    ];
+    if (studentForm.cargoFuncion && !base.some((o) => o.value === studentForm.cargoFuncion)) {
+      base.push({ value: studentForm.cargoFuncion, label: studentForm.cargoFuncion });
+    }
+    return base;
+  }, [studentForm.cargoFuncion]);
+
   const saveStudent = async (type: 'alta' | 'actualizar') => {
     if (!studentForm.dni || !studentForm.apellido || !studentForm.nombre) {
       await alert({ title: 'Campos incompletos', message: 'DNI, Apellido y Nombre son campos requeridos.', variant: 'warning' });
@@ -131,6 +156,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
         nivelEstudio: studentForm.nivelEstudio,
         titulo: studentForm.titulo,
         unidadAcademica: studentForm.unidadAcademica,
+        direccionOficina: studentForm.direccionOficina,
         area: studentForm.area,
         cargoFuncion: studentForm.cargoFuncion,
         personas: Number(studentForm.personas),
@@ -161,6 +187,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       nivelEstudio: student.nivelEstudio || 'Sin dato',
       titulo: student.titulo || '',
       unidadAcademica: student.unidadAcademica || 'Sin dato',
+      direccionOficina: student.direccionOficina || student.direccion || '',
       area: student.area || '',
       cargoFuncion: student.cargoFuncion || '',
       personas: String(student.personas || '0'),
@@ -187,6 +214,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       nivelEstudio: 'Sin dato',
       titulo: '',
       unidadAcademica: 'Sin dato',
+      direccionOficina: '',
       area: '',
       cargoFuncion: '',
       personas: '0',
@@ -442,8 +470,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
                     downloadExcel(
                       alumnos,
-                      ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Tel. Particular', 'Nivel Estudio', 'Título', 'Unidad Académica', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
-                      ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
+                      ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Celular', 'Nivel Estudio', 'Título', 'Secr. de Rectorado/Unidad Académica', 'Dirección u Oficina', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
+                      ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'direccionOficina', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
                       `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
                     );
                   }}>
@@ -484,7 +512,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     value={studentForm.edad}
                   />
                   <FormField
-                    label="Teléfono Particular"
+                    label="Celular"
                     value={studentForm.telPart}
                     onChange={e => setStudentForm({ ...studentForm, telPart: e.target.value })}
                   />
@@ -513,7 +541,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })}
                   />
                   <div className="form-group">
-                    <label>Unidad Académica / Dependencia</label>
+                    <label>Secr. de Rectorado/Unidad Académica</label>
                     <input
                       type="text"
                       list="lista-facultades"
@@ -532,6 +560,12 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
 
                 <div className="form-row">
                   <FormField
+                    label="Dirección u Oficina"
+                    value={studentForm.direccionOficina}
+                    onChange={e => setStudentForm({ ...studentForm, direccionOficina: e.target.value })}
+                    placeholder="Ej: Centro de Capacitación"
+                  />
+                  <FormField
                     label="Área de trabajo"
                     value={studentForm.area}
                     onChange={e => setStudentForm({ ...studentForm, area: e.target.value })}
@@ -540,16 +574,17 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     label="Cargo / Función"
                     value={studentForm.cargoFuncion}
                     onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}
+                    options={cargoOptions}
                   />
+                </div>
+
+                <div className="form-row">
                   <FormField
                     label="Personas a cargo"
                     type="number"
                     value={studentForm.personas}
                     onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })}
                   />
-                </div>
-
-                <div className="form-row">
                   <FormField
                     label="Correo Electrónico"
                     type="email"
@@ -561,6 +596,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     value={studentForm.telLab}
                     onChange={e => setStudentForm({ ...studentForm, telLab: e.target.value })}
                   />
+                </div>
+                <div className="form-row">
                   <FormField
                     label="Interno"
                     value={studentForm.interno}

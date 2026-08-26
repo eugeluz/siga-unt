@@ -127,7 +127,7 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
         <div className="details-box" style={{ marginBottom: '20px', background: 'rgba(255, 255, 255, 0.02)' }}>
           <h3>Alumno: {alumnoSelected.apellido}, {alumnoSelected.nombre}</h3>
           <p style={{ margin: '5px 0', color: 'var(--text-secondary)' }}>
-            <strong>DNI:</strong> {alumnoSelected.dni} | <strong>Email:</strong> {alumnoSelected.email || '—'} | <strong>Unidad Académica:</strong> {alumnoSelected.unidadAcademica || '—'}
+            <strong>DNI:</strong> {alumnoSelected.dni} | <strong>Email:</strong> {alumnoSelected.email || '—'} | <strong>Secr. de Rectorado/Unidad Académica:</strong> {alumnoSelected.unidadAcademica || '—'}
           </p>
         </div>
       )}

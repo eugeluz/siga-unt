@@ -56,13 +56,43 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   });
 
   const facultadesOptions = useMemo(() => {
-    const fromFac = (facultades || []).map((f: any) => (f.unidadAcademica || f.facultad || f.nombre || '').trim()).filter(Boolean);
-    const fromAlumnos = Array.from(new Set((alumnos || []).map((a: any) => String(a.unidadAcademica || '').trim()).filter((v: string) => v && v !== 'Sin dato')));
-    const merged = Array.from(new Set([...fromFac, ...fromAlumnos]));
-    merged.sort((a, b) => a.localeCompare(b));
-    if (!merged.includes('Sin dato')) merged.unshift('Sin dato');
-    return merged;
-  }, [facultades, alumnos]);
+    return [
+      'Sin dato',
+      'Sec. Académica (Rec)',
+      'Sec. de Ciencia, Arte e Innovación Tecnol.(Rec)',
+      'Sec. de Posgrado  (Rec)',
+      'Sec. Planeamto, Gestión de Proy. y Obras (Rec)',
+      'Sec. de Políticas y Comunic. Instit. (Rec)',
+      'Sec. Extensión Universitaria (Rec)',
+      'Sec. Económica Administrativa (Rec)',
+      'Sec. Bienestar Universitario (Rec)',
+      'Sec. Asuntos Estudiantiles (Rec)',
+      'Sec. General (Rec)',
+      'Agronomía, Zootecnia y Veterinaria',
+      'Arquitectura y Urbanismo',
+      'Artes',
+      'Bioquímica, Química y Farmacia',
+      'Cs. Económicas',
+      'Cs. Exactas y Tecnología',
+      'Cs. Naturales e Inst. M. Lillo',
+      'Derecho y Cs. Sociales',
+      'Educacion Física',
+      'Filosofía y Letras',
+      'Medicina',
+      'Odontología',
+      'Psicología',
+      'EU. Cine Video y Television',
+      'EU. de Enfermeria',
+      'Gymnasium',
+      'Esc. Agricultura y Sacarotecnia',
+      'Esc. Bellas Artes',
+      'Esc. y Lic. Vocacional Sarmiento',
+      'Inst. Sup. de Musica',
+      'Inst. Tecnico',
+      'Inst. Tecnico de Aguilares',
+      'Esc. Vialidad',
+    ];
+  }, []);
 
   useEffect(() => {
     if (selectedCurso) {
@@ -509,7 +539,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                     <input type="date" className="form-control" value={altaForm.fechaNac} onChange={e => setAltaForm({ ...altaForm, fechaNac: e.target.value })} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Teléfono Particular</label>
+                    <label>Celular</label>
                     <input type="text" className="form-control" value={altaForm.telPart} onChange={e => setAltaForm({ ...altaForm, telPart: e.target.value })} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
@@ -530,8 +560,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Unidad Académica / Dependencia</label>
-                    <input type="text" list="lista-facultades-enroll" className="form-control" value={studentForm.unidadAcademica} onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })} placeholder="Seleccione o ingrese dependencia..." />
+                    <label>Secr. de Rectorado/Unidad Académica</label>
+                    <input type="text" list="lista-facultades-enroll" className="form-control" value={studentForm.unidadAcademica} onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })} placeholder="Seleccione o ingrese..." />
                     <datalist id="lista-facultades-enroll">
                       {facultadesOptions.map((name, i) => (
                         <option key={i} value={name} />
@@ -563,7 +593,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                 <p><strong>DNI:</strong> {studentForm.dni}</p>
                 <p><strong>Apellido:</strong> {studentForm.apellido}</p>
                 <p><strong>Nombre:</strong> {studentForm.nombre}</p>
-                <p><strong>Dependencia:</strong> {studentForm.unidadAcademica}</p>
+                <p><strong>Secr. de Rectorado/Unidad Académica:</strong> {studentForm.unidadAcademica}</p>
                 <p><strong>Email:</strong> {studentForm.email}</p>
               </div>
             ) : (

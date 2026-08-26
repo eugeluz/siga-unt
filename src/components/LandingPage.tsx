@@ -226,9 +226,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     if (!apellido.trim()) missing.push('Apellido');
     if (!nombre.trim()) missing.push('Nombre');
     if (!fechaNac) missing.push('Fecha de Nacimiento');
-    if (!telPart.trim()) missing.push('Teléfono Particular');
+    if (!telPart.trim()) missing.push('Celular');
     if (!email.trim()) missing.push('Email');
-    if (!unidadAcademica.trim()) missing.push('Unidad Académica / Dependencia');
+    if (!unidadAcademica.trim()) missing.push('Secr. de Rectorado/Unidad Académica');
     if (!area.trim()) missing.push('Área');
     if (!cargoFuncion) missing.push('Cargo / Función');
     if (!telLab.trim()) missing.push('Teléfono Laboral');
@@ -779,7 +779,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                     <input type="date" className="form-control" value={fechaNac} onChange={e => setFechaNac(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Teléfono Particular <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
+                    <label>Celular <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={telPart} onChange={e => setTelPart(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
@@ -804,7 +804,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                 </h4>
                 <div className="form-grid-2col">
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Unidad Académica / Dependencia <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
+                    <label>Secr. de Rectorado/Unidad Académica <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={unidadAcademica} onChange={e => setUnidadAcademica(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
