@@ -7,6 +7,7 @@ import { ImportModal } from './ImportModal';
 import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ArrowLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { downloadExcel } from '../utils/excel';
 import { StudentHistoryTab } from './StudentHistoryTab';
+import { useModal } from './ModalProvider';
 
 interface StudentManagementProps {
   facultades: any[];
@@ -22,6 +23,7 @@ interface StudentManagementProps {
  * and encapsulates local state workflows (such as importing and searching).
  */
 export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades, activeTab, alumnos, cursos = [], fechas = [] }) => {
+  const { confirm, alert } = useModal();
   const [currentSubTab, setCurrentSubTab] = useState<'inicio' | 'alta' | 'historial'>('inicio');
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [selectedStudentDni, setSelectedStudentDni] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
 
   const saveStudent = async (type: 'alta' | 'actualizar') => {
     if (!studentForm.dni || !studentForm.apellido || !studentForm.nombre) {
-      alert('DNI, Apellido y Nombre son campos requeridos.');
+      await alert({ title: 'Campos incompletos', message: 'DNI, Apellido y Nombre son campos requeridos.', variant: 'warning' });
       return;
     }
     try {
@@ -106,12 +108,12 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       };
 
       await setDoc(doc(db, 'alumnos', studentForm.dni), studentData);
-      alert(type === 'alta' ? 'Alumno registrado con éxito.' : 'Datos del alumno actualizados.');
+      await alert({ title: 'Operación exitosa', message: type === 'alta' ? 'Alumno registrado con éxito.' : 'Datos del alumno actualizados.', variant: 'success' });
       setAlumnoEncontrado(true);
       setSelectedStudentDni(String(studentForm.dni));
     } catch (err) {
       console.error(err);
-      alert('Error al guardar datos del alumno.');
+      await alert({ title: 'Error', message: 'No se pudieron guardar los datos del alumno. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -190,32 +192,49 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
   const handleDeleteSingleStudent = async () => {
     if (!studentForm.dni) return;
     const name = `${studentForm.apellido}, ${studentForm.nombre}`.trim();
-    if (!confirm(`¿Eliminar al alumno DNI ${studentForm.dni} (${name}) de la base de datos?`)) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: `¿Eliminar al alumno DNI ${studentForm.dni} (${name}) de la base de datos?\n\nEsta acción no se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
 
     try {
       await deleteDoc(doc(db, 'alumnos', studentForm.dni.trim()));
       await logAudit('Alumno eliminado', `DNI: ${studentForm.dni} — ${name}`);
-      alert('Alumno eliminado con éxito.');
+      await alert({ title: 'Alumno eliminado', message: 'Alumno eliminado con éxito.', variant: 'success' });
       handleNewStudent();
       setSearchFeedback(null);
     } catch (err) {
       console.error('Error al eliminar alumno:', err);
-      alert('Error al eliminar el alumno.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar el alumno. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleClearAllStudents = async () => {
     if (alumnos.length === 0) {
-      alert('No hay alumnos registrados para eliminar.');
+      await alert({ title: 'Sin registros', message: 'No hay alumnos registrados para eliminar.', variant: 'info' });
       return;
     }
 
-    const firstConfirm = confirm(
-      `⚠️ ¿ATENCIÓN: Está seguro de que desea eliminar TODOS los registros de alumnos? (${alumnos.length} alumnos registrados)\n\nEsta acción eliminará todos los alumnos del padrón.`
-    );
+    const firstConfirm = await confirm({
+      title: 'Atención: Acción irreversible',
+      message: `¿Está seguro de que desea eliminar TODOS los registros de alumnos? (${alumnos.length} alumnos registrados)\n\nEsta acción eliminará todos los alumnos del padrón y no se puede deshacer.`,
+      variant: 'warning',
+      confirmText: 'Sí, continuar',
+      cancelText: 'Cancelar',
+    });
     if (!firstConfirm) return;
 
-    const secondConfirm = confirm('Confirmación final: ¿Eliminar TODOS los registros de alumnos?');
+    const secondConfirm = await confirm({
+      title: 'Confirmación final',
+      message: '¿Confirma que desea eliminar TODOS los registros de alumnos de forma permanente?',
+      variant: 'danger',
+      confirmText: 'Sí, eliminar todo',
+      cancelText: 'Cancelar',
+    });
     if (!secondConfirm) return;
 
     try {
@@ -236,12 +255,12 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       }
 
       await logAudit('Vaciamiento de alumnos', `Se eliminaron ${count} alumnos de la base de datos.`);
-      alert(`Se han eliminado los ${count} registros de alumnos con éxito.`);
+      await alert({ title: 'Operación completada', message: `Se han eliminado los ${count} registros de alumnos con éxito.`, variant: 'success' });
       handleNewStudent();
       setSearchFeedback(null);
     } catch (err) {
       console.error('Error al vaciar registros de alumnos:', err);
-      alert('Error al eliminar los registros de alumnos.');
+      await alert({ title: 'Error', message: 'No se pudieron eliminar los registros de alumnos. Intente nuevamente.', variant: 'danger' });
     }
   };
 

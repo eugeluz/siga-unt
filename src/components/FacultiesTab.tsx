@@ -8,6 +8,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import logoImg from '../img/logoCentro.png';
+import { useModal } from './ModalProvider';
 
 interface FacultiesTabProps {
   facultades: any[];
@@ -19,6 +20,7 @@ interface FacultiesTabProps {
  * Features pagination, search, and CSV/PDF export capabilities.
  */
 export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
+  const { alert } = useModal();
   const [selectedFacultad, setSelectedFacultad] = useState('');
   const [alumnosFacultad, setAlumnosFacultad] = useState<any[]>([]);
   const [loadingFacultad, setLoadingFacultad] = useState(false);
@@ -89,7 +91,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
       setAlumnosFacultad(results);
     } catch (err) {
       console.error('Error al consultar alumnos por facultad:', err);
-      alert('Error al obtener alumnos de la facultad.');
+      await alert({ title: 'Error', message: 'No se pudieron obtener los alumnos de la facultad. Intente nuevamente.', variant: 'danger' });
     } finally {
       setLoadingFacultad(false);
     }

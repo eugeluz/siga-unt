@@ -3,6 +3,7 @@ import { getDoc, doc, getDocs, collection, query, where } from 'firebase/firesto
 import { db } from '../firebase';
 import { formatDateAR } from '../utils/dateAR';
 import { FolderOpen, Search } from 'lucide-react';
+import { useModal } from './ModalProvider';
 
 interface StudentHistoryTabProps {
   alumnos: any[];
@@ -12,6 +13,7 @@ interface StudentHistoryTabProps {
 }
 
 export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, cursos = [], fechas = [], defaultDni = '' }) => {
+  const { alert } = useModal();
   const [consultaDni, setConsultaDni] = useState(defaultDni);
   const [alumnoSelected, setAlumnoSelected] = useState<any>(null);
   const [historialAlumno, setHistorialAlumno] = useState<any[]>([]);
@@ -73,7 +75,7 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
       setHistorialAlumno(fullHistory);
     } catch (err) {
       console.error(err);
-      alert('Error al consultar historial del alumno.');
+      await alert({ title: 'Error', message: 'No se pudo consultar el historial del alumno. Intente nuevamente.', variant: 'danger' });
     } finally {
       setLoadingHistorial(false);
     }

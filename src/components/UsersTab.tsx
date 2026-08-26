@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail }
 import { db, auth } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { UserPlus, UserCog, ShieldCheck, ShieldOff, RefreshCw, History, Pencil, X, Save, Key, Trash2 } from 'lucide-react';
+import { useModal } from './ModalProvider';
 
 interface UsuarioDoc {
   id: string;
@@ -16,6 +17,7 @@ interface UsuarioDoc {
 }
 
 export const UsersTab: React.FC = () => {
+  const { confirm, alert } = useModal();
   const [usuarios, setUsuarios] = useState<UsuarioDoc[]>([]);
   const [auditoria, setAuditoria] = useState<any[]>([]);
   const [form, setForm] = useState({ legajo: '', nombre: '', email: '', categoria: '', password: '' });
@@ -50,7 +52,7 @@ export const UsersTab: React.FC = () => {
       setCurrentAuditPage(1);
     } catch (err) {
       console.error('Error leyendo auditoría:', err);
-      alert('Error al cargar la auditoría.');
+      await alert({ title: 'Error', message: 'No se pudo cargar la auditoría. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -60,11 +62,11 @@ export const UsersTab: React.FC = () => {
 
   const handleCreate = async () => {
     if (!form.nombre.trim() || !form.email.trim() || !form.password.trim()) {
-      alert('Complete nombre, email y contraseña.');
+      await alert({ title: 'Campos incompletos', message: 'Complete nombre, email y contraseña.', variant: 'warning' });
       return;
     }
     if (form.password.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres.');
+      await alert({ title: 'Contraseña inválida', message: 'La contraseña debe tener al menos 6 caracteres.', variant: 'warning' });
       return;
     }
     setCreating(true);
@@ -82,13 +84,13 @@ export const UsersTab: React.FC = () => {
       });
       await logAudit('Usuario creado', `${form.nombre.trim()} (${form.email.trim()}) - Legajo: ${form.legajo.trim() || 'N/A'}, Cat: ${form.categoria.trim() || 'N/A'}`);
       setForm({ legajo: '', nombre: '', email: '', categoria: '', password: '' });
-      alert('Usuario creado con éxito.');
+      await alert({ title: 'Usuario creado', message: 'Usuario creado con éxito.', variant: 'success' });
     } catch (err: any) {
       console.error(err);
       if (err?.code === 'auth/email-already-in-use') {
-        alert('Ya existe una cuenta con ese email.');
+        await alert({ title: 'Email en uso', message: 'Ya existe una cuenta con ese email.', variant: 'warning' });
       } else {
-        alert('Error al crear el usuario.');
+        await alert({ title: 'Error', message: 'No se pudo crear el usuario. Intente nuevamente.', variant: 'danger' });
       }
     } finally {
       setCreating(false);
@@ -97,21 +99,28 @@ export const UsersTab: React.FC = () => {
 
   const handleResetPassword = async (email: string, nombre: string) => {
     if (!email) {
-      alert('El usuario no posee un correo electrónico válido.');
+      await alert({ title: 'Email inválido', message: 'El usuario no posee un correo electrónico válido.', variant: 'warning' });
       return;
     }
-    if (!confirm(`¿Enviar correo de restablecimiento de contraseña a ${nombre} (${email})?`)) return;
+    const confirmed = await confirm({
+      title: 'Enviar correo de restablecimiento',
+      message: `¿Enviar correo de restablecimiento de contraseña a ${nombre} (${email})?\n\nEl usuario recibirá un enlace para crear una nueva clave.`,
+      variant: 'primary',
+      confirmText: 'Sí, enviar correo',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
 
     try {
       await sendPasswordResetEmail(auth, email);
       await logAudit('Restablecimiento de clave enviado', `Se envió enlace a ${nombre} (${email})`);
-      alert(`Se envió exitosamente el correo para restablecer la contraseña a: ${email}`);
+      await alert({ title: 'Correo enviado', message: `Se envió exitosamente el correo para restablecer la contraseña a: ${email}`, variant: 'success' });
     } catch (err: any) {
       console.error('Error al enviar enlace de contraseña:', err);
       if (err?.code === 'auth/user-not-found') {
-        alert('No se encontró una cuenta en el servidor de autenticación con ese email.');
+        await alert({ title: 'Cuenta no encontrada', message: 'No se encontró una cuenta en el servidor de autenticación con ese email.', variant: 'danger' });
       } else {
-        alert('Error al procesar el restablecimiento: ' + (err?.message || 'intente nuevamente.'));
+        await alert({ title: 'Error', message: 'No se pudo procesar el restablecimiento: ' + (err?.message || 'intente nuevamente.'), variant: 'danger' });
       }
     }
   };
@@ -129,7 +138,7 @@ export const UsersTab: React.FC = () => {
   const handleSaveEdit = async () => {
     if (!editingUser) return;
     if (!editForm.nombre.trim() || !editForm.email.trim()) {
-      alert('Complete nombre y email.');
+      await alert({ title: 'Campos incompletos', message: 'Complete nombre y email.', variant: 'warning' });
       return;
     }
     setSavingEdit(true);
@@ -143,10 +152,10 @@ export const UsersTab: React.FC = () => {
 
       await logAudit('Usuario modificado', `${editForm.nombre.trim()} (${editForm.email.trim()}) - Legajo: ${editForm.legajo.trim() || 'N/A'}, Cat: ${editForm.categoria.trim() || 'N/A'}`);
       setEditingUser(null);
-      alert('Datos de usuario actualizados con éxito.');
+      await alert({ title: 'Cambios guardados', message: 'Datos de usuario actualizados con éxito.', variant: 'success' });
     } catch (err) {
       console.error(err);
-      alert('Error al actualizar los datos del usuario.');
+      await alert({ title: 'Error', message: 'No se pudieron actualizar los datos del usuario. Intente nuevamente.', variant: 'danger' });
     } finally {
       setSavingEdit(false);
     }
@@ -158,19 +167,26 @@ export const UsersTab: React.FC = () => {
       await logAudit(u.activo ? 'Usuario desactivado' : 'Usuario activado', `${u.nombre || u.email}`);
     } catch (err) {
       console.error(err);
-      alert('Error al actualizar el usuario.');
+      await alert({ title: 'Error', message: 'No se pudo actualizar el usuario. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleDeleteUser = async (u: UsuarioDoc) => {
-    if (!confirm(`¿Eliminar definitivamente el usuario "${u.nombre || u.email}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: `¿Eliminar definitivamente el usuario "${u.nombre || u.email}"?\n\nEsta acción eliminará el registro de forma permanente y no se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'usuarios', u.id));
       await logAudit('Usuario eliminado', `${u.nombre || u.email} (${u.email})`);
-      alert('Usuario eliminado con éxito.');
+      await alert({ title: 'Usuario eliminado', message: 'Usuario eliminado con éxito.', variant: 'success' });
     } catch (err) {
       console.error('Error al eliminar usuario:', err);
-      alert('Error al eliminar el usuario.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar el usuario. Intente nuevamente.', variant: 'danger' });
     }
   };
 

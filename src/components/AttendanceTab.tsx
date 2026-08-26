@@ -10,6 +10,7 @@ import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Tr
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
+import { useModal } from './ModalProvider';
 
 interface AttendanceTabProps {
   cursos: any[];
@@ -17,6 +18,7 @@ interface AttendanceTabProps {
 }
 
 export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) => {
+  const { confirm, alert } = useModal();
   const [asistenciaCurso, setAsistenciaCurso] = useState('');
   const [asistenciaFecha, setAsistenciaFecha] = useState('');
   const [asistenciaPrograma, setAsistenciaPrograma] = useState('');
@@ -55,15 +57,15 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
   const handleUploadInforme = async (file: File) => {
     if (!asistenciaCurso || !asistenciaFecha) {
-      alert('Primero seleccione el curso y la fecha de inicio.');
+      await alert({ title: 'Selección incompleta', message: 'Primero seleccione el curso y la fecha de inicio.', variant: 'warning' });
       return;
     }
     if (file.type !== 'application/pdf') {
-      alert('Por favor seleccione un archivo en formato PDF.');
+      await alert({ title: 'Archivo inválido', message: 'Por favor seleccione un archivo en formato PDF.', variant: 'warning' });
       return;
     }
     if (file.size > 3 * 1024 * 1024) {
-      alert('El archivo PDF es demasiado grande. Seleccione un archivo menor a 3MB.');
+      await alert({ title: 'Archivo demasiado grande', message: 'El archivo PDF es demasiado grande. Seleccione un archivo menor a 3MB.', variant: 'warning' });
       return;
     }
     const reader = new FileReader();
@@ -81,23 +83,30 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
           uploadedAt: new Date().toISOString()
         });
         await logAudit('Informe subido', `${asistenciaCurso} (${asistenciaFecha}) — ${file.name}`);
-        alert('Informe del docente subido con éxito.');
+        await alert({ title: 'Informe subido', message: 'Informe del docente subido con éxito.', variant: 'success' });
       } catch (err) {
         console.error(err);
-        alert('Error al subir el informe.');
+        await alert({ title: 'Error', message: 'No se pudo subir el informe. Intente nuevamente.', variant: 'danger' });
       }
     };
     reader.readAsDataURL(file);
   };
 
   const handleDeleteInforme = async (info: any) => {
-    if (!confirm(`¿Eliminar el informe "${info.fileName}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: `¿Eliminar el informe "${info.fileName}"?\n\nEsta acción no se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'informes', info.id));
       await logAudit('Informe eliminado', `${asistenciaCurso} (${asistenciaFecha}) — ${info.fileName}`);
     } catch (err) {
       console.error(err);
-      alert('Error al eliminar el informe.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar el informe. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -207,9 +216,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     } catch (err) {
       console.error('Error fetching inscriptions:', err);
       if (err instanceof Error && (err as any).code === 'failed-precondition') {
-        alert('Error: Falta un índice compuesto en Firestore. Revise la consola para más detalles.');
+        await alert({ title: 'Error de configuración', message: 'Falta un índice compuesto en Firestore. Revise la consola para más detalles.', variant: 'danger' });
       } else {
-        alert('Error al buscar alumnos.');
+        await alert({ title: 'Error', message: 'No se pudieron buscar los alumnos. Intente nuevamente.', variant: 'danger' });
       }
     } finally {
       setLoadingAsistencia(false);
@@ -242,14 +251,21 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   };
 
   const handleDeleteStudent = async (regId: string, nombreAlumno: string) => {
-    if (!confirm(`¿Eliminar a ${nombreAlumno} de esta planilla de asistencia?`)) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: `¿Eliminar a ${nombreAlumno} de esta planilla de asistencia?\n\nEl alumno será quitado del curso y esta acción no se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'inscripciones', regId));
       setAlumnosAsistencia(prev => prev.filter(a => a.id !== regId));
-      alert('Alumno eliminado de la planilla con éxito.');
+      await alert({ title: 'Alumno eliminado', message: 'Alumno eliminado de la planilla con éxito.', variant: 'success' });
     } catch (err) {
       console.error(err);
-      alert('Error al eliminar alumno de la planilla.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar al alumno de la planilla. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -259,7 +275,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       setAlumnosAsistencia(prev => prev.map(a => a.id === regId ? { ...a, resultado: newResultado } : a));
     } catch (err) {
       console.error('Error al actualizar la condición:', err);
-      alert('Error al actualizar la condición del alumno.');
+      await alert({ title: 'Error', message: 'No se pudo actualizar la condición del alumno. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -368,11 +384,11 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   // Exportar Planilla formato Certificados (solo alumnos Aprobados)
   const downloadPlanillaCertificados = async () => {
     if (!asistenciaCurso || !asistenciaFecha) {
-      alert('Primero seleccione el curso y la fecha de inicio.');
+      await alert({ title: 'Selección incompleta', message: 'Primero seleccione el curso y la fecha de inicio.', variant: 'warning' });
       return;
     }
     if (alumnosAsistencia.length === 0) {
-      alert('La planilla de asistencia está vacía.');
+      await alert({ title: 'Planilla vacía', message: 'La planilla de asistencia está vacía.', variant: 'info' });
       return;
     }
 
@@ -383,7 +399,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     });
 
     if (aprobados.length === 0) {
-      alert('No hay ningún alumno con condición "Aprobado" para exportar.');
+      await alert({ title: 'Sin aprobados', message: 'No hay ningún alumno con condición "Aprobado" para exportar.', variant: 'info' });
       return;
     }
 
@@ -429,11 +445,11 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   };
 
   // Exportar Planilla en PDF lista para imprimir (formato físico de firmas)
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (sortedAlumnos.length === 0) return;
 
     if (!fechaClase) {
-      alert('Por favor ingrese la "Fecha de Clase" antes de imprimir el PDF.');
+      await alert({ title: 'Fecha requerida', message: 'Por favor ingrese la "Fecha de Clase" antes de imprimir el PDF.', variant: 'warning' });
       return;
     }
 

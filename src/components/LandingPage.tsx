@@ -6,6 +6,7 @@ import { formatDateAR } from '../utils/dateAR';
 import { SOCIAL } from '../config/social';
 import logoImg from '../img/logoCentro.png';
 import { GraduationCap, Calendar, Clock, MapPin, LogIn, X, Search, UserPlus, CheckSquare, ChevronRight, Star, BookOpen, FileText, Sun, Moon, MessageCircle, UserSearch, Megaphone, FolderOpen } from 'lucide-react';
+import { useModal } from './ModalProvider';
 
 const FacebookIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -41,6 +42,7 @@ const MEDIOS_OPTS = [
 ];
 
 export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLoginClick, backLabel, theme = 'dark', onToggleTheme }) => {
+  const { alert } = useModal();
   const [showModal, setShowModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState('');
@@ -135,7 +137,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
       setConsultaHistorial(fullHistory);
     } catch (err) {
       console.error(err);
-      alert('Error al consultar el historial del alumno.');
+      await alert({ title: 'Error', message: 'No se pudo consultar el historial del alumno. Intente nuevamente.', variant: 'danger' });
     } finally {
       setConsultaLoading(false);
     }
@@ -235,7 +237,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     if (!fechaId) missing.push('Fecha de Inicio');
 
     if (missing.length > 0) {
-      alert(`Complete los campos obligatorios: ${missing.join(', ')}.`);
+      await alert({ title: 'Campos incompletos', message: `Complete los campos obligatorios: ${missing.join(', ')}.`, variant: 'warning' });
       return;
     }
 
@@ -312,7 +314,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
       resetForm();
     } catch (err) {
       console.error(err);
-      alert('Error al procesar la inscripción. Intente nuevamente.');
+      await alert({ title: 'Error', message: 'No se pudo procesar la inscripción. Intente nuevamente.', variant: 'danger' });
     }
     setEnviando(false);
   };

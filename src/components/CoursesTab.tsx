@@ -5,6 +5,7 @@ import { FormField } from './FormField';
 import { logAudit } from '../utils/audit';
 import { formatDateAR } from '../utils/dateAR';
 import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download } from 'lucide-react';
+import { useModal } from './ModalProvider';
 
 interface CoursesTabProps {
   cursos: any[];
@@ -13,6 +14,7 @@ interface CoursesTabProps {
 }
 
 export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas }) => {
+  const { confirm, alert } = useModal();
   const [courseList, setCourseList] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
@@ -95,7 +97,14 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   const handleDelete = async (idCurso: number) => {
     const courseObj = courseList.find(c => Number(c.idCurso) === Number(idCurso));
     const cursoName = courseObj?.curso || '';
-    if (!confirm(`¿Eliminar el curso "${cursoName}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: `¿Eliminar el curso "${cursoName}"?\n\nSe eliminará el curso y sus datos asociados de forma permanente.`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
     try {
       // 1. Delete by docId if available
       if (courseObj?.docId) {
@@ -112,17 +121,17 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       }
 
       await logAudit('Curso eliminado', `${cursoName} (ID ${idCurso})`);
-      alert('Curso eliminado con éxito.');
+      await alert({ title: 'Curso eliminado', message: 'Curso eliminado con éxito.', variant: 'success' });
       resetForm();
     } catch (err) {
       console.error('Error al eliminar el curso:', err);
-      alert('Error al eliminar el curso.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar el curso. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleSave = async () => {
     if (!form.curso || !form.idCurso) {
-      alert('ID y nombre del curso son requeridos.');
+      await alert({ title: 'Campos incompletos', message: 'ID y nombre del curso son requeridos.', variant: 'warning' });
       return;
     }
     try {
@@ -142,11 +151,11 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
 
       await setDoc(doc(db, 'cursos', String(form.idCurso)), courseData);
       await logAudit(selectedCourseId ? 'Curso actualizado' : 'Curso creado', `${courseData.curso} (ID ${courseData.idCurso})`);
-      alert(selectedCourseId ? 'Curso actualizado con éxito.' : 'Curso creado con éxito.');
+      await alert({ title: 'Operación exitosa', message: selectedCourseId ? 'Curso actualizado con éxito.' : 'Curso creado con éxito.', variant: 'success' });
       resetForm();
     } catch (err) {
       console.error(err);
-      alert('Error al guardar el curso.');
+      await alert({ title: 'Error', message: 'No se pudo guardar el curso. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -177,21 +186,28 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       });
       setDateForm({ inicio: '', certificado: '' });
       await loadDatesForCourse(selectedCourseForDates.idCurso);
-      alert('Fecha agregada con éxito.');
+      await alert({ title: 'Fecha agregada', message: 'Fecha agregada con éxito.', variant: 'success' });
     } catch (err) {
       console.error(err);
-      alert('Error al agregar fecha.');
+      await alert({ title: 'Error', message: 'No se pudo agregar la fecha. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleDeleteDate = async (dateId: string) => {
-    if (!confirm('¿Eliminar esta fecha?')) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: '¿Eliminar esta fecha?\n\nLa fecha será eliminada de forma permanente.',
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'fechas', dateId));
       setCourseDates(prev => prev.filter(d => d.id !== dateId));
     } catch (err) {
       console.error(err);
-      alert('Error al eliminar fecha.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar la fecha. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -361,11 +377,11 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                     const file = e.target.files?.[0];
                     if (file) {
                       if (file.type !== 'application/pdf') {
-                        alert('Por favor seleccione un archivo en formato PDF.');
+                        alert({ title: 'Archivo inválido', message: 'Por favor seleccione un archivo en formato PDF.', variant: 'warning' });
                         return;
                       }
                       if (file.size > 3 * 1024 * 1024) {
-                        alert('El archivo PDF es demasiado grande. Seleccione un archivo menor a 3MB.');
+                        alert({ title: 'Archivo demasiado grande', message: 'El archivo PDF es demasiado grande. Seleccione un archivo menor a 3MB.', variant: 'warning' });
                         return;
                       }
                       const reader = new FileReader();

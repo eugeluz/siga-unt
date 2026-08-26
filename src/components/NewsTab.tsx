@@ -3,8 +3,10 @@ import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { Save, Megaphone, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { useModal } from './ModalProvider';
 
 export const NewsTab: React.FC = () => {
+  const { alert } = useModal();
   const [noticias, setNoticias] = useState([
     { titulo: '', texto: '', imagenUrl: '' },
     { titulo: '', texto: '', imagenUrl: '' }
@@ -37,7 +39,7 @@ export const NewsTab: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 1024 * 1024) {
-      alert('La imagen es demasiado grande. Por favor selecciona una imagen menor a 1 MB.');
+      alert({ title: 'Imagen demasiado grande', message: 'La imagen es demasiado grande. Por favor selecciona una imagen menor a 1 MB.', variant: 'warning' });
       return;
     }
     const reader = new FileReader();
@@ -65,10 +67,10 @@ export const NewsTab: React.FC = () => {
         updatedAt: new Date().toISOString()
       });
       await logAudit('Noticias actualizadas', `"${noticias[0].titulo}" | "${noticias[1].titulo}"`);
-      alert('Noticias guardadas con éxito.');
+      await alert({ title: 'Noticias guardadas', message: 'Noticias guardadas con éxito.', variant: 'success' });
     } catch (err) {
       console.error(err);
-      alert('Error al guardar noticias.');
+      await alert({ title: 'Error', message: 'No se pudieron guardar las noticias. Intente nuevamente.', variant: 'danger' });
     }
   };
 

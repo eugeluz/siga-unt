@@ -40,6 +40,7 @@ const UsersTab = lazy(() => import('./components/UsersTab').then(m => ({ default
 const ConfigTab = lazy(() => import('./components/ConfigTab').then(m => ({ default: m.ConfigTab })));
 import { Home, Users, UserPlus, ClipboardCheck, History, Building2, BookOpen, LogOut, Key, Calendar, X, Sun, Moon, UserCog, Megaphone, FileText, Settings } from 'lucide-react';
 import logoImg from './img/logoCentro.png';
+import { useModal } from './components/ModalProvider';
 
 type Theme = 'dark' | 'light';
 
@@ -70,6 +71,7 @@ const MOCK_FACULTADES = [
  * Delegates layout routes to subcomponents.
  */
 export default function App() {
+  const { alert: showAlert } = useModal();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -124,7 +126,7 @@ export default function App() {
             if (data.activo === false) {
               await signOut(auth);
               setUser(null);
-              alert('Su cuenta fue desactivada. Contacte al administrador.');
+              await showAlert({ title: 'Cuenta desactivada', message: 'Su cuenta fue desactivada. Contacte al administrador.', variant: 'danger' });
             }
           } else {
             setUserNombre(currentUser.displayName || '');

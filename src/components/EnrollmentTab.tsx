@@ -6,6 +6,7 @@ import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, Alert
 import * as XLSX from 'xlsx';
 import { formatDateAR } from '../utils/dateAR';
 import { excelDateToJSDate } from '../utils/date';
+import { useModal } from './ModalProvider';
 
 interface EnrollmentTabProps {
   cursos: any[];
@@ -13,6 +14,7 @@ interface EnrollmentTabProps {
 }
 
 export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) => {
+  const { confirm, alert } = useModal();
   // Toggle Mode
   const [enrollMode, setEnrollMode] = useState<'individual' | 'lotes'>('individual');
 
@@ -103,7 +105,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
       }
     } catch (err) {
       console.error(err);
-      alert('Error al buscar alumno.');
+      await alert({ title: 'Error', message: 'No se pudo buscar el alumno. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -146,11 +148,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
       await addDoc(collection(db, 'inscripciones'), enrollmentData);
       await logAudit('Inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} — ${selectedCurso} (${selectedFecha})`);
 
-      alert('Alumno dado de alta e inscrito con éxito.');
+      await alert({ title: 'Alta e inscripción exitosa', message: 'Alumno dado de alta e inscrito con éxito.', variant: 'success' });
       resetAll();
     } catch (err) {
       console.error(err);
-      alert('Error al dar de alta e inscribir.');
+      await alert({ title: 'Error', message: 'No se pudo dar de alta e inscribir. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -174,7 +176,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
 
       await addDoc(collection(db, 'inscripciones'), enrollmentData);
       await logAudit('Inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} — ${selectedCurso} (${selectedFecha})`);
-      alert('Inscripción registrada con éxito.');
+      await alert({ title: 'Inscripción exitosa', message: 'Inscripción registrada con éxito.', variant: 'success' });
 
       setStudentForm({ dni: '', apellido: '', nombre: '', email: '', unidadAcademica: '', cargoFuncion: '' });
       setSearchDni('');
@@ -182,7 +184,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
       setSelectedFecha('');
     } catch (err) {
       console.error(err);
-      alert('Error al registrar inscripción.');
+      await alert({ title: 'Error', message: 'No se pudo registrar la inscripción. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -191,7 +193,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const buffer = evt.target?.result as ArrayBuffer;
         const data = new Uint8Array(buffer);
@@ -210,7 +212,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
         }
       } catch (err) {
         console.error(err);
-        alert('Error al leer el archivo. Asegúrese de que sea un archivo de Excel o CSV válido.');
+        await alert({ title: 'Error al leer archivo', message: 'Error al leer el archivo. Asegúrese de que sea un archivo de Excel o CSV válido.', variant: 'danger' });
       }
     };
     reader.readAsArrayBuffer(file);
@@ -227,11 +229,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
 
   const executeLoteEnrollment = async () => {
     if (!selectedCurso || !selectedFecha) {
-      alert('Debe seleccionar un curso y una fecha de inicio.');
+      await alert({ title: 'Campos incompletos', message: 'Debe seleccionar un curso y una fecha de inicio.', variant: 'warning' });
       return;
     }
     if (parsedLoteData.length === 0) {
-      alert('No hay datos para inscribir.');
+      await alert({ title: 'Sin datos', message: 'No hay datos para inscribir.', variant: 'info' });
       return;
     }
 
@@ -346,7 +348,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
         });
       }
 
-      alert(`Inscripción por lotes completada con éxito. Se inscribieron y/o actualizaron ${count} alumnos.`);
+      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito. Se inscribieron y/o actualizaron ${count} alumnos.`, variant: 'success' });
       await logAudit('Inscripción por lotes', `${count} alumnos — ${selectedCurso} (${selectedFecha})`);
       setParsedLoteData([]);
       setWorkbook(null);
@@ -357,19 +359,29 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : 'Error desconocido';
-      alert(`Error durante la inscripción por lotes en la fila ${count}: ${message}`);
+      await alert({ title: 'Error en la inscripción', message: `Error durante la inscripción por lotes en la fila ${count}: ${message}`, variant: 'danger' });
     } finally {
       setIsImportingLote(false);
     }
   };
 
   const handleClearAllInscripciones = async () => {
-    const firstConfirm = confirm(
-      '⚠️ ¿ATENCIÓN: Está seguro de que desea eliminar TODAS las inscripciones a cursos de la base de datos?\n\nEsta acción eliminará los registros de inscriptos a todos los cursos.'
-    );
+    const firstConfirm = await confirm({
+      title: 'Atención: Acción irreversible',
+      message: '¿Está seguro de que desea eliminar TODAS las inscripciones a cursos de la base de datos?\n\nEsta acción eliminará los registros de inscriptos a todos los cursos y no se puede deshacer.',
+      variant: 'warning',
+      confirmText: 'Sí, continuar',
+      cancelText: 'Cancelar',
+    });
     if (!firstConfirm) return;
 
-    const secondConfirm = confirm('Confirmación final: ¿Eliminar TODAS las inscripciones a cursos?');
+    const secondConfirm = await confirm({
+      title: 'Confirmación final',
+      message: '¿Confirma que desea eliminar TODAS las inscripciones a cursos de forma permanente?',
+      variant: 'danger',
+      confirmText: 'Sí, eliminar todo',
+      cancelText: 'Cancelar',
+    });
     if (!secondConfirm) return;
 
     try {
@@ -390,10 +402,10 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas }) 
       }
 
       await logAudit('Vaciamiento de inscripciones', `Se eliminaron ${count} inscripciones de la base de datos.`);
-      alert(`Se han eliminado los ${count} registros de inscripciones a cursos con éxito.`);
+      await alert({ title: 'Operación completada', message: `Se han eliminado los ${count} registros de inscripciones a cursos con éxito.`, variant: 'success' });
     } catch (err) {
       console.error('Error al vaciar inscripciones:', err);
-      alert('Error al eliminar las inscripciones.');
+      await alert({ title: 'Error', message: 'No se pudieron eliminar las inscripciones. Intente nuevamente.', variant: 'danger' });
     }
   };
 

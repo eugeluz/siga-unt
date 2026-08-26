@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { Settings, Trash2, Upload, Database, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ImportModal } from './ImportModal';
+import { useModal } from './ModalProvider';
 
 interface ConfigTabProps {
   currentUserEmail?: string | null;
@@ -11,6 +12,7 @@ interface ConfigTabProps {
 }
 
 export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefreshData }) => {
+  const { confirm, alert } = useModal();
   const [showImportModal, setShowImportModal] = useState(false);
   const [importType, setImportType] = useState<'alumnos' | 'inscripciones' | 'cursos' | 'fechas'>('alumnos');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -23,12 +25,22 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
     labelSingular: string, 
     labelPlural: string
   ) => {
-    const confirm1 = confirm(
-      `⚠️ ¿ATENCIÓN: Está seguro de que desea ELIMINAR TODOS los registros de ${labelPlural.toUpperCase()}?\n\nEsta acción borrará por completo la base de datos de ${labelPlural}.`
-    );
+    const confirm1 = await confirm({
+      title: 'Atención: Acción irreversible',
+      message: `¿Está seguro de que desea ELIMINAR TODOS los registros de ${labelPlural.toUpperCase()}?\n\nEsta acción borrará por completo la base de datos de ${labelPlural} y no se puede deshacer.`,
+      variant: 'warning',
+      confirmText: 'Sí, continuar',
+      cancelText: 'Cancelar',
+    });
     if (!confirm1) return;
 
-    const confirm2 = confirm(`Confirmación final de seguridad: ¿Desea vaciar la tabla de ${labelPlural}?`);
+    const confirm2 = await confirm({
+      title: 'Confirmación final de seguridad',
+      message: `¿Confirma que desea vaciar la tabla de ${labelPlural}?\n\nSe eliminarán todos los registros existentes de forma permanente.`,
+      variant: 'danger',
+      confirmText: 'Sí, vaciar tabla',
+      cancelText: 'Cancelar',
+    });
     if (!confirm2) return;
 
     setLoadingAction(`Vaciando ${labelPlural}...`);
@@ -50,11 +62,21 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
       }
 
       await logAudit(`Vaciamiento de ${labelPlural}`, `Se eliminaron ${count} registros de ${labelPlural}`);
-      alert(`Se han eliminado los ${count} registros de ${labelPlural} con éxito.`);
+      await alert({
+        title: 'Operación completada',
+        message: `Se han eliminado los ${count} registros de ${labelPlural} con éxito.`,
+        variant: 'success',
+        confirmText: 'Entendido',
+      });
       if (onRefreshData) onRefreshData();
     } catch (err) {
       console.error(`Error al vaciar ${collectionName}:`, err);
-      alert(`Error al eliminar los registros de ${labelPlural}.`);
+      await alert({
+        title: 'Error',
+        message: `No se pudieron eliminar los registros de ${labelPlural}. Intente nuevamente.`,
+        variant: 'danger',
+        confirmText: 'Entendido',
+      });
     } finally {
       setLoadingAction(null);
     }

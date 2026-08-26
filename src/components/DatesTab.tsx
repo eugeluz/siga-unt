@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { FormField } from './FormField';
 import { formatDateAR } from '../utils/dateAR';
 import { Plus, Trash2, Calendar, Search, ArrowUpDown, Eye, EyeOff, FileText } from 'lucide-react';
+import { useModal } from './ModalProvider';
 
 interface DatesTabProps {
   cursos: any[];
@@ -11,6 +12,7 @@ interface DatesTabProps {
 }
 
 export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
+  const { confirm, alert } = useModal();
   const [selectedCursoId, setSelectedCursoId] = useState('');
   const [selectedPrograma, setSelectedPrograma] = useState('');
   const [dateForm, setDateForm] = useState({
@@ -27,13 +29,13 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
   const handleAddDate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCursoId || !dateForm.inicio) {
-      alert('Debe seleccionar un curso y una fecha de inicio.');
+      await alert({ title: 'Campos incompletos', message: 'Debe seleccionar un curso y una fecha de inicio.', variant: 'warning' });
       return;
     }
 
     const courseObj = cursos.find(c => String(c.idCurso) === selectedCursoId);
     if (!courseObj) {
-      alert('Curso no encontrado.');
+      await alert({ title: 'Error', message: 'Curso no encontrado.', variant: 'danger' });
       return;
     }
 
@@ -49,10 +51,10 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
 
       setDateForm({ inicio: '', certificado: '', cantidadClases: 4 });
       setSelectedCursoId('');
-      alert('Fecha de curso agregada con éxito.');
+      await alert({ title: 'Fecha agregada', message: 'Fecha de curso agregada con éxito.', variant: 'success' });
     } catch (err) {
       console.error('Error al agregar fecha:', err);
-      alert('Error al agregar fecha de curso.');
+      await alert({ title: 'Error', message: 'No se pudo agregar la fecha de curso. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -62,20 +64,27 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
       await setDoc(doc(db, 'fechas', id), { showOnLanding: !currentShow }, { merge: true });
     } catch (err) {
       console.error('Error al cambiar visibilidad:', err);
-      alert('Error al actualizar visibilidad de la fecha.');
+      await alert({ title: 'Error', message: 'No se pudo actualizar la visibilidad de la fecha. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleDeleteDate = async (id: string, cursoName: string, inicioDate: string) => {
     if (!id) return;
-    if (!confirm(`¿Eliminar la fecha del ${formatDateAR(inicioDate)} para el curso "${cursoName}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: `¿Eliminar la fecha del ${formatDateAR(inicioDate)} para el curso "${cursoName}"?\n\nEsta acción no se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!confirmed) return;
 
     try {
       await deleteDoc(doc(db, 'fechas', id));
-      alert('Fecha eliminada con éxito.');
+      await alert({ title: 'Fecha eliminada', message: 'Fecha eliminada con éxito.', variant: 'success' });
     } catch (err) {
       console.error('Error al eliminar fecha:', err);
-      alert('Error al eliminar la fecha.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar la fecha. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -92,14 +101,14 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
       );
       const snap = await getDocs(q);
       if (snap.empty) {
-        alert('No hay informes del docente subidos para este curso y fecha.');
+        await alert({ title: 'Sin informe', message: 'No hay informes del docente subidos para este curso y fecha.', variant: 'info' });
       } else {
         const docData = snap.docs[0].data();
         setInformeView(docData);
       }
     } catch (err) {
       console.error(err);
-      alert('Error al buscar el informe.');
+      await alert({ title: 'Error', message: 'No se pudo buscar el informe. Intente nuevamente.', variant: 'danger' });
     } finally {
       setLoadingInforme(false);
     }

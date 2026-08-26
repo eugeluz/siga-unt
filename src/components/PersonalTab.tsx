@@ -7,6 +7,7 @@ import { Users, Printer, FileText, CheckSquare, RefreshCw, ClipboardCheck, Histo
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
+import { useModal } from './ModalProvider';
 
 const MOTIVOS_FALTA = [
   'Familiar enfermo',
@@ -28,6 +29,7 @@ const calcularDiasCorridos = (desdeStr: string, hastaStr: string): number => {
 };
 
 export const PersonalTab: React.FC = () => {
+  const { confirm, alert } = useModal();
   const [personalList, setPersonalList] = useState<any[]>([]);
   const [selectedPersonal, setSelectedPersonal] = useState<any[]>([]);
   const [fechaPlanilla, setFechaPlanilla] = useState(new Date().toISOString().split('T')[0]);
@@ -126,7 +128,7 @@ export const PersonalTab: React.FC = () => {
 
   const handleConfirmFalta = async () => {
     if (!faltaForm.userId || !faltaForm.motivo) {
-      alert('Seleccione un empleado y un motivo.');
+      await alert({ title: 'Campos incompletos', message: 'Seleccione un empleado y un motivo.', variant: 'warning' });
       return;
     }
 
@@ -157,7 +159,7 @@ export const PersonalTab: React.FC = () => {
         `${selectedPerson.nombre || selectedPerson.email} — Motivo: ${faltaForm.motivo} (Desde: ${desdeVal} Hasta: ${hastaVal})`
       );
 
-      alert('Falta registrada con éxito.');
+      await alert({ title: 'Falta registrada', message: 'Falta registrada con éxito.', variant: 'success' });
       setShowFaltaModal(false);
       
       // Reset form
@@ -171,12 +173,13 @@ export const PersonalTab: React.FC = () => {
       });
     } catch (err) {
       console.error('Error al registrar falta en Firebase:', err);
-      alert('Error al registrar la falta.');
+      await alert({ title: 'Error', message: 'No se pudo registrar la falta. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleQuitarFalta = async (userId: string) => {
-    if (!confirm('¿Desea quitar esta falta registrada del sistema?')) return;
+    const confirmed = await confirm({ title: 'Quitar falta', message: '¿Desea quitar esta falta registrada del sistema?', variant: 'warning', confirmText: 'Sí, quitar', cancelText: 'Cancelar' });
+    if (!confirmed) return;
     try {
       // Para quitarla, buscamos las licencias guardadas de este empleado que coincidan con la fecha actual de la planilla
       const q = query(
@@ -200,13 +203,13 @@ export const PersonalTab: React.FC = () => {
       await logAudit('Falta eliminada', `${personObj?.nombre || userId} en fecha ${fechaPlanilla}`);
     } catch (err) {
       console.error(err);
-      alert('Error al eliminar la falta.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar la falta. Intente nuevamente.', variant: 'danger' });
     }
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (personalList.length === 0) {
-      alert('No hay personal registrado para generar la planilla.');
+      await alert({ title: 'Sin personal', message: 'No hay personal registrado para generar la planilla.', variant: 'info' });
       return;
     }
 
@@ -342,21 +345,22 @@ export const PersonalTab: React.FC = () => {
       setHistorialUser(person);
     } catch (err) {
       console.error('Error cargando historial:', err);
-      alert('Error al cargar el historial.');
+      await alert({ title: 'Error', message: 'No se pudo cargar el historial. Intente nuevamente.', variant: 'danger' });
     }
   };
 
   const handleEliminarHistorialFalta = async (faltaId: string) => {
-    if (!confirm('¿Desea eliminar este registro de falta del historial permanentemente?')) return;
+    const confirmed = await confirm({ title: 'Confirmar eliminación', message: '¿Desea eliminar este registro de falta del historial permanentemente?\n\nEsta acción no se puede deshacer.', variant: 'danger', confirmText: 'Sí, eliminar', cancelText: 'Cancelar' });
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'licencias_personal', faltaId));
       setHistorialList(prev => prev.filter(item => item.id !== faltaId));
       // Forzar recarga del mapa diario
       setFechaPlanilla(prev => prev);
-      alert('Registro eliminado.');
+      await alert({ title: 'Registro eliminado', message: 'Registro eliminado con éxito.', variant: 'success' });
     } catch (err) {
       console.error(err);
-      alert('Error al eliminar.');
+      await alert({ title: 'Error', message: 'No se pudo eliminar el registro. Intente nuevamente.', variant: 'danger' });
     }
   };
 

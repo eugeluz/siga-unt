@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { Upload, Database, AlertTriangle } from 'lucide-react';
 
 import { excelDateToJSDate } from '../utils/date';
+import { useModal } from './ModalProvider';
 
 interface ImportModalProps {
   onClose: () => void;
@@ -17,6 +18,7 @@ interface ImportModalProps {
  * and loading them into Firestore in batch operations.
  */
 export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportComplete, defaultType = 'alumnos' }) => {
+  const { alert } = useModal();
   const [importType, setImportType] = useState<'alumnos' | 'inscripciones' | 'cursos' | 'fechas'>(defaultType);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
@@ -51,7 +53,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         }
       } catch (err) {
         console.error(err);
-        alert('Error al leer el archivo. Asegúrese de que sea un archivo de Excel o CSV válido.');
+        alert({ title: 'Error al leer archivo', message: 'Error al leer el archivo. Asegúrese de que sea un archivo de Excel o CSV válido.', variant: 'danger' });
       }
     };
     reader.readAsArrayBuffer(file);
@@ -241,12 +243,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         });
       }
 
-      alert(`Importación completada con éxito. Se procesaron ${count} registros.`);
+      await alert({ title: 'Importación completada', message: `Importación completada con éxito. Se procesaron ${count} registros.`, variant: 'success' });
       onImportComplete();
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : 'Error desconocido';
-      alert(`Error durante la importación en la fila ${count}: ${message}`);
+      await alert({ title: 'Error en importación', message: `Error durante la importación en la fila ${count}: ${message}`, variant: 'danger' });
     } finally {
       setIsImporting(false);
     }
