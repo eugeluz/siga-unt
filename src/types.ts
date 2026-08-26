@@ -46,6 +46,9 @@ export interface Fecha {
   curso: string;
   inicio: string;
   certificado?: string;
+  cantidadClases?: number;
+  clasesDictadas?: Record<string, boolean>;
+  showOnLanding?: boolean;
 }
 
 export interface Inscripcion {
@@ -61,6 +64,7 @@ export interface Inscripcion {
   unidadAcademica?: string;
   ua?: number | string;
   idCurso?: number;
+  asistencias?: Record<string, boolean>;
   createdAt?: string;
   createdBy?: string;
   telPart?: string;

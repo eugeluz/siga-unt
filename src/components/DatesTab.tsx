@@ -15,7 +15,8 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
   const [selectedPrograma, setSelectedPrograma] = useState('');
   const [dateForm, setDateForm] = useState({
     inicio: '',
-    certificado: ''
+    certificado: '',
+    cantidadClases: 6
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,10 +43,11 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
         curso: courseObj.curso,
         inicio: dateForm.inicio,
         certificado: dateForm.certificado || '',
+        cantidadClases: Number(dateForm.cantidadClases) || 4,
         showOnLanding: true
       });
 
-      setDateForm({ inicio: '', certificado: '' });
+      setDateForm({ inicio: '', certificado: '', cantidadClases: 4 });
       setSelectedCursoId('');
       alert('Fecha de curso agregada con éxito.');
     } catch (err) {
@@ -132,7 +134,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
           </h3>
           <form onSubmit={handleAddDate}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', width: '100%' }}>
-              <div className="form-group" style={{ flex: '1 1 180px', margin: 0 }}>
+              <div className="form-group" style={{ flex: '1 1 160px', margin: 0 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Programa</label>
                 <select className="form-control" value={selectedPrograma} onChange={e => { setSelectedPrograma(e.target.value); setSelectedCursoId(''); }} style={{ fontSize: '0.85rem' }}>
                   <option value="">-- Todos los programas --</option>
@@ -142,7 +144,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 </select>
               </div>
 
-              <div className="form-group" style={{ flex: '2 1 240px', margin: 0 }}>
+              <div className="form-group" style={{ flex: '2 1 220px', margin: 0 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Seleccionar Curso</label>
                 <select
                   className="form-control"
@@ -160,7 +162,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 </select>
               </div>
 
-              <div className="form-group" style={{ flex: '1 1 140px', margin: 0 }}>
+              <div className="form-group" style={{ flex: '1 1 130px', margin: 0 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Fecha de Inicio</label>
                 <input
                   type="date"
@@ -172,14 +174,29 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 />
               </div>
 
-              <div className="form-group" style={{ flex: '1 1 140px', margin: 0 }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Fecha de Certificado</label>
+              <div className="form-group" style={{ flex: '1 1 130px', margin: 0 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Fecha Certificado</label>
                 <input
                   type="date"
                   className="form-control"
                   value={dateForm.certificado}
                   onChange={e => setDateForm({ ...dateForm, certificado: e.target.value })}
                   style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ flex: '0 1 110px', margin: 0 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Cant. Clases</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  className="form-control"
+                  value={dateForm.cantidadClases}
+                  onChange={e => setDateForm({ ...dateForm, cantidadClases: parseInt(e.target.value) || 1 })}
+                  required
+                  style={{ fontSize: '0.85rem' }}
+                  title="Cantidad de clases que componen la cursada"
                 />
               </div>
 
@@ -243,14 +260,15 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                   <tr>
                     <th>Nombre del Curso</th>
                     <th
-                      style={{ cursor: 'pointer', userSelect: 'none', width: '140px' }}
+                      style={{ cursor: 'pointer', userSelect: 'none', width: '130px' }}
                       onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         Fecha Inicio {sortOrder === 'asc' ? '▲' : '▼'}
                       </div>
                     </th>
-                    <th style={{ width: '140px' }}>Fecha Certificado</th>
+                    <th style={{ width: '130px' }}>Fecha Certificado</th>
+                    <th style={{ width: '110px', textAlign: 'center' }}>Cant. Clases</th>
                     <th style={{ width: '140px', textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
@@ -260,6 +278,9 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                       <td data-label="Curso" style={{ fontWeight: 400 }}>{f.curso}</td>
                       <td data-label="Inicio">{formatDateAR(f.inicio)}</td>
                       <td data-label="Certificado">{formatDateAR(f.certificado)}</td>
+                      <td data-label="Cant. Clases" style={{ textAlign: 'center', fontWeight: 600, color: 'var(--primary)' }}>
+                        {f.cantidadClases || 4} clases
+                      </td>
                       <td data-label="Acciones" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                           <button

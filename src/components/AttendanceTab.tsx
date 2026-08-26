@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, getDoc, deleteDoc, writeBatch, addDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, deleteDoc, writeBatch, addDoc, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { auth } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { downloadCSV } from '../utils/csv';
 import { downloadExcel } from '../utils/excel';
 import { formatDateAR } from '../utils/dateAR';
-import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X } from 'lucide-react';
+import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
@@ -26,6 +26,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   const [loadingAsistencia, setLoadingAsistencia] = useState(false);
   const [loadingCompleto, setLoadingCompleto] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Control de Clases Dictadas (guardadas en el doc de fecha o localmente)
+  const [clasesDictadas, setClasesDictadas] = useState<Record<number, boolean>>({});
 
   // Informes PDF de docentes
   const [informes, setInformes] = useState<any[]>([]);
@@ -98,11 +101,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     }
   };
 
-  const formatoFechaHora = (s: string) => {
-    if (!s) return '—';
-    try { return new Date(s).toLocaleString('es-AR'); } catch { return s; }
-  };
-
   useEffect(() => {
     if (asistenciaCurso) {
       const courseObj = cursos.find(c => c.curso === asistenciaCurso);
@@ -121,6 +119,33 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     }
   }, [asistenciaCurso, cursos, fechas]);
 
+  const currentFechaObj = asistenciaFechasFiltradas.find(f => f.inicio === asistenciaFecha);
+  const totalClases = currentFechaObj?.cantidadClases ? Number(currentFechaObj.cantidadClases) : 4;
+
+  // Sincronizar clasesDictadas cuando cambia la fecha seleccionada
+  useEffect(() => {
+    if (currentFechaObj && currentFechaObj.clasesDictadas) {
+      setClasesDictadas(currentFechaObj.clasesDictadas);
+    } else {
+      setClasesDictadas({});
+    }
+  }, [currentFechaObj]);
+
+  const handleToggleClaseDictada = async (numClase: number) => {
+    const nextState = { ...clasesDictadas, [numClase]: !clasesDictadas[numClase] };
+    setClasesDictadas(nextState);
+
+    if (currentFechaObj && currentFechaObj.id) {
+      try {
+        await updateDoc(doc(db, 'fechas', currentFechaObj.id), {
+          clasesDictadas: nextState
+        });
+      } catch (e) {
+        console.error('Error guardando estado de clase dictada:', e);
+      }
+    }
+  };
+
   const searchAsistencia = async () => {
     if (!asistenciaCurso || !asistenciaFecha) return;
     setLoadingAsistencia(true);
@@ -132,13 +157,34 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
         where('fechaInicio', '==', asistenciaFecha)
       );
       const snap = await getDocs(q);
-      let list = snap.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
+      let list = await Promise.all(
+        snap.docs.map(async docSnap => {
+          const data: any = docSnap.data();
+          let tel = data.telPart || data.telLab || '';
+
+          // Si no tiene teléfono en inscripción, buscarlo en la colección 'alumnos'
+          if (!tel && data.dni) {
+            try {
+              const alSnap = await getDoc(doc(db, 'alumnos', String(data.dni)));
+              if (alSnap.exists()) {
+                const alData = alSnap.data();
+                tel = alData.telPart || alData.telLab || '';
+              }
+            } catch (err) {
+              // ignore
+            }
+          }
+
+          return {
+            id: docSnap.id,
+            ...data,
+            telefono: tel,
+            asistencias: data.asistencias || {}
+          };
+        })
+      );
 
       // Si ya se puso la fecha de Certificado (en FECHAS), pasarlos a Desaprobados si no están Aprobados
-      const currentFechaObj = asistenciaFechasFiltradas.find(f => f.inicio === asistenciaFecha);
       if (currentFechaObj && currentFechaObj.certificado && currentFechaObj.certificado.trim() !== '') {
         const batch = writeBatch(db);
         let hasUpdates = false;
@@ -170,6 +216,31 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     }
   };
 
+  const handleToggleAlumnoAsistencia = async (alumnoId: string, numClase: number) => {
+    const targetAlumno = alumnosAsistencia.find(a => a.id === alumnoId);
+    if (!targetAlumno) return;
+
+    const currentAsistencias = targetAlumno.asistencias || {};
+    const newAsistencias = {
+      ...currentAsistencias,
+      [numClase]: !currentAsistencias[numClase]
+    };
+
+    // Actualizar estado local
+    setAlumnosAsistencia(prev =>
+      prev.map(a => a.id === alumnoId ? { ...a, asistencias: newAsistencias } : a)
+    );
+
+    // Persistir en Firestore
+    try {
+      await updateDoc(doc(db, 'inscripciones', alumnoId), {
+        asistencias: newAsistencias
+      });
+    } catch (err) {
+      console.error('Error guardando asistencia de alumno:', err);
+    }
+  };
+
   const handleDeleteStudent = async (regId: string, nombreAlumno: string) => {
     if (!confirm(`¿Eliminar a ${nombreAlumno} de esta planilla de asistencia?`)) return;
     try {
@@ -192,6 +263,44 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     }
   };
 
+  // Calcular inasistencias en clases que fueron dictadas
+  const calcularInasistenciasDictadas = (alumno: any) => {
+    let inasistencias = 0;
+    for (let c = 1; c <= totalClases; c++) {
+      if (clasesDictadas[c]) {
+        // La clase fue dictada: si el alumno no tiene true en asistencias, es inasistencia
+        if (!alumno.asistencias?.[c]) {
+          inasistencias++;
+        }
+      }
+    }
+    return inasistencias;
+  };
+
+  const handleSendWhatsApp = (alumno: any) => {
+    let cleanPhone = (alumno.telefono || '').replace(/\D/g, '');
+    if (!cleanPhone) {
+      const promptPhone = prompt(`El alumno ${alumno.nombre} ${alumno.apellido} no tiene teléfono registrado. Ingrese el número (ej: 3816406055):`);
+      if (!promptPhone) return;
+      cleanPhone = promptPhone.replace(/\D/g, '');
+    }
+
+    // Asegurar prefijo de Argentina si es número local
+    let finalPhone = cleanPhone;
+    if (finalPhone.length === 10) {
+      finalPhone = `549${finalPhone}`;
+    } else if (finalPhone.startsWith('54') && !finalPhone.startsWith('549') && finalPhone.length === 12) {
+      finalPhone = `549${finalPhone.slice(2)}`;
+    }
+
+    const mensaje = encodeURIComponent(
+      `Hola ${alumno.nombre || ''}, te escribimos del Centro de Capacitación UNT respecto al curso "${asistenciaCurso}". Notamos que registras 2 inasistencias a las clases y queríamos consultarte por qué dejaste de asistir o si tuviste algún inconveniente.`
+    );
+
+    const waUrl = `https://wa.me/${finalPhone}?text=${mensaje}`;
+    window.open(waUrl, '_blank');
+  };
+
   // Ordenar lista automáticamente por Apellido (A-Z)
   const sortedAlumnos = [...alumnosAsistencia].sort((a, b) => {
     const apA = (a.apellido || '').toLowerCase();
@@ -208,48 +317,55 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   const downloadPlanilla = () => {
     if (sortedAlumnos.length === 0) return;
 
-    const exportData = sortedAlumnos.map(a => ({
-      apellido: a.apellido || '',
-      nombre: a.nombre || '',
-      dni: a.dni || '',
-      firma: ''
-    }));
+    const exportData = sortedAlumnos.map(a => {
+      let presentesCount = 0;
+      for (let c = 1; c <= totalClases; c++) {
+        if (a.asistencias?.[c]) presentesCount++;
+      }
+      const porcentaje = totalClases > 0 ? Math.round((presentesCount / totalClases) * 100) : 0;
 
-    downloadCSV(
+      const rowObj: any = {
+        apellido: a.apellido || '',
+        nombre: a.nombre || '',
+        dni: a.dni || ''
+      };
+
+      for (let c = 1; c <= totalClases; c++) {
+        rowObj[`clase_${c}`] = a.asistencias?.[c] ? 'P' : 'A';
+      }
+
+      rowObj.porcentaje = `${porcentaje}%`;
+      rowObj.condicion = a.resultado || 'Cursando';
+
+      return rowObj;
+    });
+
+    const headers = [
+      'Apellido',
+      'Nombre',
+      'DNI',
+      ...Array.from({ length: totalClases }, (_, i) => `C${i + 1}`),
+      '% Asistencia',
+      'Condición'
+    ];
+    const keys = [
+      'apellido',
+      'nombre',
+      'dni',
+      ...Array.from({ length: totalClases }, (_, i) => `clase_${i + 1}`),
+      'porcentaje',
+      'condicion'
+    ];
+
+    downloadExcel(
       exportData,
-      ['Apellido', 'Nombre', 'DNI', 'Firma'],
-      ['apellido', 'nombre', 'dni', 'firma'],
-      `AC_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.csv`
+      headers,
+      keys,
+      `AC_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.xlsx`
     );
   };
 
-  const downloadCompleto = async () => {
-    if (sortedAlumnos.length === 0) return;
-    setLoadingCompleto(true);
-    try {
-      const data = sortedAlumnos.map(a => ({
-        apellido: a.apellido || '',
-        nombre: a.nombre || '',
-        dni: a.dni || '',
-        firma: ''
-      }));
-
-      downloadExcel(
-        data,
-        ['Apellido', 'Nombre', 'DNI', 'Firma'],
-        ['apellido', 'nombre', 'dni', 'firma'],
-        `AC_${asistenciaCurso.replace(/\s+/g, '_')}_${asistenciaFecha}.xlsx`
-      );
-    } catch (err) {
-      console.error(err);
-      alert('Error al generar reporte completo.');
-    } finally {
-      setLoadingCompleto(false);
-    }
-  };
-
-  // Exportar Planilla formato Certificados (para Google Drive script)
-  // Columnas: email | apellido | nombre | dni | curso | periodo | Enviado
+  // Exportar Planilla formato Certificados (solo alumnos Aprobados)
   const downloadPlanillaCertificados = async () => {
     if (!asistenciaCurso || !asistenciaFecha) {
       alert('Primero seleccione el curso y la fecha de inicio.');
@@ -260,8 +376,19 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       return;
     }
 
+    // Filtrar solo los alumnos cuya condición sea Aprobado
+    const aprobados = alumnosAsistencia.filter(a => {
+      const cond = (a.resultado || a.condicion || '').trim().toLowerCase();
+      return cond === 'aprobado' || cond === 'aprobada';
+    });
+
+    if (aprobados.length === 0) {
+      alert('No hay ningún alumno con condición "Aprobado" para exportar.');
+      return;
+    }
+
     const rowsWithEmail = await Promise.all(
-      alumnosAsistencia.map(async (a) => {
+      aprobados.map(async (a) => {
         let emailVal = a.email || '';
         let apellidoVal = a.apellido || '';
         let nombreVal = a.nombre || '';
@@ -295,15 +422,20 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
     const headers = ['email', 'apellido', 'nombre', 'dni', 'curso', 'periodo', 'Enviado'];
     const keys = ['email', 'apellido', 'nombre', 'dni', 'curso', 'periodo', 'Enviado'];
-    const filename = `certificados_${asistenciaCurso.replace(/[^a-zA-Z0-9]/g, '_')}_${asistenciaFecha}.xlsx`;
+    const filename = `aprobados_${asistenciaCurso.replace(/[^a-zA-Z0-9]/g, '_')}_${asistenciaFecha}.xlsx`;
 
     downloadExcel(rowsWithEmail, headers, keys, filename);
-    await logAudit('Exportación Certificados Drive', `${asistenciaCurso} (${asistenciaFecha}) — ${rowsWithEmail.length} alumnos`);
+    await logAudit('Exportación Aprobados Drive', `${asistenciaCurso} (${asistenciaFecha}) — ${rowsWithEmail.length} alumnos aprobados`);
   };
 
-  // Exportar Planilla en PDF lista para imprimir
+  // Exportar Planilla en PDF lista para imprimir (formato físico de firmas)
   const downloadPDF = () => {
     if (sortedAlumnos.length === 0) return;
+
+    if (!fechaClase) {
+      alert('Por favor ingrese la "Fecha de Clase" antes de imprimir el PDF.');
+      return;
+    }
 
     const doc = new jsPDF();
 
@@ -369,8 +501,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     doc.save(fileName);
   };
 
-  const currentFechaObj = asistenciaFechasFiltradas.find(f => f.inicio === asistenciaFecha);
-
   return (
     <div>
       <h2 className="section-title">Planilla de Asistencia e Informe del Capacitador</h2>
@@ -409,104 +539,196 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
           >
             <option value="">-- Seleccione Fecha --</option>
             {asistenciaFechasFiltradas.map((f, i) => (
-              <option key={i} value={f.inicio}>{formatDateAR(f.inicio)}</option>
+              <option key={i} value={f.inicio}>
+                {formatDateAR(f.inicio)} ({f.cantidadClases || 4} clases)
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '24px' }}>
-        <button className="btn-primary" style={{ margin: 0, width: '165px', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0 }} onClick={searchAsistencia}>
-          <FileText size={16} /> Generar Planilla
-        </button>
-        {alumnosAsistencia.length > 0 && (
-          <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+        {/* Fila 1: Asistencia */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap', overflowX: 'auto' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', width: '85px', flexShrink: 0 }}>
+            Asistencia:
+          </span>
+
+          <button
+            className="btn-secondary"
+            style={{
+              margin: 0,
+              height: '38px',
+              padding: '0 14px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontSize: '0.85rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            onClick={searchAsistencia}
+            title="Generar y cargar planilla de asistencia"
+          >
+            <FileText size={15} /> Generar planilla
+          </button>
+
+          {alumnosAsistencia.length > 0 && (
+            <>
+              {/* Input compacto de Fecha de Clase justo antes de Imprimir PDF */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0, background: 'var(--bg-card)', padding: '0 8px', borderRadius: '8px', border: '1px solid var(--border-card)', height: '38px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  Fecha Clase:
+                </span>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={fechaClase}
+                  onChange={e => setFechaClase(e.target.value)}
+                  style={{
+                    height: '28px',
+                    padding: '2px 6px',
+                    fontSize: '0.8rem',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer'
+                  }}
+                  title="Establezca la fecha de la clase para imprimir la planilla"
+                />
+              </div>
+
+              <button
+                className="btn-secondary"
+                style={{
+                  margin: 0,
+                  height: '38px',
+                  padding: '0 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+                onClick={downloadPDF}
+                title="Descargar Planilla en PDF para Imprimir"
+              >
+                <Printer size={15} /> Imprimir PDF
+              </button>
+
+              <button
+                className="btn-secondary"
+                style={{
+                  margin: 0,
+                  height: '38px',
+                  padding: '0 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+                onClick={downloadPlanilla}
+                title="Descargar Planilla de Asistencia en Excel"
+              >
+                <Upload size={15} /> Exportar Asistencia
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Fila 2: Cierre */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', width: '85px', flexShrink: 0 }}>
+            Cierre:
+          </span>
+
+          <label
+            className="btn-secondary"
+            style={{
+              margin: 0,
+              height: '38px',
+              padding: '0 12px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              borderColor: informes.length > 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.4)',
+              background: informes.length > 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.05)',
+              color: informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)'
+            }}
+          >
+            <FileText size={15} color={informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)'} />
+            Informe Docente
+            <input
+              type="file"
+              accept="application/pdf"
+              style={{ display: 'none' }}
+              disabled={!asistenciaCurso || !asistenciaFecha}
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handleUploadInforme(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+
+          {alumnosAsistencia.length > 0 && (
             <button
               className="btn-secondary"
-              style={{ margin: 0, width: '165px', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-              onClick={downloadPDF}
-              title="Descargar Planilla en PDF para Imprimir"
-            >
-              <Printer size={16} /> Imprimir PDF
-            </button>
-            <button
-              className="btn-secondary"
-              style={{ margin: 0, width: '165px', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-              onClick={downloadPlanilla}
-              title="Exportar archivo CSV"
-            >
-              <Upload size={16} /> Exportar CSV
-            </button>
-            <button
-              className="btn-secondary"
-              style={{ margin: 0, width: '165px', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+              style={{
+                margin: 0,
+                height: '38px',
+                padding: '0 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                fontSize: '0.85rem',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
               onClick={downloadPlanillaCertificados}
               title="Exportar archivo Excel modelo para el script de envío de Certificados en Google Drive"
             >
-              <FileSpreadsheet size={16} /> Planilla Certificados
+              <Upload size={15} /> Exportar Aprobados
             </button>
-          </>
-        )}
+          )}
 
-        <label
-          className="btn-secondary"
-          style={{
-            margin: 0,
-            height: '42px',
-            width: '165px',
-            padding: '0 12px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            borderColor: informes.length > 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.4)',
-            background: informes.length > 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.05)',
-            color: informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)'
-          }}
-        >
-          <FileText size={16} color={informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)'} />
-          Informe Docente
-          <input
-            type="file"
-            accept="application/pdf"
-            style={{ display: 'none' }}
-            disabled={!asistenciaCurso || !asistenciaFecha}
-            onChange={e => {
-              const file = e.target.files?.[0];
-              if (file) handleUploadInforme(file);
-              e.target.value = '';
-            }}
-          />
-        </label>
-
-        {informes.map(info => (
-          <div key={info.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={info.fileName}>
-              {info.fileName}
-            </span>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ padding: '0 6px', margin: 0, minHeight: '28px', minWidth: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => setInformeView(info)}
-              title="Ver informe PDF"
-            >
-              <Eye size={13} />
-            </button>
-            <button
-              type="button"
-              className="btn-danger"
-              style={{ padding: '0 6px', margin: 0, minHeight: '28px', minWidth: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => handleDeleteInforme(info)}
-              title="Eliminar informe"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        ))}
+          {informes.map(info => (
+            <div key={info.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '3px 8px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={info.fileName}>
+                {info.fileName}
+              </span>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '0 6px', margin: 0, minHeight: '26px', minWidth: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setInformeView(info)}
+                title="Ver informe PDF"
+              >
+                <Eye size={12} />
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{ padding: '0 6px', margin: 0, minHeight: '26px', minWidth: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => handleDeleteInforme(info)}
+                title="Eliminar informe"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Modal ver informe */}
@@ -556,6 +778,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
               <div style={{ margin: '14px 0 0 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
                   <span><strong>Fecha de Inicio:</strong> {formatDateAR(asistenciaFecha)}</span>
+                  <span style={{ color: 'var(--primary)', fontWeight: 600 }}>| Total Clases: {totalClases}</span>
 
                   {currentFechaObj?.certificado ? (
                     <span style={{ color: 'var(--success)', fontWeight: 600 }}>
@@ -564,95 +787,199 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                   ) : null}
                 </div>
 
-                <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--border-card)' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Fecha de Clase: {fechaClase ? formatDateAR(fechaClase) : '______'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    💡 <em>Tildá el círculo de cada clase arriba para indicar que fue dictada.</em>
                   </span>
-                  <label title="Abrir calendario para elegir fecha de la clase" style={{ margin: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
-                    <Calendar size={18} color="var(--primary)" />
-                    <input
-                      type="date"
-                      value={fechaClase}
-                      onChange={e => setFechaClase(e.target.value)}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        opacity: 0,
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </label>
-                </span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="listbox-wrapper">
-            <table className="listbox-table">
+          <div className="listbox-wrapper" style={{ overflowX: 'auto' }}>
+            <table className="listbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                    style={{ cursor: 'pointer', userSelect: 'none', minWidth: '150px' }}
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       Apellido {sortOrder === 'asc' ? '▲' : '▼'}
                     </div>
                   </th>
-                  <th>Nombre</th>
-                  <th>DNI</th>
-                  <th>Condición</th>
-                  <th>Firma (Asistencia)</th>
+                  <th style={{ minWidth: '130px' }}>Nombre</th>
+                  <th style={{ minWidth: '95px' }}>DNI</th>
+
+                  {/* Columnas dinámicas de clases con círculo/checkbox de clase dictada */}
+                  {Array.from({ length: totalClases }, (_, i) => {
+                    const numClase = i + 1;
+                    const isDictada = !!clasesDictadas[numClase];
+                    return (
+                      <th
+                        key={numClase}
+                        style={{
+                          textAlign: 'center',
+                          minWidth: '55px',
+                          background: isDictada ? 'rgba(16, 185, 129, 0.12)' : 'inherit',
+                          borderLeft: '1px solid var(--border-card)',
+                          padding: '6px 4px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>C{numClase}</span>
+                          <label
+                            title={isDictada ? `Clase ${numClase} Dictada (Clic para desmarcar)` : `Marcar Clase ${numClase} como Dictada`}
+                            style={{ margin: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isDictada}
+                              onChange={() => handleToggleClaseDictada(numClase)}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                borderRadius: '50%',
+                                accentColor: '#10b981'
+                              }}
+                            />
+                          </label>
+                          <span style={{ fontSize: '0.65rem', color: isDictada ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
+                            {isDictada ? 'Dada' : 'No'}
+                          </span>
+                        </div>
+                      </th>
+                    );
+                  })}
+
+                  <th style={{ minWidth: '110px', textAlign: 'center' }}>Inasistencias</th>
+                  <th style={{ minWidth: '130px' }}>Condición</th>
                   <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedAlumnos.map(item => (
-                  <tr key={item.id}>
-                    <td data-label="Apellido" style={{ fontWeight: 600 }}>{item.apellido}</td>
-                    <td data-label="Nombre">{item.nombre}</td>
-                    <td data-label="DNI">{item.dni}</td>
-                    <td data-label="Condición">
-                      <select
-                        className="form-control"
-                        style={{
-                          padding: '3px 8px',
-                          fontSize: '0.8rem',
-                          height: '30px',
-                          fontWeight: 600,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          width: 'auto',
-                          minWidth: '120px'
-                        }}
-                        value={item.resultado || item.condicion || 'Cursando'}
-                        onChange={(e) => handleResultadoChange(item.id, e.target.value)}
-                      >
-                        <option value="Cursando">Cursando</option>
-                        <option value="Aprobado">Aprobado</option>
-                        <option value="Desaprobado">Desaprobado</option>
-                        <option value="Abandonó">Abandonó</option>
-                      </select>
-                    </td>
-                    <td data-label="Firma" style={{ minWidth: '160px' }}>
-                      <span style={{ display: 'inline-block', width: '100%', borderBottom: '1px dashed var(--text-muted)', height: '24px' }}></span>
-                    </td>
-                    <td data-label="Acciones" style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="btn-danger"
-                        style={{ padding: '4px 8px', margin: 0, minHeight: '32px', fontSize: '0.75rem' }}
-                        onClick={() => handleDeleteStudent(item.id, `${item.apellido}, ${item.nombre}`)}
-                        title="Eliminar de la planilla"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {sortedAlumnos.map(item => {
+                  const inasistencias = calcularInasistenciasDictadas(item);
+                  const alertInasistencias = inasistencias >= 2;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      style={{
+                        background: alertInasistencias ? 'rgba(239, 68, 68, 0.05)' : 'inherit'
+                      }}
+                    >
+                      <td data-label="Apellido" style={{ fontWeight: 600 }}>{item.apellido}</td>
+                      <td data-label="Nombre">{item.nombre}</td>
+                      <td data-label="DNI">{item.dni}</td>
+
+                      {/* Checkboxes de asistencia para cada clase */}
+                      {Array.from({ length: totalClases }, (_, i) => {
+                        const numClase = i + 1;
+                        const isDictada = !!clasesDictadas[numClase];
+                        const isPresente = !!item.asistencias?.[numClase];
+
+                        return (
+                          <td
+                            key={numClase}
+                            style={{
+                              textAlign: 'center',
+                              borderLeft: '1px solid var(--border-card)',
+                              background: isDictada && !isPresente ? 'rgba(239, 68, 68, 0.08)' : (isPresente ? 'rgba(16, 185, 129, 0.06)' : 'inherit')
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isPresente}
+                              onChange={() => handleToggleAlumnoAsistencia(item.id, numClase)}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: 'var(--primary)'
+                              }}
+                              title={`Marcar asistencia para Clase ${numClase}`}
+                            />
+                          </td>
+                        );
+                      })}
+
+                      <td data-label="Inasistencias" style={{ textAlign: 'center' }}>
+                        {alertInasistencias ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--danger)', fontWeight: 700 }}>
+                            <AlertCircle size={15} />
+                            <span>{inasistencias}</span>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => handleSendWhatsApp(item)}
+                              style={{
+                                margin: 0,
+                                padding: '0',
+                                width: '28px',
+                                height: '28px',
+                                minHeight: '28px',
+                                minWidth: '28px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                color: '#16a34a',
+                                borderColor: 'rgba(22, 163, 74, 0.5)',
+                                background: 'rgba(22, 163, 74, 0.12)',
+                                cursor: 'pointer',
+                                flexShrink: 0
+                              }}
+                              title={`Enviar WhatsApp a ${item.nombre} por inasistencias`}
+                            >
+                              <MessageSquare size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.85rem', color: inasistencias > 0 ? 'var(--warning, #f59e0b)' : 'var(--text-secondary)' }}>
+                            {inasistencias}
+                          </span>
+                        )}
+                      </td>
+
+                      <td data-label="Condición">
+                        <select
+                          className="form-control"
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '0.8rem',
+                            height: '30px',
+                            fontWeight: 600,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            width: 'auto',
+                            minWidth: '110px'
+                          }}
+                          value={item.resultado || item.condicion || 'Cursando'}
+                          onChange={(e) => handleResultadoChange(item.id, e.target.value)}
+                        >
+                          <option value="Cursando">Cursando</option>
+                          <option value="Aprobado">Aprobado</option>
+                          <option value="Desaprobado">Desaprobado</option>
+                          <option value="Abandonó">Abandonó</option>
+                        </select>
+                      </td>
+
+                      <td data-label="Acciones" style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          style={{ padding: '4px 8px', margin: 0, minHeight: '32px', fontSize: '0.75rem' }}
+                          onClick={() => handleDeleteStudent(item.id, `${item.apellido}, ${item.nombre}`)}
+                          title="Eliminar de la planilla"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -667,5 +994,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     </div>
   );
 };
+
 
 
