@@ -60,6 +60,84 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
     }
   };
 
+  const handleRenombrarFacultad = async () => {
+    const confirmAction = confirm(
+      '¿Desea actualizar en Firebase el nombre de la facultad a "Agronomía, Zootecnia y Veterinaria" (actualizando la lista de facultades, alumnos e inscripciones coincidentes)?'
+    );
+    if (!confirmAction) return;
+
+    setLoadingAction('Actualizando nombre de facultad en Firebase...');
+    try {
+      // 1. Actualizar colección facultades
+      const facSnap = await getDocs(collection(db, 'facultades'));
+      let batch = writeBatch(db);
+      let batchCount = 0;
+      let totalUpdated = 0;
+
+      for (const d of facSnap.docs) {
+        const data = d.data();
+        const name = data.unidadAcademica || data.facultad || '';
+        if (name.includes('Agronom') || name.includes('Zootecnia')) {
+          batch.update(d.ref, {
+            facultad: 'Agronomía, Zootecnia y Veterinaria',
+            unidadAcademica: 'Agronomía, Zootecnia y Veterinaria'
+          });
+          batchCount++;
+          totalUpdated++;
+          if (batchCount % 400 === 0) {
+            await batch.commit();
+            batch = writeBatch(db);
+          }
+        }
+      }
+
+      // 2. Actualizar colección alumnos
+      const alumSnap = await getDocs(collection(db, 'alumnos'));
+      for (const d of alumSnap.docs) {
+        const data = d.data();
+        const ua = data.unidadAcademica || '';
+        if (ua.includes('Agronom') || ua.includes('Zootecnia')) {
+          batch.update(d.ref, { unidadAcademica: 'Agronomía, Zootecnia y Veterinaria' });
+          batchCount++;
+          totalUpdated++;
+          if (batchCount % 400 === 0) {
+            await batch.commit();
+            batch = writeBatch(db);
+          }
+        }
+      }
+
+      // 3. Actualizar colección inscripciones
+      const inscSnap = await getDocs(collection(db, 'inscripciones'));
+      for (const d of inscSnap.docs) {
+        const data = d.data();
+        const ua = data.unidadAcademica || '';
+        if (ua.includes('Agronom') || ua.includes('Zootecnia')) {
+          batch.update(d.ref, { unidadAcademica: 'Agronomía, Zootecnia y Veterinaria' });
+          batchCount++;
+          totalUpdated++;
+          if (batchCount % 400 === 0) {
+            await batch.commit();
+            batch = writeBatch(db);
+          }
+        }
+      }
+
+      if (batchCount % 400 !== 0) {
+        await batch.commit();
+      }
+
+      await logAudit('Actualizar Facultad', `Se renombró la facultad en ${totalUpdated} documentos a Agronomía, Zootecnia y Veterinaria`);
+      alert(`¡Listo! Se actualizaron ${totalUpdated} registros a "Agronomía, Zootecnia y Veterinaria".`);
+      if (onRefreshData) onRefreshData();
+    } catch (err) {
+      console.error('Error al actualizar nombre de facultad:', err);
+      alert('Hubo un error al actualizar los datos en Firebase.');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const openImport = (type: 'alumnos' | 'inscripciones' | 'cursos' | 'fechas') => {
     setImportType(type);
     setShowImportModal(true);
@@ -191,6 +269,23 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
               <Trash2 size={16} /> Vaciar Fechas
             </button>
           </div>
+        </div>
+
+        {/* Bloque 3: Mantenimiento y Actualizaciones de Datos */}
+        <div className="details-box" style={{ background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--border-card)', padding: '24px', gridColumn: '1 / -1' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.15rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <RefreshCw size={20} color="var(--primary)" /> Mantenimiento y Actualización de Dependencias
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+            Actualiza en Firestore el nombre de la facultad a <strong>"Agronomía, Zootecnia y Veterinaria"</strong> en todas las tablas existentes (facultades, alumnos e inscripciones).
+          </p>
+          <button
+            className="btn-primary"
+            style={{ padding: '10px 20px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', margin: 0 }}
+            onClick={handleRenombrarFacultad}
+          >
+            <RefreshCw size={16} /> Renombrar "Agronomía, Zootecnia y Veterinaria" en toda la base de datos
+          </button>
         </div>
 
       </div>

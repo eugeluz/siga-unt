@@ -54,12 +54,21 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
       const facObj = facultades.find(f => (f.unidadAcademica || f.facultad) === selectedFacultad);
       const uaCode = facObj ? (facObj.codigo || facObj.idFac || facObj.ua) : null;
 
+      const targetNames = [selectedFacultad];
+      if (selectedFacultad.includes('Agronomía') || selectedFacultad.includes('Zootecnia') || selectedFacultad.includes('Veterinaria')) {
+        targetNames.push('Agronomía y Zootecnia', 'Agronomía, Zootecnia y Veterinaria', 'Agronomia y Zootecnia', 'Agronomia, Zootecnia y Veterinaria');
+      }
+      const uniqueNames = Array.from(new Set(targetNames));
+
       if (!uaCode) {
         // Fallback: Si no tiene un código en la colección facultades, buscar directamente por el nombre de la facultad
-        const q = query(collection(db, 'inscripciones'), where('unidadAcademica', '==', selectedFacultad));
-        const snap = await getDocs(q);
-        const results = snap.docs.map(docSnap => docSnap.data());
-        setAlumnosFacultad(results);
+        let allResults: any[] = [];
+        for (const name of uniqueNames) {
+          const q = query(collection(db, 'inscripciones'), where('unidadAcademica', '==', name));
+          const snap = await getDocs(q);
+          allResults = allResults.concat(snap.docs.map(docSnap => docSnap.data()));
+        }
+        setAlumnosFacultad(allResults);
         return;
       }
 
@@ -70,9 +79,11 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
 
       if (results.length === 0) {
         // Fallback secundario si las inscripciones usan la propiedad unidadAcademica
-        const q2 = query(collection(db, 'inscripciones'), where('unidadAcademica', '==', selectedFacultad));
-        const snap2 = await getDocs(q2);
-        results = snap2.docs.map(docSnap => docSnap.data());
+        for (const name of uniqueNames) {
+          const q2 = query(collection(db, 'inscripciones'), where('unidadAcademica', '==', name));
+          const snap2 = await getDocs(q2);
+          results = results.concat(snap2.docs.map(docSnap => docSnap.data()));
+        }
       }
 
       setAlumnosFacultad(results);
