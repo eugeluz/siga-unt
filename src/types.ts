@@ -8,7 +8,6 @@ export interface Alumno {
   nivelEstudio?: string;
   titulo?: string;
   unidadAcademica?: string;
-  direccionOficina?: string;
   area?: string;
   cargoFuncion?: string;
   personas?: number;
@@ -60,7 +59,6 @@ export interface Inscripcion {
   email?: string;
   cargoFuncion?: string;
   unidadAcademica?: string;
-  direccionOficina?: string;
   ua?: number | string;
   idCurso?: number;
   createdAt?: string;

@@ -58,7 +58,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     nivelEstudio: 'Sin dato',
     titulo: '',
     unidadAcademica: 'Sin dato',
-    direccionOficina: '',
     area: '',
     cargoFuncion: '',
     personas: '0',
@@ -97,7 +96,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
         nivelEstudio: studentForm.nivelEstudio,
         titulo: studentForm.titulo,
         unidadAcademica: studentForm.unidadAcademica,
-        direccionOficina: studentForm.direccionOficina,
         area: studentForm.area,
         cargoFuncion: studentForm.cargoFuncion,
         personas: Number(studentForm.personas),
@@ -128,7 +126,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       nivelEstudio: student.nivelEstudio || 'Sin dato',
       titulo: student.titulo || '',
       unidadAcademica: student.unidadAcademica || 'Sin dato',
-      direccionOficina: student.direccionOficina || '',
       area: student.area || '',
       cargoFuncion: student.cargoFuncion || '',
       personas: String(student.personas || '0'),
@@ -153,7 +150,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       nivelEstudio: 'Sin dato',
       titulo: '',
       unidadAcademica: 'Sin dato',
-      direccionOficina: '',
       area: '',
       cargoFuncion: '',
       personas: '0',
@@ -390,8 +386,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
                     downloadExcel(
                       alumnos,
-                      ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Tel. Particular', 'Nivel Estudio', 'Título', 'Unidad Académica', 'Dirección u Oficina', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
-                      ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'direccionOficina', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
+                      ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Tel. Particular', 'Nivel Estudio', 'Título', 'Unidad Académica', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
+                      ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
                       `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
                     );
                   }}>
@@ -473,11 +469,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
 
                 <div className="form-row">
                   <FormField
-                    label="Dirección u Oficina"
-                    value={studentForm.direccionOficina}
-                    onChange={e => setStudentForm({ ...studentForm, direccionOficina: e.target.value })}
-                  />
-                  <FormField
                     label="Área de trabajo"
                     value={studentForm.area}
                     onChange={e => setStudentForm({ ...studentForm, area: e.target.value })}
@@ -486,26 +477,16 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     label="Cargo / Función"
                     value={studentForm.cargoFuncion}
                     onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}
-                    options={[
-                      { value: '', label: '-- Sin cargo / función --' },
-                      { value: 'Administrativo/a', label: 'Administrativo/a' },
-                      { value: 'Docente', label: 'Docente' },
-                      { value: 'JTP/Aux. Docente', label: 'JTP/Aux. Docente' },
-                      { value: 'Técnicos/Profesional', label: 'Técnicos/Profesional' },
-                      { value: 'Mantenimiento', label: 'Mantenimiento' },
-                      { value: 'Producción', label: 'Producción' },
-                      { value: 'Servicios Grales.', label: 'Servicios Grales.' }
-                    ]}
                   />
-                </div>
-
-                <div className="form-row">
                   <FormField
                     label="Personas a cargo"
                     type="number"
                     value={studentForm.personas}
                     onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })}
                   />
+                </div>
+
+                <div className="form-row">
                   <FormField
                     label="Correo Electrónico"
                     type="email"
@@ -517,9 +498,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     value={studentForm.telLab}
                     onChange={e => setStudentForm({ ...studentForm, telLab: e.target.value })}
                   />
-                </div>
-
-                <div className="form-row">
                   <FormField
                     label="Interno"
                     value={studentForm.interno}
