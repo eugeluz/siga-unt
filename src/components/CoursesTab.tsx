@@ -114,7 +114,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         await deleteDoc(doc(db, 'cursos', courseObj.docId));
       }
       // 2. Delete by String(idCurso) key as fallback
-      await deleteDoc(doc(db, 'cursos', String(idCurso))).catch(() => {});
+      await deleteDoc(doc(db, 'cursos', String(idCurso))).catch(() => { });
 
       // 3. Delete any other matching documents in Firestore with this idCurso
       const q = query(collection(db, 'cursos'), where('idCurso', '==', Number(idCurso)));
@@ -139,7 +139,61 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
     }
     const idCursoVal = form.idCurso ? Number(form.idCurso) : getNextId();
     try {
+      // Si se escribió un docente nuevo, agregarlo al listado original (docentes)
+      let effectiveIdDocente: number | null = form.idDocente ? Number(form.idDocente) : null;
+      let effectiveDocenteNombre = '';
       const docenteSel = docentes.find(d => String(d.idDocente) === form.idDocente);
+      if (docenteSel) {
+        effectiveDocenteNombre = `${docenteSel.apellido}, ${docenteSel.nombre}`;
+      } else if (form.docenteNombre.trim()) {
+        const typed = form.docenteNombre.trim();
+        const existingByName = docentes.find(d => {
+          const full1 = `${d.apellido}, ${d.nombre}`.toLowerCase();
+          const full2 = `${d.apellido} ${d.nombre}`.toLowerCase();
+          const full3 = `${d.nombre} ${d.apellido}`.toLowerCase();
+          const t = typed.toLowerCase();
+          return full1 === t || full2 === t || full3 === t;
+        });
+        if (existingByName) {
+          effectiveIdDocente = existingByName.idDocente;
+          effectiveDocenteNombre = `${existingByName.apellido}, ${existingByName.nombre}`;
+        } else {
+          let apellido = '';
+          let nombre = '';
+          if (typed.includes(',')) {
+            const parts = typed.split(',').map(s => s.trim());
+            apellido = parts[0] || '';
+            nombre = parts[1] || '';
+          } else {
+            const parts = typed.split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) {
+              apellido = parts[0];
+              nombre = parts.slice(1).join(' ');
+            } else {
+              apellido = typed;
+              nombre = '';
+            }
+          }
+          const maxId = docentes.length > 0 ? Math.max(...docentes.map(d => Number(d.idDocente) || 0)) : 0;
+          const newId = maxId + 1;
+          const newDocente = {
+            idDocente: newId,
+            apellido: apellido.toUpperCase(),
+            nombre: nombre.toUpperCase(),
+            email: '',
+            celular: ''
+          };
+          try {
+            await setDoc(doc(db, 'docentes', String(newId)), newDocente);
+            await logAudit('Docente creado', `${newDocente.apellido}, ${newDocente.nombre} (ID ${newId})`);
+            effectiveIdDocente = newId;
+            effectiveDocenteNombre = `${newDocente.apellido}, ${newDocente.nombre}`;
+          } catch (e) {
+            console.error('Error creando docente:', e);
+            effectiveDocenteNombre = typed;
+          }
+        }
+      }
       const courseData = {
         idCurso: idCursoVal,
         curso: form.curso.trim(),
@@ -148,8 +202,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         cargaHoraria: form.cargaHoraria.trim(),
         plan: form.plan || '',
         planName: form.planName || '',
-        idDocente: form.idDocente ? Number(form.idDocente) : null,
-        docenteNombre: docenteSel ? `${docenteSel.apellido}, ${docenteSel.nombre}` : (form.docenteNombre.trim() || ''),
+        idDocente: effectiveIdDocente,
+        docenteNombre: effectiveDocenteNombre,
         resolucion: form.resolucion.trim(),
         showOnLanding: form.showOnLanding
       };
@@ -283,10 +337,10 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               }
             }}
           >
-            <option value="">Seleccionar Curso para Modificar</option>
+            <option value="">Seleccionar Programa - Curso para Modificar</option>
             {courseList.map(c => (
               <option key={c.idCurso} value={c.idCurso}>
-                [{c.idCurso}] {c.curso} {c.programa ? `- ${c.programa}` : ''}
+                {c.programa ? `${c.programa} — ` : ''}{c.curso}
               </option>
             ))}
           </select>
@@ -309,8 +363,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               ))}
             </datalist>
           </div>
-          <FormField label="Nombre corto" value={form.curso} onChange={e => setForm({ ...form, curso: e.target.value })} placeholder="Nombre corto" />
           <FormField label="Nombre completo" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value })} placeholder="Nombre completo del curso" />
+          <FormField label="Nombre corto" value={form.curso} onChange={e => setForm({ ...form, curso: e.target.value })} placeholder="Nombre corto" />
         </div>
 
         <div className="form-row" style={{ width: '100%', marginTop: '15px' }}>
