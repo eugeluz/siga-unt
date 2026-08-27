@@ -29,6 +29,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   const [form, setForm] = useState({
     idCurso: '',
     curso: '',
+    nombreCompleto: '',
     programa: '',
     cargaHoraria: '',
     plan: '',
@@ -59,6 +60,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
     setForm({
       idCurso: String(getNextId()),
       curso: '',
+      nombreCompleto: '',
       programa: '',
       cargaHoraria: '',
       plan: '',
@@ -81,6 +83,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
     setForm({
       idCurso: String(course.idCurso || ''),
       curso: course.curso || '',
+      nombreCompleto: course.nombreCompleto || course.nombre_completo || '',
       programa: course.programa || '',
       cargaHoraria: course.cargaHoraria || '',
       plan: course.plan || '',
@@ -130,15 +133,17 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   };
 
   const handleSave = async () => {
-    if (!form.curso || !form.idCurso) {
-      await alert({ title: 'Campos incompletos', message: 'ID y nombre del curso son requeridos.', variant: 'warning' });
+    if (!form.curso.trim()) {
+      await alert({ title: 'Campos incompletos', message: 'El nombre del curso es requerido.', variant: 'warning' });
       return;
     }
+    const idCursoVal = form.idCurso ? Number(form.idCurso) : getNextId();
     try {
       const docenteSel = docentes.find(d => String(d.idDocente) === form.idDocente);
       const courseData = {
-        idCurso: Number(form.idCurso),
+        idCurso: idCursoVal,
         curso: form.curso.trim(),
+        nombreCompleto: form.nombreCompleto.trim(),
         programa: form.programa.trim(),
         cargaHoraria: form.cargaHoraria.trim(),
         plan: form.plan || '',
@@ -149,7 +154,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         showOnLanding: form.showOnLanding
       };
 
-      await setDoc(doc(db, 'cursos', String(form.idCurso)), courseData);
+      await setDoc(doc(db, 'cursos', String(idCursoVal)), courseData);
       await logAudit(selectedCourseId ? 'Curso actualizado' : 'Curso creado', `${courseData.curso} (ID ${courseData.idCurso})`);
       await alert({ title: 'Operación exitosa', message: selectedCourseId ? 'Curso actualizado con éxito.' : 'Curso creado con éxito.', variant: 'success' });
       resetForm();
@@ -288,12 +293,6 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         </div>
 
         <div className="form-row" style={{ width: '100%' }}>
-          <FormField label="ID Curso" type="number" value={form.idCurso} onChange={e => setForm({ ...form, idCurso: e.target.value })} disabled={!!selectedCourseId} />
-          <FormField label="Nombre del Curso" value={form.curso} onChange={e => setForm({ ...form, curso: e.target.value })} />
-          <FormField label="Cantidad de clases" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 6" />
-        </div>
-
-        <div className="form-row" style={{ width: '100%', marginTop: '15px' }}>
           <div className="form-group">
             <label style={{ fontWeight: 600 }}>Programa al que pertenece</label>
             <input
@@ -310,6 +309,12 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               ))}
             </datalist>
           </div>
+          <FormField label="Nombre corto" value={form.curso} onChange={e => setForm({ ...form, curso: e.target.value })} placeholder="Nombre corto" />
+          <FormField label="Nombre completo" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value })} placeholder="Nombre completo del curso" />
+        </div>
+
+        <div className="form-row" style={{ width: '100%', marginTop: '15px' }}>
+          <FormField label="Cantidad de clases" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 6" />
           <div className="form-group">
             <label style={{ fontWeight: 600 }}>Docente Coordinador</label>
             <div style={{ display: 'flex', gap: '6px' }}>
