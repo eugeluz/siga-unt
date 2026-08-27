@@ -6,6 +6,7 @@ import { logAudit } from '../utils/audit';
 import { formatDateAR } from '../utils/dateAR';
 import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download } from 'lucide-react';
 import { useModal } from './ModalProvider';
+import { toTitleCase } from '../utils/text';
 
 interface CoursesTabProps {
   cursos: any[];
@@ -178,8 +179,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
           const newId = maxId + 1;
           const newDocente = {
             idDocente: newId,
-            apellido: apellido.toUpperCase(),
-            nombre: nombre.toUpperCase(),
+            apellido: toTitleCase(apellido),
+            nombre: toTitleCase(nombre),
             email: '',
             celular: ''
           };

@@ -7,6 +7,7 @@ import { SOCIAL } from '../config/social';
 import logoImg from '../img/logoCentro.png';
 import { GraduationCap, Calendar, Clock, MapPin, LogIn, X, Search, UserPlus, CheckSquare, ChevronRight, Star, BookOpen, FileText, Sun, Moon, MessageCircle, UserSearch, Megaphone, FolderOpen } from 'lucide-react';
 import { useModal } from './ModalProvider';
+import { toTitleCase } from '../utils/text';
 
 const FacebookIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -248,8 +249,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
 
       const inscripcionData: any = {
         dni: Number(dni),
-        apellido: apellido.toUpperCase(),
-        nombre: nombre.toUpperCase(),
+        apellido: toTitleCase(apellido),
+        nombre: toTitleCase(nombre),
         curso: courseObj?.curso || '',
         fechaInicio: fechaId,
         resultado: 'Cursando',
@@ -278,8 +279,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
         const alumnoSnap = await getDoc(alumnoRef);
         const alumnoData: any = {
           dni: Number(dni),
-          apellido: apellido.toUpperCase(),
-          nombre: nombre.toUpperCase(),
+          apellido: toTitleCase(apellido),
+          nombre: toTitleCase(nombre),
           fechaNac: fechaNac || '',
           telPart: telPart || '',
           nivelEstudio: nivelEstudio || '',
@@ -768,11 +769,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                 <div className="form-grid-2col">
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Apellido <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
-                    <input type="text" className="form-control" value={apellido} onChange={e => setApellido(e.target.value.toUpperCase())} />
+                    <input type="text" className="form-control" value={apellido} onChange={e => setApellido(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Nombre <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
-                    <input type="text" className="form-control" value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())} />
+                    <input type="text" className="form-control" value={nombre} onChange={e => setNombre(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Fecha de Nacimiento <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>

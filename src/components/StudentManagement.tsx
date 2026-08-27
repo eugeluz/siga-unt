@@ -8,6 +8,7 @@ import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText
 import { downloadExcel } from '../utils/excel';
 import { StudentHistoryTab } from './StudentHistoryTab';
 import { useModal } from './ModalProvider';
+import { toTitleCase } from '../utils/text';
 
 interface StudentManagementProps {
   facultades: any[];
@@ -171,8 +172,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       }
       const studentData = {
         dni: Number(studentForm.dni),
-        apellido: studentForm.apellido.toUpperCase(),
-        nombre: studentForm.nombre.toUpperCase(),
+        apellido: toTitleCase(studentForm.apellido),
+        nombre: toTitleCase(studentForm.nombre),
         fechaNac: studentForm.fechaNac,
         edad: Number(studentForm.edad),
         telPart: studentForm.telPart,

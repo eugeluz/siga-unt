@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { formatDateAR } from '../utils/dateAR';
 import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
+import { toTitleCase } from '../utils/text';
 
 interface EnrollmentTabProps {
   cursos: any[];
@@ -155,8 +156,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     try {
       await setDoc(doc(db, 'alumnos', searchDni), {
         dni: Number(searchDni),
-        apellido: (studentForm.apellido || '').toUpperCase(),
-        nombre: (studentForm.nombre || '').toUpperCase(),
+        apellido: toTitleCase(studentForm.apellido || ''),
+        nombre: toTitleCase(studentForm.nombre || ''),
         fechaNac: altaForm.fechaNac,
         edad: altaForm.fechaNac ? Math.floor((Date.now() - new Date(altaForm.fechaNac).getTime()) / 31557600000) : 0,
         telPart: altaForm.telPart,
@@ -175,8 +176,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       const courseObj = cursos.find(c => c.curso === selectedCurso);
       const enrollmentData = {
         dni: Number(searchDni),
-        apellido: (studentForm.apellido || '').toUpperCase(),
-        nombre: (studentForm.nombre || '').toUpperCase(),
+        apellido: toTitleCase(studentForm.apellido || ''),
+        nombre: toTitleCase(studentForm.nombre || ''),
         curso: selectedCurso,
         fechaInicio: selectedFecha,
         resultado: 'Cursando',
@@ -203,8 +204,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       const courseObj = cursos.find(c => c.curso === selectedCurso);
       const enrollmentData = {
         dni: Number(studentForm.dni),
-        apellido: studentForm.apellido,
-        nombre: studentForm.nombre,
+        apellido: toTitleCase(studentForm.apellido),
+        nombre: toTitleCase(studentForm.nombre),
         curso: selectedCurso,
         fechaInicio: selectedFecha,
         resultado: 'Cursando',
@@ -327,8 +328,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           }
         };
 
-          setIfPresent(['apellido', 'apellidos', 'surname', 'last name', 'apellido y nombre', 'apellidos y nombres'], 'apellido', (v) => String(v).toUpperCase().trim());
-          setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => String(v).toUpperCase().trim());
+          setIfPresent(['apellido', 'apellidos', 'surname', 'last name', 'apellido y nombre', 'apellidos y nombres'], 'apellido', (v) => toTitleCase(String(v).trim()));
+          setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => toTitleCase(String(v).trim()));
           setIfPresent(['fecha nac', 'nacimiento', 'fechanac', 'fecha de nacimiento', 'fec nac', 'fecha nacimiento'], 'fechaNac', (v) => excelDateToJSDate(v));
           setIfPresent(['edad', 'age'], 'edad', (v) => Number(v) || 0);
           setIfPresent(['tel part', 'telefono', 'telpart', 'celular', 'tel', 'whatsapp', 'movil', 'telefono particular', 'tel particular', 'celular particular', 'telefono contacto'], 'telPart', (v) => String(v).trim());
@@ -526,11 +527,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Apellido</label>
-                    <input type="text" className="form-control" value={studentForm.apellido} onChange={e => setStudentForm({ ...studentForm, apellido: e.target.value.toUpperCase() })} />
+                    <input type="text" className="form-control" value={studentForm.apellido} onChange={e => setStudentForm({ ...studentForm, apellido: e.target.value })} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Nombre</label>
-                    <input type="text" className="form-control" value={studentForm.nombre} onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value.toUpperCase() })} />
+                    <input type="text" className="form-control" value={studentForm.nombre} onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-row">

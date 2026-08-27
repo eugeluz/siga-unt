@@ -6,6 +6,7 @@ import { Upload, Database, AlertTriangle } from 'lucide-react';
 
 import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
+import { toTitleCase } from '../utils/text';
 
 interface ImportModalProps {
   onClose: () => void;
@@ -133,8 +134,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             }
           };
 
-          setIfPresent(['apellido', 'apellidos', 'surname', 'last name'], 'apellido', (v) => String(v).toUpperCase().trim());
-          setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => String(v).toUpperCase().trim());
+          setIfPresent(['apellido', 'apellidos', 'surname', 'last name'], 'apellido', (v) => toTitleCase(String(v).trim()));
+          setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => toTitleCase(String(v).trim()));
           setIfPresent(['e-mail', 'email', 'correo', 'mail', 'correo electronico', 'e mail', 'direccion de correo'], 'email', (v) => String(v).toLowerCase().trim());
           setIfPresent(['telefono celular', 'tel part', 'celular', 'telefono', 'telpart', 'tel', 'whatsapp', 'movil', 'telefono particular', 'tel particular'], 'telPart', (v) => String(v).trim());
           setIfPresent(['fecha de nacimiento', 'fecha nac', 'nacimiento', 'fechanac', 'fec nac', 'fecha nacimiento'], 'fechaNac', (v) => excelDateToJSDate(v));
@@ -188,8 +189,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         } else if (importType === 'inscripciones') {
           const insData = {
             dni: dniVal,
-            apellido: String(getVal(['apellido', 'apellidos', 'surname', 'last name']) || '').toUpperCase().trim(),
-            nombre: String(getVal(['nombre', 'nombres', 'name', 'first name']) || '').toUpperCase().trim(),
+            apellido: toTitleCase(String(getVal(['apellido', 'apellidos', 'surname', 'last name']) || '').trim()),
+            nombre: toTitleCase(String(getVal(['nombre', 'nombres', 'name', 'first name']) || '').trim()),
             curso: String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim(),
             fechaInicio: excelDateToJSDate(getVal(['fecha inicio', 'fecha', 'inicio', 'fechainicio', 'fecha de inicio']) || ''),
             resultado: String(getVal(['resultado', 'estado', 'condicion', 'situacion']) || 'Cursando').trim(),
