@@ -228,7 +228,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             idCurso: idCursoVal,
             curso: String(getVal(['curso', 'nombre', 'nombre curso']) || '').trim(),
             programa: String(getVal(['programa', 'area']) || '').trim(),
-            cargaHoraria: String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs']) || '').trim(),
+            cargaHoraria: String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs', 'cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'clases', 'numero de clases', 'nro clases']) || '').trim(),
             resolucion: String(getVal(['resolucion', 'resolución', 'res']) || '').trim(),
             showOnLanding: true
           };

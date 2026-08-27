@@ -465,7 +465,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
                       {c.programa && <span>{c.programa}</span>}
-                      {c.cargaHoraria && <span>• Duración {c.cargaHoraria}</span>}
+                      {c.cargaHoraria && <span>• Cantidad de clases: {c.cargaHoraria}</span>}
                       {fs.length > 0 && (
                         <span>
                           • Fecha Inicio {fs.length > 1 ? 's' : ''}: {fs.map(f => formatDateAR(f.inicio)).join(', ')}

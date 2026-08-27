@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { doc, setDoc, deleteDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, getDocs, getDoc, collection, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { FormField } from './FormField';
@@ -145,7 +145,30 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
       await alert({ title: 'Campos incompletos', message: 'DNI, Apellido y Nombre son campos requeridos.', variant: 'warning' });
       return;
     }
+    const dniKey = String(studentForm.dni).trim();
+    // Validación local inmediata contra lista en memoria (evita duplicados sin esperar red)
+    const existsLocal = alumnos.some((a: any) => String(a.dni).trim() === dniKey);
     try {
+      // Verificación en Firestore para máxima consistencia
+      const docRef = doc(db, 'alumnos', dniKey);
+      const snap = await getDoc(docRef);
+      const exists = snap.exists() || existsLocal;
+      if (type === 'alta' && exists) {
+        await alert({
+          title: 'DNI duplicado',
+          message: `Ya existe un alumno con DNI ${dniKey}. No se permiten registros duplicados. Busque el DNI y use "Modificar Datos".`,
+          variant: 'warning',
+        });
+        return;
+      }
+      if (type === 'actualizar' && !exists) {
+        await alert({
+          title: 'No encontrado',
+          message: `No existe un alumno con DNI ${dniKey} para modificar. Verifique el DNI o use "Registrar Alumno".`,
+          variant: 'warning',
+        });
+        return;
+      }
       const studentData = {
         dni: Number(studentForm.dni),
         apellido: studentForm.apellido.toUpperCase(),
@@ -395,11 +418,11 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     width: 'auto'
                   }}>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <Search size={14} style={{ position: 'absolute', left: '8px', color: 'var(--accent)', pointerEvents: 'none' }} />
+
                       <input
                         type="number"
                         className="form-control"
-                        placeholder="Ingrese DNI..."
+                        placeholder="Buscar DNI..."
                         value={studentForm.dni}
                         onChange={e => {
                           setStudentForm({ ...studentForm, dni: e.target.value });
@@ -756,7 +779,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   <Search size={36} color="#10b981" />
                 </div>
 
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
                   Consulta e historial de cursos por alumno
                 </p>
               </div>

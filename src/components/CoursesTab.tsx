@@ -290,7 +290,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         <div className="form-row" style={{ width: '100%' }}>
           <FormField label="ID Curso" type="number" value={form.idCurso} onChange={e => setForm({ ...form, idCurso: e.target.value })} disabled={!!selectedCourseId} />
           <FormField label="Nombre del Curso" value={form.curso} onChange={e => setForm({ ...form, curso: e.target.value })} />
-          <FormField label="Carga Horaria" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 40 hs" />
+          <FormField label="Cantidad de clases" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 6" />
         </div>
 
         <div className="form-row" style={{ width: '100%', marginTop: '15px' }}>
