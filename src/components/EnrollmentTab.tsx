@@ -8,6 +8,7 @@ import { formatDateAR } from '../utils/dateAR';
 import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
+import { FormField } from './FormField';
 
 interface EnrollmentTabProps {
   cursos: any[];
@@ -94,6 +95,14 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       'Esc. Vialidad',
     ];
   }, []);
+
+  const secOptions = useMemo(() => {
+    const base = facultadesOptions.map((n) => ({ value: n, label: n }));
+    if (studentForm.unidadAcademica && !facultadesOptions.includes(studentForm.unidadAcademica)) {
+      base.push({ value: studentForm.unidadAcademica, label: studentForm.unidadAcademica });
+    }
+    return base;
+  }, [facultadesOptions, studentForm.unidadAcademica]);
 
   useEffect(() => {
     if (selectedCurso) {
@@ -560,15 +569,12 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                       <option value="Universitario completo">Universitario completo</option>
                     </select>
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Secr. de Rectorado/Unidad Académica</label>
-                    <input type="text" list="lista-facultades-enroll" className="form-control" value={studentForm.unidadAcademica} onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })} placeholder="Seleccione o ingrese..." />
-                    <datalist id="lista-facultades-enroll">
-                      {facultadesOptions.map((name, i) => (
-                        <option key={i} value={name} />
-                      ))}
-                    </datalist>
-                  </div>
+                  <FormField
+                    label="Secr. de Rectorado/Unidad Académica"
+                    value={studentForm.unidadAcademica}
+                    onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
+                    options={secOptions}
+                  />
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Cargo / Función</label>
                     <input type="text" className="form-control" value={studentForm.cargoFuncion} onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })} />

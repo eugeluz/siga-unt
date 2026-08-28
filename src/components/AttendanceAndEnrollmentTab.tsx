@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
-import { PersonalTab } from './PersonalTab';
-import { UsersTab } from './UsersTab';
-import { Users, UserCog, ArrowLeft, ChevronRight } from 'lucide-react';
+import { EnrollmentTab } from './EnrollmentTab';
+import { AttendanceTab } from './AttendanceTab';
+import { ClipboardCheck, UserPlus, ArrowLeft, ChevronRight } from 'lucide-react';
 
-export const PersonalAndUsersTab: React.FC = () => {
-  const [subTab, setSubTab] = useState<'inicio' | 'personal' | 'usuarios'>('inicio');
+interface AttendanceAndEnrollmentTabProps {
+  cursos: any[];
+  fechas: any[];
+  facultades?: any[];
+  alumnos?: any[];
+}
+
+export const AttendanceAndEnrollmentTab: React.FC<AttendanceAndEnrollmentTabProps> = ({
+  cursos,
+  fechas,
+  facultades = [],
+  alumnos = []
+}) => {
+  const [subTab, setSubTab] = useState<'inicio' | 'inscripcion' | 'asistencia'>('inicio');
 
   return (
     <div>
+      {/* Visualización tras seleccionar una opción */}
       {subTab !== 'inicio' ? (
         <div style={{ marginBottom: '24px' }}>
-          {/* Cabecera cuando se selecciona una opción */}
           <div
             style={{
               display: 'flex',
@@ -25,18 +37,20 @@ export const PersonalAndUsersTab: React.FC = () => {
               border: '1px solid var(--border-color)'
             }}
           >
+            {/* Título de la sección seleccionada a la izquierda */}
             <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {subTab === 'personal' ? (
+              {subTab === 'inscripcion' ? (
                 <>
-                  <Users size={22} color="#003876" /> Asistencia y Licencias del Personal
+                  <UserPlus size={22} color="#003876" /> Inscripción a Cursos
                 </>
               ) : (
                 <>
-                  <UserCog size={22} color="#003876" /> Gestión de Usuarios y Accesos
+                  <ClipboardCheck size={22} color="#003876" /> Control de Asistencia y Calificaciones
                 </>
               )}
             </h2>
 
+            {/* Botón de volver al menú a la derecha */}
             <button
               type="button"
               className="btn-secondary"
@@ -55,19 +69,27 @@ export const PersonalAndUsersTab: React.FC = () => {
             </button>
           </div>
 
-          {subTab === 'personal' ? (
-            <PersonalTab />
+          {/* Renderizado del componente correspondiente */}
+          {subTab === 'inscripcion' ? (
+            <EnrollmentTab
+              cursos={cursos}
+              fechas={fechas}
+              facultades={facultades}
+              alumnos={alumnos}
+            />
           ) : (
-            <UsersTab />
+            <AttendanceTab
+              cursos={cursos}
+              fechas={fechas}
+            />
           )}
         </div>
       ) : (
-        /* Vista de inicio con 2 cajitas — estilo institucional */
+        /* Vista de inicio con las 2 cajitas — estilo institucional */
         <div style={{ background: '#F2F4F7', borderRadius: '16px', padding: '24px', border: '1px solid rgba(0,56,118,0.08)' }}>
           <h2 className="section-title" style={{ marginBottom: '16px' }}>
-            <Users size={24} color="#003876" /> Personal y Usuarios
+            <ClipboardCheck size={24} color="#003876" /> Asistencia e Inscripción
           </h2>
-
           <div
             style={{
               display: 'flex',
@@ -78,10 +100,10 @@ export const PersonalAndUsersTab: React.FC = () => {
               margin: '0 auto'
             }}
           >
-            {/* Cajita 1: Personal */}
+            {/* Cajita 1: Inscripción — mismo flavicon que Asistencia */}
             <div
               className="details-box"
-              onClick={() => setSubTab('personal')}
+              onClick={() => setSubTab('inscripcion')}
               style={{
                 flex: '1 1 280px',
                 cursor: 'pointer',
@@ -122,11 +144,11 @@ export const PersonalAndUsersTab: React.FC = () => {
                     border: '1px solid rgba(0,56,118,0.10)'
                   }}
                 >
-                  <Users size={36} color="#003876" />
+                  <UserPlus size={36} color="#003876" />
                 </div>
 
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
-                  Planillas de asistencia y registro de licencias
+                  Inscripción individual y/o por lotes
                 </p>
               </div>
 
@@ -145,14 +167,14 @@ export const PersonalAndUsersTab: React.FC = () => {
                   margin: 0
                 }}
               >
-                Ingresar a Personal <ChevronRight size={18} />
+                Ingresar a Inscripción <ChevronRight size={18} />
               </button>
             </div>
 
-            {/* Cajita 2: Usuarios — mismo flavicon que Personal */}
+            {/* Cajita 2: Asistencia — mismo flavicon que Inscripción */}
             <div
               className="details-box"
-              onClick={() => setSubTab('usuarios')}
+              onClick={() => setSubTab('asistencia')}
               style={{
                 flex: '1 1 280px',
                 cursor: 'pointer',
@@ -193,12 +215,11 @@ export const PersonalAndUsersTab: React.FC = () => {
                     border: '1px solid rgba(0,56,118,0.10)'
                   }}
                 >
-                  <UserCog size={36} color="#003876" />
+                  <ClipboardCheck size={36} color="#003876" />
                 </div>
 
-
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
-                  Gestión de usuarios del sistema
+                  Registro de asistencia y cierre de cursos.
                 </p>
               </div>
 
@@ -217,7 +238,7 @@ export const PersonalAndUsersTab: React.FC = () => {
                   margin: 0
                 }}
               >
-                Ingresar a Usuarios <ChevronRight size={18} />
+                Ingresar a Asistencia <ChevronRight size={18} />
               </button>
             </div>
           </div>

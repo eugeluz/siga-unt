@@ -49,7 +49,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
   // Lista fija para Secr. de Rectorado/Unidad Académica según requerimiento
   const facultadesOptions = useMemo(() => {
     return [
-      'Sin dato',
+      'Seleccionar',
       'Sec. Académica (Rec)',
       'Sec. de Ciencia, Arte e Innovación Tecnol.(Rec)',
       'Sec. de Posgrado  (Rec)',
@@ -140,6 +140,14 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     }
     return base;
   }, [studentForm.cargoFuncion]);
+
+  const secOptions = useMemo(() => {
+    const base = facultadesOptions.map((n) => ({ value: n, label: n }));
+    if (studentForm.unidadAcademica && !facultadesOptions.includes(studentForm.unidadAcademica)) {
+      base.push({ value: studentForm.unidadAcademica, label: studentForm.unidadAcademica });
+    }
+    return base;
+  }, [facultadesOptions, studentForm.unidadAcademica]);
 
   const saveStudent = async (type: 'alta' | 'actualizar') => {
     if (!studentForm.dni || !studentForm.apellido || !studentForm.nombre) {
@@ -351,7 +359,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
   };
 
   return (
-    <div>
+    <div className="alumnos-institucional">
       {currentSubTab !== 'inicio' ? (
         <div style={{ marginBottom: '24px' }}>
           {/* Cabecera de la sección seleccionada con título a la izquierda y Volver al menú a la derecha */}
@@ -494,8 +502,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
                     downloadExcel(
                       alumnos,
-                      ['DNI', 'Apellido', 'Nombre', 'Fecha Nac.', 'Celular', 'Nivel Estudio', 'Título', 'Secr. de Rectorado/Unidad Académica', 'Dirección u Oficina', 'Área', 'Cargo/Función', 'Personas', 'Email', 'Tel. Laboral', 'Interno'],
-                      ['dni', 'apellido', 'nombre', 'fechaNac', 'telPart', 'nivelEstudio', 'titulo', 'unidadAcademica', 'direccionOficina', 'area', 'cargoFuncion', 'personas', 'email', 'telLab', 'interno'],
+                      ['DNI', 'Apellido', 'Nombre', 'E-mail', 'Celular', 'Fecha de nacimiento', 'Edad', 'Estudios', 'Título obtenido', 'Secr. de Rectorado/Unidad Académica', 'Dirección u Oficina', 'Área de trabajo', 'Cargo o Función', 'Personas', 'Teléfono laboral', 'Interno'],
+                      ['dni', 'apellido', 'nombre', 'email', 'telPart', 'fechaNac', 'edad', 'nivelEstudio', 'titulo', 'unidadAcademica', 'direccionOficina', 'area', 'cargoFuncion', 'personas', 'telLab', 'interno'],
                       `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
                     );
                   }}>
@@ -521,34 +529,37 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     value={studentForm.nombre}
                     onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value })}
                   />
+                  <FormField
+                    label="E-mail"
+                    type="email"
+                    value={studentForm.email}
+                    onChange={e => setStudentForm({ ...studentForm, email: e.target.value })}
+                  />
                 </div>
 
                 <div className="form-row">
-                  <FormField
-                    label="Fecha de Nacimiento"
-                    type="date"
-                    value={studentForm.fechaNac}
-                    onChange={e => setStudentForm({ ...studentForm, fechaNac: e.target.value })}
-                  />
-                  <FormField
-                    label="Edad Calculada"
-                    disabled
-                    value={studentForm.edad}
-                  />
                   <FormField
                     label="Celular"
                     value={studentForm.telPart}
                     onChange={e => setStudentForm({ ...studentForm, telPart: e.target.value })}
                   />
-                </div>
-
-                <div className="form-row">
                   <FormField
-                    label="Nivel Estudio"
+                    label="Fecha de nacimiento"
+                    type="date"
+                    value={studentForm.fechaNac}
+                    onChange={e => setStudentForm({ ...studentForm, fechaNac: e.target.value })}
+                  />
+                  <FormField
+                    label="Edad"
+                    disabled
+                    value={studentForm.edad}
+                  />
+                  <FormField
+                    label="Estudios"
                     value={studentForm.nivelEstudio}
                     onChange={e => setStudentForm({ ...studentForm, nivelEstudio: e.target.value })}
                     options={[
-                      { value: 'Sin dato', label: 'Sin dato' },
+                      { value: 'Sin dato', label: '--Seleccionar--' },
                       { value: 'Primario incompleto', label: 'Primario incompleto' },
                       { value: 'Primario completo', label: 'Primario completo' },
                       { value: 'Secundario incompleto', label: 'Secundario incompleto' },
@@ -559,30 +570,20 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                       { value: 'Universitario completo', label: 'Universitario completo' },
                     ]}
                   />
+                </div>
+
+                <div className="form-row">
                   <FormField
                     label="Título obtenido"
                     value={studentForm.titulo}
                     onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })}
                   />
-                  <div className="form-group">
-                    <label>Secr. de Rectorado/Unidad Académica</label>
-                    <input
-                      type="text"
-                      list="lista-facultades"
-                      className="form-control"
-                      value={studentForm.unidadAcademica}
-                      onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
-                      placeholder="Seleccione o ingrese dependencia..."
-                    />
-                    <datalist id="lista-facultades">
-                      {facultadesOptions.map((name, i) => (
-                        <option key={i} value={name} />
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
-
-                <div className="form-row">
+                  <FormField
+                    label="Secr. de Rectorado/Unidad Académica"
+                    value={studentForm.unidadAcademica}
+                    onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
+                    options={secOptions}
+                  />
                   <FormField
                     label="Dirección u Oficina"
                     value={studentForm.direccionOficina}
@@ -594,34 +595,26 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     value={studentForm.area}
                     onChange={e => setStudentForm({ ...studentForm, area: e.target.value })}
                   />
-                  <FormField
-                    label="Cargo / Función"
-                    value={studentForm.cargoFuncion}
-                    onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}
-                    options={cargoOptions}
-                  />
                 </div>
 
                 <div className="form-row">
                   <FormField
-                    label="Personas a cargo"
+                    label="Cargo o Función"
+                    value={studentForm.cargoFuncion}
+                    onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}
+                    options={cargoOptions}
+                  />
+                  <FormField
+                    label="Personas"
                     type="number"
                     value={studentForm.personas}
                     onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })}
                   />
                   <FormField
-                    label="Correo Electrónico"
-                    type="email"
-                    value={studentForm.email}
-                    onChange={e => setStudentForm({ ...studentForm, email: e.target.value })}
-                  />
-                  <FormField
-                    label="Teléfono Laboral"
+                    label="Teléfono laboral"
                     value={studentForm.telLab}
                     onChange={e => setStudentForm({ ...studentForm, telLab: e.target.value })}
                   />
-                </div>
-                <div className="form-row">
                   <FormField
                     label="Interno"
                     value={studentForm.interno}
@@ -650,10 +643,10 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
           )}
         </div>
       ) : (
-        /* Vista de inicio con 2 cajitas de igual tamaño para Alumnos */
-        <div style={{ padding: '10px 0' }}>
-          <h2 className="section-title" style={{ marginBottom: '8px' }}>
-            <GraduationCap size={24} /> Gestión de Alumnos
+        /* Vista de inicio con 2 cajitas de igual tamaño para Alumnos — fondo gris claro para destacar cajas blancas */
+        <div style={{ background: '#F2F4F7', borderRadius: '16px', padding: '24px', border: '1px solid rgba(0,56,118,0.08)' }}>
+          <h2 className="section-title" style={{ marginBottom: '16px' }}>
+            <GraduationCap size={24} color="#003876" /> Gestión de Alumnos
           </h2>
           <div
             style={{
@@ -754,9 +747,9 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = '#10b981';
+                e.currentTarget.style.borderColor = '#003876';
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
@@ -770,14 +763,15 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     width: '72px',
                     height: '72px',
                     borderRadius: '18px',
-                    background: 'rgba(16, 185, 129, 0.12)',
+                    background: 'var(--primary-alpha-15, rgba(0, 56, 118, 0.09))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '20px'
+                    marginBottom: '20px',
+                    border: '1px solid rgba(0,56,118,0.10)'
                   }}
                 >
-                  <Search size={36} color="#10b981" />
+                  <Search size={36} color="#003876" />
                 </div>
 
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
@@ -797,8 +791,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   gap: '8px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  backgroundColor: '#10b981',
-                  borderColor: '#10b981',
                   margin: 0
                 }}
               >

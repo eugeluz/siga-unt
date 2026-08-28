@@ -2,60 +2,67 @@
 
 :root {
   font-family: var(--font-primary);
-  color-scheme: dark;
+  color-scheme: light;
 
   --font-primary: 'Inter', sans-serif;
   --font-display: 'Outfit', sans-serif;
 
-  --bg-app: #0B1521;
-  --bg-app-radial-1: rgba(37, 154, 214, 0.14);
-  --bg-app-radial-2: rgba(37, 154, 214, 0.08);
-  --bg-card: rgba(20, 32, 48, 0.72);
-  --bg-card-hover: rgba(27, 42, 62, 0.88);
-  --border-card: rgba(37, 154, 214, 0.24);
-  --border-focus: #38BDF8;
+  /* Institucional — #003876 (navy) + #00A1DE (cyan) + gris claro #F2F4F7 + amarillos #E8BC00/#FFCC00 */
+  --bg-app: #F2F4F7;
+  --bg-app-radial-1: rgba(0, 56, 118, 0.05);
+  --bg-app-radial-2: rgba(0, 161, 222, 0.04);
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --border-card: rgba(0, 56, 118, 0.12);
+  --border-focus: #003876;
 
-  --text-primary: #F2F8FD;
-  --text-secondary: #C9E1F5;
-  --text-muted: #8CAEC9;
+  --text-primary: #0f2040;
+  --text-secondary: #4b5e7a;
+  --text-muted: #7e8ca3;
 
-  --primary: #259AD6;
-  --primary-hover: #1F86BA;
-  --primary-glow: rgba(37, 154, 214, 0.35);
+  --primary: #003876;
+  --primary-hover: #002a5c;
+  --primary-glow: transparent;
 
-  --accent: #38BDF8;
-  --accent-glow: rgba(56, 189, 248, 0.25);
+  --accent: #00A1DE;
+  --accent-glow: transparent;
 
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
+  --success: #0e9f6e;
+  --warning: #E8BC00;
+  --warning-hover: #d4ac00;
+  --danger: #b42318;
 
-  --nav-bg: rgba(10, 17, 28, 0.88);
-  --select-bg: #12202F;
-  --input-bg: rgba(255, 255, 255, 0.05);
-  --input-border: rgba(56, 189, 248, 0.16);
-  --input-focus-bg: rgba(56, 189, 248, 0.06);
-  --overlay-bg: rgba(3, 8, 14, 0.65);
-  --shadow-sm: 0 4px 20px rgba(2, 8, 14, 0.4);
-  --shadow-md: 0 20px 40px rgba(2, 8, 14, 0.45);
-  --shadow-lg: 0 25px 50px rgba(2, 8, 14, 0.55);
-  --table-bg: rgba(2, 8, 14, 0.3);
-  --row-hover: rgba(56, 189, 248, 0.04);
-  --row-border: rgba(56, 189, 248, 0.06);
-  --surface-bg: rgba(56, 189, 248, 0.05);
-  --surface-hover: rgba(56, 189, 248, 0.09);
-  --primary-alpha-10: rgba(37, 154, 214, 0.12);
-  --primary-alpha-15: rgba(37, 154, 214, 0.18);
-  --primary-alpha-20: rgba(37, 154, 214, 0.24);
-  --primary-alpha-30: rgba(37, 154, 214, 0.36);
-  --danger-bg: rgba(239, 68, 68, 0.15);
-  --danger-border: rgba(239, 68, 68, 0.25);
-  --danger-hover-bg: rgba(239, 68, 68, 0.3);
-  --danger-hover-border: rgba(239, 68, 68, 0.5);
-  --danger-text: #FCA5A5;
-  --spinner-border: rgba(56, 189, 248, 0.15);
+  --nav-bg: #ffffff;
+  --select-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: rgba(0, 56, 118, 0.16);
+  --input-focus-bg: rgba(0, 161, 222, 0.06);
+  --overlay-bg: rgba(15, 32, 64, 0.42);
+  --shadow-sm: 0 1px 2px rgba(0,56,118,0.06), 0 1px 3px rgba(0,56,118,0.04);
+  --shadow-md: 0 4px 12px rgba(0,56,118,0.07), 0 1px 4px rgba(0,56,118,0.05);
+  --shadow-lg: 0 12px 32px rgba(0,56,118,0.10), 0 4px 12px rgba(0,56,118,0.06);
+  --table-bg: #ffffff;
+  --row-hover: rgba(0, 56, 118, 0.04);
+  --row-border: rgba(0, 56, 118, 0.07);
+  --surface-bg: #f6f8fb;
+  --surface-hover: #edf1f7;
+  --primary-alpha-10: rgba(0, 56, 118, 0.06);
+  --primary-alpha-15: rgba(0, 56, 118, 0.10);
+  --primary-alpha-20: rgba(0, 56, 118, 0.14);
+  --primary-alpha-30: rgba(0, 56, 118, 0.20);
+  --danger-bg: rgba(180, 35, 24, 0.06);
+  --danger-border: rgba(180, 35, 24, 0.14);
+  --danger-hover-bg: rgba(180, 35, 24, 0.10);
+  --danger-hover-border: rgba(180, 35, 24, 0.20);
+  --danger-text: #b42318;
+  --spinner-border: rgba(0, 56, 118, 0.12);
 
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Amarillo institucional para destaques sutiles */
+  --warning-bg: rgba(232, 188, 0, 0.12);
+  --warning-border: rgba(232, 188, 0, 0.22);
+  --warning-text: #7a5c00;
+
+  --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   --radius: 12px;
   --nav-width: 220px;
 }
@@ -63,53 +70,57 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-app: #E8F0F8;
-  --bg-app-radial-1: rgba(37, 154, 214, 0.1);
-  --bg-app-radial-2: rgba(56, 189, 248, 0.08);
-  --bg-card: rgba(255, 255, 255, 0.88);
-  --bg-card-hover: rgba(255, 255, 255, 0.97);
-  --border-card: rgba(29, 127, 184, 0.25);
-  --border-focus: #1D7FB8;
+  --bg-app: #F2F4F7;
+  --bg-app-radial-1: rgba(0, 56, 118, 0.04);
+  --bg-app-radial-2: rgba(0, 161, 222, 0.03);
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --border-card: rgba(0, 56, 118, 0.12);
+  --border-focus: #003876;
 
-  --text-primary: #16324A;
-  --text-secondary: #3E5A75;
-  --text-muted: #7C95AD;
+  --text-primary: #0f2040;
+  --text-secondary: #4b5e7a;
+  --text-muted: #7e8ca3;
 
-  --primary: #1D7FB8;
-  --primary-hover: #17679A;
-  --primary-glow: rgba(29, 127, 184, 0.25);
+  --primary: #003876;
+  --primary-hover: #002a5c;
+  --primary-glow: transparent;
 
-  --accent: #0EA5E9;
-  --accent-glow: rgba(14, 165, 233, 0.18);
+  --accent: #00A1DE;
+  --accent-glow: transparent;
 
-  --success: #059669;
-  --warning: #D97706;
-  --danger: #DC2626;
+  --success: #0e9f6e;
+  --warning: #E8BC00;
+  --warning-hover: #d4ac00;
+  --danger: #b42318;
 
-  --nav-bg: rgba(255, 255, 255, 0.92);
-  --select-bg: #FFFFFF;
-  --input-bg: rgba(255, 255, 255, 0.85);
-  --input-border: rgba(29, 127, 184, 0.35);
-  --input-focus-bg: rgba(14, 165, 233, 0.05);
-  --overlay-bg: rgba(15, 40, 60, 0.35);
-  --shadow-sm: 0 4px 20px rgba(23, 62, 92, 0.1);
-  --shadow-md: 0 20px 40px rgba(23, 62, 92, 0.1);
-  --shadow-lg: 0 25px 50px rgba(23, 62, 92, 0.14);
-  --table-bg: rgba(29, 127, 184, 0.03);
-  --row-hover: rgba(29, 127, 184, 0.04);
-  --row-border: rgba(29, 127, 184, 0.08);
-  --surface-bg: rgba(29, 127, 184, 0.04);
-  --surface-hover: rgba(29, 127, 184, 0.08);
-  --primary-alpha-10: rgba(29, 127, 184, 0.08);
-  --primary-alpha-15: rgba(29, 127, 184, 0.12);
-  --primary-alpha-20: rgba(29, 127, 184, 0.16);
-  --primary-alpha-30: rgba(29, 127, 184, 0.22);
-  --danger-bg: rgba(220, 38, 38, 0.08);
-  --danger-border: rgba(220, 38, 38, 0.2);
-  --danger-hover-bg: rgba(220, 38, 38, 0.15);
-  --danger-hover-border: rgba(220, 38, 38, 0.3);
-  --danger-text: #DC2626;
-  --spinner-border: rgba(29, 127, 184, 0.15);
+  --nav-bg: #ffffff;
+  --select-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: rgba(0, 56, 118, 0.15);
+  --input-focus-bg: rgba(0, 161, 222, 0.05);
+  --overlay-bg: rgba(15, 32, 64, 0.38);
+  --shadow-sm: 0 1px 2px rgba(0,56,118,0.06), 0 1px 3px rgba(0,56,118,0.04);
+  --shadow-md: 0 4px 12px rgba(0,56,118,0.07), 0 1px 4px rgba(0,56,118,0.05);
+  --shadow-lg: 0 12px 32px rgba(0,56,118,0.10), 0 4px 12px rgba(0,56,118,0.06);
+  --table-bg: #ffffff;
+  --row-hover: rgba(0, 56, 118, 0.04);
+  --row-border: rgba(0, 56, 118, 0.07);
+  --surface-bg: #f6f8fb;
+  --surface-hover: #edf1f7;
+  --primary-alpha-10: rgba(0, 56, 118, 0.06);
+  --primary-alpha-15: rgba(0, 56, 118, 0.10);
+  --primary-alpha-20: rgba(0, 56, 118, 0.14);
+  --primary-alpha-30: rgba(0, 56, 118, 0.20);
+  --danger-bg: rgba(180, 35, 24, 0.06);
+  --danger-border: rgba(180, 35, 24, 0.14);
+  --danger-hover-bg: rgba(180, 35, 24, 0.10);
+  --danger-hover-border: rgba(180, 35, 24, 0.20);
+  --danger-text: #b42318;
+  --spinner-border: rgba(0, 56, 118, 0.12);
+  --warning-bg: rgba(232, 188, 0, 0.12);
+  --warning-border: rgba(232, 188, 0, 0.22);
+  --warning-text: #7a5c00;
 }
 
 * {
@@ -137,17 +148,28 @@ body {
   flex-direction: column;
 }
 
-/* Navbar / Header */
+/* Navbar / Header — institucional */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px clamp(16px, 3vw, 40px);
-  background: linear-gradient(135deg, #0F1C2E 0%, #1E3A5F 50%, #0F213D 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 2px solid #259AD6;
-  box-shadow: 0 4px 20px rgba(15, 28, 48, 0.4), 0 2px 10px rgba(37, 154, 214, 0.25);
+  background: #003876;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 3px solid #00A1DE;
+  box-shadow: 0 2px 10px rgba(0, 56, 118, 0.12);
+  position: relative;
+}
+.app-header::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #00A1DE 0%, #E8BC00 100%);
+  opacity: 0.9;
 }
 
 .brand {
@@ -246,7 +268,7 @@ body {
   background: var(--primary-alpha-10);
   border-color: var(--primary);
   color: var(--primary);
-  box-shadow: 0 4px 15px var(--primary-alpha-20);
+  box-shadow: none;
   font-weight: 600;
 }
 
@@ -342,8 +364,8 @@ body {
 
 .form-control:focus {
   border-color: var(--border-focus);
-  background: var(--input-focus-bg);
-  box-shadow: 0 0 10px var(--accent-glow);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 161, 222, 0.14);
 }
 
 /* Ocultar botones/flechas de incrementar/decrementar en inputs de número (DNI, etc.) */
@@ -373,7 +395,7 @@ select option {
   width: 100%;
   background: var(--primary);
   color: #FFF;
-  border: none;
+  border: 1px solid var(--primary);
   padding: 12px;
   border-radius: 8px;
   font-weight: 600;
@@ -386,11 +408,18 @@ select option {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-shadow: none;
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
-  box-shadow: 0 0 15px var(--primary-glow);
+  border-color: var(--primary-hover);
+  box-shadow: 0 2px 8px rgba(0,56,118,0.16);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-primary:disabled {
@@ -413,8 +442,14 @@ select option {
   gap: 6px;
 }
 
+.btn-secondary {
+  box-shadow: none;
+}
 .btn-secondary:hover {
-  background: var(--primary-alpha-20);
+  background: var(--surface-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(0,56,118,0.08);
 }
 
 /* Theme toggle button */
@@ -1220,5 +1255,200 @@ select option {
     grid-template-columns: 1fr;
     margin-bottom: 12px;
   }
+}
+
+/* ===== TEMA INSTITUCIONAL — SOLO ALUMNOS (#003876 / #00A1DE) — sin neón ===== */
+.alumnos-institucional {
+  /* Paleta institucional */
+  --primary: #003876;
+  --primary-hover: #002a5c;
+  --primary-glow: transparent;
+  --accent: #00A1DE;
+  --accent-hover: #008ec2;
+  --accent-glow: transparent;
+
+  /* Superficies claras, sin glass neón */
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --border-card: rgba(0, 56, 118, 0.14);
+  --border-focus: #003876;
+  --text-primary: #0f2040;
+  --text-secondary: #4b5e7a;
+  --text-muted: #7e8ca3;
+  --input-bg: #ffffff;
+  --input-border: rgba(0, 56, 118, 0.18);
+  --input-focus-bg: rgba(0, 161, 222, 0.06);
+  --surface-bg: #f6f8fb;
+  --surface-hover: #edf1f7;
+  --table-bg: #ffffff;
+  --row-hover: rgba(0, 56, 118, 0.04);
+  --row-border: rgba(0, 56, 118, 0.07);
+  --select-bg: #ffffff;
+  --primary-alpha-10: rgba(0, 56, 118, 0.07);
+  --primary-alpha-15: rgba(0, 56, 118, 0.11);
+  --primary-alpha-20: rgba(0, 56, 118, 0.15);
+  --primary-alpha-30: rgba(0, 56, 118, 0.22);
+  --shadow-sm: 0 1px 2px rgba(0, 56, 118, 0.06), 0 1px 3px rgba(0, 56, 118, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 56, 118, 0.07), 0 1px 4px rgba(0, 56, 118, 0.05);
+  --shadow-lg: 0 12px 32px rgba(0, 56, 118, 0.10), 0 4px 12px rgba(0, 56, 118, 0.06);
+  --danger-bg: rgba(180, 35, 24, 0.06);
+  --danger-border: rgba(180, 35, 24, 0.14);
+  --danger-hover-bg: rgba(180, 35, 24, 0.10);
+  --danger-hover-border: rgba(180, 35, 24, 0.22);
+  --danger-text: #b42318;
+  --spinner-border: rgba(0, 56, 118, 0.12);
+  --overlay-bg: rgba(10, 28, 58, 0.45);
+}
+
+/* Fondo del tab Alumnos — limpio institucional, sin radiales neón */
+.alumnos-institucional .tab-content,
+.alumnos-institucional.tab-content {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid rgba(0, 56, 118, 0.10);
+  box-shadow: var(--shadow-md);
+}
+
+/* Títulos institucionales */
+.alumnos-institucional .section-title {
+  color: #003876 !important;
+  letter-spacing: -0.02em;
+}
+.alumnos-institucional .section-title svg {
+  color: #003876 !important;
+}
+
+/* Cards institucionales — borde sutil + acento superior */
+.alumnos-institucional .details-box {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 56, 118, 0.10) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: 12px;
+}
+.alumnos-institucional .details-box h3 {
+  color: #003876 !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Cajas de inicio (Alta / Historial) — estilo institucional */
+.alumnos-institucional .details-box[style*="cursor: pointer"] {
+  border: 1px solid rgba(0, 56, 118, 0.12) !important;
+  border-top: 3px solid #003876 !important;
+  box-shadow: 0 2px 10px rgba(0,56,118,0.06) !important;
+}
+.alumnos-institucional .details-box[style*="cursor: pointer"]:hover {
+  border-color: rgba(0, 56, 118, 0.20) !important;
+  border-top-color: #003876 !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 24px rgba(0,56,118,0.10) !important;
+}
+
+/* Inputs institucionales */
+.alumnos-institucional .form-control {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,56,118,0.18) !important;
+  color: #0f2040 !important;
+}
+.alumnos-institucional .form-control:focus {
+  border-color: #003876 !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(0, 161, 222, 0.12) !important;
+}
+.alumnos-institucional .form-control::placeholder {
+  color: #7e8ca3 !important;
+}
+.alumnos-institucional .form-group label {
+  color: #344054 !important;
+  font-weight: 600;
+}
+
+/* Botones — sin neón, institucional sólido */
+.alumnos-institucional .btn-primary {
+  background: #003876 !important;
+  background-image: none !important;
+  border: 1px solid #003876 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+.alumnos-institucional .btn-primary:hover {
+  background: #002a5c !important;
+  border-color: #002a5c !important;
+  box-shadow: 0 2px 8px rgba(0,56,118,0.18) !important;
+  transform: translateY(-1px);
+}
+.alumnos-institucional .btn-primary:active {
+  transform: translateY(0) !important;
+  box-shadow: none !important;
+}
+.alumnos-institucional .btn-primary:disabled {
+  background: #8aa0b8 !important;
+  border-color: #8aa0b8 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Botón secundario institucional — blanco con borde navy */
+.alumnos-institucional .btn-secondary {
+  background: #ffffff !important;
+  color: #003876 !important;
+  border: 1px solid rgba(0,56,118,0.20) !important;
+  box-shadow: 0 1px 2px rgba(0,56,118,0.06) !important;
+}
+.alumnos-institucional .btn-secondary:hover {
+  background: #f0f4f8 !important;
+  border-color: #003876 !important;
+  color: #003876 !important;
+  box-shadow: 0 2px 6px rgba(0,56,118,0.08) !important;
+}
+
+/* Peligro — institucional (rojo sobrio, sin neón) */
+.alumnos-institucional .btn-danger {
+  background: #b42318 !important;
+  border: 1px solid #b42318 !important;
+  box-shadow: none !important;
+}
+.alumnos-institucional .btn-danger:hover {
+  background: #912018 !important;
+  border-color: #912018 !important;
+  box-shadow: 0 2px 8px rgba(180,35,24,0.20) !important;
+  filter: none !important;
+}
+
+/* Tablas institucionales */
+.alumnos-institucional .listbox-wrapper {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,56,118,0.10) !important;
+}
+.alumnos-institucional .listbox-table th {
+  background: #f6f8fb !important;
+  color: #344054 !important;
+  border-bottom: 1px solid rgba(0,56,118,0.10) !important;
+}
+.alumnos-institucional .listbox-table td {
+  border-bottom: 1px solid rgba(0,56,118,0.06) !important;
+  color: #0f2040 !important;
+}
+.alumnos-institucional .listbox-table tr:hover td {
+  background: rgba(0,56,118,0.04) !important;
+}
+
+/* Barra de búsqueda / feedback — institucional */
+.alumnos-institucional .search-box,
+.alumnos-institucional [style*="border: 1.5px solid var(--border-focus)"] {
+  border-color: rgba(0,56,118,0.18) !important;
+  box-shadow: 0 1px 4px rgba(0,56,118,0.06) !important;
+}
+
+/* Quitar brillos neón residuales */
+.alumnos-institucional .progress-bar {
+  box-shadow: none !important;
+  background: #00A1DE !important;
+}
+.alumnos-institucional .spinner {
+  border-top-color: #003876 !important;
 }
 

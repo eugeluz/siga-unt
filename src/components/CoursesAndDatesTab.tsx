@@ -71,10 +71,10 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
           )}
         </div>
       ) : (
-        /* Vista de inicio con las 2 cajitas del mismo tamaño indicando cada función */
-        <div style={{ padding: '10px 0' }}>
-          <h2 className="section-title" style={{ marginBottom: '8px' }}>
-            <BookOpen size={24} /> Cursos y Fechas
+        /* Vista de inicio con las 2 cajitas — estilo institucional */
+        <div style={{ background: '#F2F4F7', borderRadius: '16px', padding: '24px', border: '1px solid rgba(0,56,118,0.08)' }}>
+          <h2 className="section-title" style={{ marginBottom: '16px' }}>
+            <BookOpen size={24} color="#003876" /> Cursos y Fechas
           </h2>
           <div
             style={{
@@ -158,7 +158,7 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
               </button>
             </div>
 
-            {/* Cajita 2: FECHAS */}
+            {/* Cajita 2: FECHAS — mismo estilo flavicon que Cursos */}
             <div
               className="details-box"
               onClick={() => setSubTab('fechas')}
@@ -178,9 +178,9 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                 boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = '#10b981';
+                e.currentTarget.style.borderColor = 'var(--primary)';
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
@@ -194,14 +194,15 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                     width: '72px',
                     height: '72px',
                     borderRadius: '18px',
-                    background: 'rgba(16, 185, 129, 0.12)',
+                    background: 'var(--primary-alpha-15, rgba(0, 56, 118, 0.09))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '20px'
+                    marginBottom: '20px',
+                    border: '1px solid rgba(0,56,118,0.10)'
                   }}
                 >
-                  <Calendar size={36} color="#10b981" />
+                  <Calendar size={36} color="var(--primary, #003876)" />
                 </div>
 
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
@@ -221,8 +222,6 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                   gap: '8px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  backgroundColor: '#10b981',
-                  borderColor: '#10b981',
                   margin: 0
                 }}
               >

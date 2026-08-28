@@ -32,6 +32,7 @@ const FacultiesTab = lazy(() => import('./components/FacultiesTab').then(m => ({
 const ReportsTab = lazy(() => import('./components/ReportsTab').then(m => ({ default: m.ReportsTab })));
 const CoursesTab = lazy(() => import('./components/CoursesTab').then(m => ({ default: m.CoursesTab })));
 const CoursesAndDatesTab = lazy(() => import('./components/CoursesAndDatesTab').then(m => ({ default: m.CoursesAndDatesTab })));
+const AttendanceAndEnrollmentTab = lazy(() => import('./components/AttendanceAndEnrollmentTab').then(m => ({ default: m.AttendanceAndEnrollmentTab })));
 const NewsTab = lazy(() => import('./components/NewsTab').then(m => ({ default: m.NewsTab })));
 const PersonalTab = lazy(() => import('./components/PersonalTab').then(m => ({ default: m.PersonalTab })));
 const PersonalAndUsersTab = lazy(() => import('./components/PersonalAndUsersTab').then(m => ({ default: m.PersonalAndUsersTab })));
@@ -436,40 +437,36 @@ export default function App() {
           {/* Nav Tabs */}
           <nav className="tabs-nav">
             <button className={`tab-btn ${activeTab === 'inicio' ? 'active' : ''}`} onClick={() => setActiveTab('inicio')}>
-              <span className="tab-icon"><Home color="#259AD6" size={18} /></span>
+              <span className="tab-icon"><Home color="#003876" size={18} /></span>
               <span className="tab-label">Inicio</span>
             </button>
             <button className={`tab-btn ${activeTab === 'alumnos' ? 'active' : ''}`} onClick={() => setActiveTab('alumnos')}>
-              <span className="tab-icon"><Users color="#E25E20" size={18} /></span>
+              <span className="tab-icon"><Users color="#003876" size={18} /></span>
               <span className="tab-label">Alumnos</span>
             </button>
-            <button className={`tab-btn ${activeTab === 'inscripciones' ? 'active' : ''}`} onClick={() => setActiveTab('inscripciones')}>
-              <span className="tab-icon"><UserPlus color="#10B981" size={18} /></span>
-              <span className="tab-label">Inscripción</span>
-            </button>
-            <button className={`tab-btn ${activeTab === 'asistencia' ? 'active' : ''}`} onClick={() => setActiveTab('asistencia')}>
-              <span className="tab-icon"><ClipboardCheck color="#F59E0B" size={18} /></span>
+            <button className={`tab-btn ${(activeTab === 'asistencia' || activeTab === 'inscripciones') ? 'active' : ''}`} onClick={() => setActiveTab('asistencia')}>
+              <span className="tab-icon"><ClipboardCheck color="#003876" size={18} /></span>
               <span className="tab-label">Asistencia</span>
             </button>
-            <button className={`tab-btn ${activeTab === 'cursos' ? 'active' : ''}`} onClick={() => setActiveTab('cursos')}>
-              <span className="tab-icon"><BookOpen color="#06B6D4" size={18} /></span>
+            <button className={`tab-btn ${(activeTab === 'cursos' || activeTab === 'fechas') ? 'active' : ''}`} onClick={() => setActiveTab('cursos')}>
+              <span className="tab-icon"><BookOpen color="#003876" size={18} /></span>
               <span className="tab-label">Cursos y Fechas</span>
             </button>
             <button className={`tab-btn ${(activeTab === 'reportes' || activeTab === 'facultades') ? 'active' : ''}`} onClick={() => setActiveTab('reportes')}>
-              <span className="tab-icon"><FileText color="#EC4899" size={18} /></span>
+              <span className="tab-icon"><FileText color="#003876" size={18} /></span>
               <span className="tab-label">Reportes</span>
             </button>
             <button className={`tab-btn ${activeTab === 'noticias' ? 'active' : ''}`} onClick={() => setActiveTab('noticias')}>
-              <span className="tab-icon"><Megaphone color="#E25E20" size={18} /></span>
+              <span className="tab-icon"><Megaphone color="#003876" size={18} /></span>
               <span className="tab-label">Noticias</span>
             </button>
             <button className={`tab-btn ${(activeTab === 'personal' || activeTab === 'usuarios') ? 'active' : ''}`} onClick={() => setActiveTab('personal')}>
-              <span className="tab-icon"><Users color="#259AD6" size={18} /></span>
+              <span className="tab-icon"><Users color="#003876" size={18} /></span>
               <span className="tab-label">Personal</span>
             </button>
             {(user?.email || '').toLowerCase() === 'eugenia.gonzalez@webmail.unt.edu.ar' && (
               <button className={`tab-btn ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => setActiveTab('configuracion')}>
-                <span className="tab-icon"><Settings color="#8B5CF6" size={18} /></span>
+                <span className="tab-icon"><Settings color="#003876" size={18} /></span>
                 <span className="tab-label">Configuración</span>
               </button>
             )}
@@ -486,7 +483,7 @@ export default function App() {
               </div>
             )}
 
-            <main className="tab-content">
+            <main className={`tab-content ${activeTab === 'alumnos' ? 'alumnos-institucional' : ''}`}>
               <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}><div className="spinner"></div></div>}>
                 {activeTab === 'inicio' && (
                   <DashboardHome
@@ -506,18 +503,12 @@ export default function App() {
                     fechas={fechas}
                   />
                 )}
-                {activeTab === 'inscripciones' && (
-                  <EnrollmentTab
+                {(activeTab === 'asistencia' || activeTab === 'inscripciones') && (
+                  <AttendanceAndEnrollmentTab
                     cursos={cursos}
                     fechas={fechas}
                     facultades={facultades}
                     alumnos={alumnos}
-                  />
-                )}
-                {activeTab === 'asistencia' && (
-                  <AttendanceTab
-                    cursos={cursos}
-                    fechas={fechas}
                   />
                 )}
                 {(activeTab === 'cursos' || activeTab === 'fechas') && (
