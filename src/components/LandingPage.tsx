@@ -229,7 +229,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
     if (!fechaNac) missing.push('Fecha de Nacimiento');
     if (!telPart.trim()) missing.push('Celular');
     if (!email.trim()) missing.push('Email');
-    if (!unidadAcademica.trim()) missing.push('Secr. de Rectorado/Unidad Académica');
+    if (!unidadAcademica.trim()) missing.push('Sec. Rectorado/UA');
     if (!area.trim()) missing.push('Área');
     if (!cargoFuncion) missing.push('Cargo / Función');
     if (!telLab.trim()) missing.push('Teléfono Laboral');
@@ -805,7 +805,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                 </h4>
                 <div className="form-grid-2col">
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Secr. de Rectorado/Unidad Académica <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
+                    <label>Sec. Rectorado/UA <span style={{ color: 'var(--danger, #EF4444)', fontWeight: 700 }}>*</span></label>
                     <input type="text" className="form-control" value={unidadAcademica} onChange={e => setUnidadAcademica(e.target.value)} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>

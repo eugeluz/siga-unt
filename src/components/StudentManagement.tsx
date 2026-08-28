@@ -579,7 +579,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })}
                   />
                   <FormField
-                    label="Secr. de Rectorado/Unidad Académica"
+                    label="Sec. Rectorado/UA"
                     value={studentForm.unidadAcademica}
                     onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
                     options={secOptions}

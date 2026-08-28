@@ -362,14 +362,46 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         // Save student
         await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
 
-        // 2. Inscribe the student in the selected course + date, checking for duplicates
+        // 2. Inscribe the student in el curso+fecha seleccionado (programa/curso/fecha ya elegidos en UI, no del Excel — evita choque)
+        // Solo requiere DNI, Apellido, Nombre y Condición del Excel; si alumno no existe se crea mínimo (dni, apellido, nombre)
+        const rawCond = getVal(['condicion', 'condición', 'condicion final', 'resultado', 'estado', 'situacion', 'situación', 'cond']);
+        let resultadoVal = rawCond ? String(rawCond).trim() : 'Cursando';
+        // Normalizar a valores permitidos (case-insensitive)
+        const lowerCond = resultadoVal.toLowerCase();
+        if (lowerCond.includes('aprob')) resultadoVal = 'Aprobado';
+        else if (lowerCond.includes('desaprob')) resultadoVal = 'Desaprobado';
+        else if (lowerCond.includes('abandon')) resultadoVal = 'Abandonó';
+        else if (lowerCond.includes('cursando')) resultadoVal = 'Cursando';
+        else resultadoVal = toTitleCase(resultadoVal) || 'Cursando';
+
+        // Si Excel trae "Apellido y Nombre" en una sola columna y falta Nombre, intentar separar
+        if (studentData.apellido && !studentData.nombre && studentData.apellido.includes(',')) {
+          const parts = studentData.apellido.split(',').map((s: string) => s.trim());
+          studentData.apellido = toTitleCase(parts[0] || '');
+          studentData.nombre = toTitleCase(parts[1] || '');
+        } else if (studentData.apellido && !studentData.nombre && studentData.apellido.includes(' ')) {
+          const parts = studentData.apellido.trim().split(/\s+/);
+          if (parts.length > 1) {
+            // Heurística: último token como nombre si no hay coma
+            // mantenemos apellido como primer token y resto como nombre para no perder datos
+            // (si viene "Juan Perez" en apellido, lo separamos)
+            const maybeApellido = parts[0];
+            const maybeNombre = parts.slice(1).join(' ');
+            // solo si nombre parece nombre (una palabra) y apellido una palabra, asumimos
+            if (parts.length === 2) {
+              studentData.apellido = toTitleCase(maybeApellido);
+              studentData.nombre = toTitleCase(maybeNombre);
+            }
+          }
+        }
+
         const enrollmentData = {
           dni: dniVal,
           apellido: studentData.apellido || '',
           nombre: studentData.nombre || '',
           curso: selectedCurso,
           fechaInicio: selectedFecha,
-          resultado: 'Cursando',
+          resultado: resultadoVal,
           email: studentData.email || '',
           cargoFuncion: studentData.cargoFuncion || '',
           unidadAcademica: studentData.unidadAcademica || 'Sin dato',
@@ -570,7 +602,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                     </select>
                   </div>
                   <FormField
-                    label="Secr. de Rectorado/Unidad Académica"
+                    label="Sec. Rectorado/UA"
                     value={studentForm.unidadAcademica}
                     onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
                     options={secOptions}
@@ -600,7 +632,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                 <p><strong>DNI:</strong> {studentForm.dni}</p>
                 <p><strong>Apellido:</strong> {studentForm.apellido}</p>
                 <p><strong>Nombre:</strong> {studentForm.nombre}</p>
-                <p><strong>Secr. de Rectorado/Unidad Académica:</strong> {studentForm.unidadAcademica}</p>
+                <p><strong>Sec. Rectorado/UA:</strong> {studentForm.unidadAcademica}</p>
                 <p><strong>Email:</strong> {studentForm.email}</p>
               </div>
             ) : (
@@ -726,6 +758,10 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           {/* Lotes Paso 2: Carga y Procesamiento */}
           <div className="details-box">
             <h3>Paso 2: Cargar Excel / CSV</h3>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.5, background: 'var(--surface-bg)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+              <strong>Estructura mínima requerida:</strong> <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>DNI</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Apellido</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Nombre</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Condición</code> <span style={{ color: 'var(--text-muted)' }}>(valores: Cursando, Aprobado, Desaprobado, Abandonó — por defecto Cursando)</span><br />
+              <span style={{ fontSize: '0.78rem' }}>Programa/Curso/Fecha se toman del <strong>Paso 1</strong> (no del Excel, evita choques). Si el alumno no está en la base, se crea automáticamente con esos 4 datos.</span>
+            </div>
             
             <div className="form-group">
               <label>Seleccionar Archivo (Excel o CSV)</label>
