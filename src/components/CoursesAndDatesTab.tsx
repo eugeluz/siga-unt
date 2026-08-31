@@ -13,11 +13,12 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
   const [subTab, setSubTab] = useState<'inicio' | 'cursos' | 'fechas'>('inicio');
 
   return (
-    <div>
+    <div className="alumnos-institucional">
       {/* Visualización tras seleccionar una opción */}
       {subTab !== 'inicio' ? (
         <div style={{ marginBottom: '24px' }}>
           <div
+            className="caja-titulo-principal"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -25,21 +26,19 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
-              background: 'var(--card-bg)',
               padding: '14px 20px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-color)'
+              borderRadius: '12px'
             }}
           >
-            {/* Título de la sección seleccionada a la izquierda */}
+            {/* Título — mismo color que pantalla principal */}
             <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {subTab === 'cursos' ? (
                 <>
-                  <BookOpen size={22} color="var(--primary)" /> Gestión de Cursos de Capacitación
+                  <BookOpen size={22} color="currentColor" /> Gestión de Cursos de Capacitación
                 </>
               ) : (
                 <>
-                  <Calendar size={22} color="#10b981" /> Fechas de Inicio de Cursos
+                  <Calendar size={22} color="currentColor" /> Fechas de Inicio de Cursos
                 </>
               )}
             </h2>
@@ -71,16 +70,15 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
           )}
         </div>
       ) : (
-        /* Vista de inicio con las 2 cajitas — estilo institucional */
-        <div style={{ background: '#F2F4F7', borderRadius: '16px', padding: '24px', border: '1px solid rgba(0,56,118,0.08)' }}>
+        /* Vista de inicio — caja igual que Alumnos (azul en modo oscuro) */
+        <div className="caja-titulo-principal">
           <h2 className="section-title" style={{ marginBottom: '16px' }}>
-            <BookOpen size={24} color="#003876" /> Cursos y Fechas
+            <BookOpen size={24} color="currentColor" /> Cursos y Fechas
           </h2>
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'row',
-              flexWrap: 'wrap',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: '24px',
               maxWidth: '900px',
               margin: '0 auto'
@@ -91,7 +89,6 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
               className="details-box"
               onClick={() => setSubTab('cursos')}
               style={{
-                flex: '1 1 280px',
                 cursor: 'pointer',
                 padding: '32px 24px',
                 borderRadius: '16px',
@@ -100,49 +97,48 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                 alignItems: 'center',
                 textAlign: 'center',
                 transition: 'all 0.25s ease',
-                border: '2px solid var(--border-color)',
-                background: 'var(--card-bg)',
+                border: '2px solid #cbd5e1',
+                background: '#ffffff',
+                height: '100%',
                 justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.borderColor = '#003876';
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.borderColor = '#cbd5e1';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '14px', textAlign: 'left' }}>
                 <div
                   style={{
                     width: '72px',
                     height: '72px',
                     borderRadius: '18px',
-                    background: 'var(--primary-alpha-15, rgba(59, 130, 246, 0.12))',
+                    background: '#f0f4f8',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '20px'
+                    flexShrink: 0,
+                    border: '1px solid #cbd5e1'
                   }}
                 >
-                  <BookOpen size={36} color="var(--primary, #3b82f6)" />
+                  <BookOpen size={36} color="#003876" />
                 </div>
 
-
-
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
-                  Altas y modificaciones de cursos
+                <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
+                  Agregar y/o modificar cursos
                 </p>
               </div>
 
               <button
-                className="btn-primary"
+                className="btn-primary btn-ingresar"
                 style={{
-                  marginTop: '28px',
                   width: '100%',
                   height: '46px',
                   display: 'flex',
@@ -151,19 +147,19 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                   gap: '8px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  margin: 0
+                  margin: 0,
+                  marginTop: '36px'
                 }}
               >
                 Ingresar a Cursos <ChevronRight size={18} />
               </button>
             </div>
 
-            {/* Cajita 2: FECHAS — mismo estilo flavicon que Cursos */}
+            {/* Cajita 2: FECHAS */}
             <div
               className="details-box"
               onClick={() => setSubTab('fechas')}
               style={{
-                flex: '1 1 280px',
                 cursor: 'pointer',
                 padding: '32px 24px',
                 borderRadius: '16px',
@@ -172,48 +168,48 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                 alignItems: 'center',
                 textAlign: 'center',
                 transition: 'all 0.25s ease',
-                border: '2px solid var(--border-color)',
-                background: 'var(--card-bg)',
+                border: '2px solid #cbd5e1',
+                background: '#ffffff',
+                height: '100%',
                 justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.borderColor = '#003876';
                 e.currentTarget.style.transform = 'translateY(-4px)';
                 e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.borderColor = '#cbd5e1';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '14px', textAlign: 'left' }}>
                 <div
                   style={{
                     width: '72px',
                     height: '72px',
                     borderRadius: '18px',
-                    background: 'var(--primary-alpha-15, rgba(0, 56, 118, 0.09))',
+                    background: '#f0f4f8',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '20px',
-                    border: '1px solid rgba(0,56,118,0.10)'
+                    flexShrink: 0,
+                    border: '1px solid #cbd5e1'
                   }}
                 >
-                  <Calendar size={36} color="var(--primary, #003876)" />
+                  <Calendar size={36} color="#003876" />
                 </div>
 
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
-                  Asignación de fechas de los cursos
+                <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
+                  Asignar fechas de los cursos
                 </p>
               </div>
 
               <button
-                className="btn-primary"
+                className="btn-primary btn-ingresar"
                 style={{
-                  marginTop: '28px',
                   width: '100%',
                   height: '46px',
                   display: 'flex',
@@ -222,7 +218,8 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                   gap: '8px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  margin: 0
+                  margin: 0,
+                  marginTop: '36px'
                 }}
               >
                 Ingresar a Fechas <ChevronRight size={18} />

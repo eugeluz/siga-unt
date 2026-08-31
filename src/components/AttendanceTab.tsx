@@ -403,6 +403,8 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       return;
     }
 
+    const cursoObj = cursos.find(c => c.curso === asistenciaCurso);
+    const nombreCursoExport = cursoObj?.nombreCompleto?.trim() ? cursoObj.nombreCompleto.trim() : asistenciaCurso;
     const rowsWithEmail = await Promise.all(
       aprobados.map(async (a) => {
         let emailVal = a.email || '';
@@ -429,7 +431,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
           apellido: apellidoVal,
           nombre: nombreVal,
           dni: dniVal,
-          curso: asistenciaCurso,
+          curso: nombreCursoExport,
           periodo: '',
           Enviado: ''
         };
@@ -438,10 +440,10 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
     const headers = ['email', 'apellido', 'nombre', 'dni', 'curso', 'periodo', 'Enviado'];
     const keys = ['email', 'apellido', 'nombre', 'dni', 'curso', 'periodo', 'Enviado'];
-    const filename = `aprobados_${asistenciaCurso.replace(/[^a-zA-Z0-9]/g, '_')}_${asistenciaFecha}.xlsx`;
+    const filename = `aprobados_${nombreCursoExport.replace(/[^a-zA-Z0-9]/g, '_')}_${asistenciaFecha}.xlsx`;
 
     downloadExcel(rowsWithEmail, headers, keys, filename);
-    await logAudit('Exportación Aprobados Drive', `${asistenciaCurso} (${asistenciaFecha}) — ${rowsWithEmail.length} alumnos aprobados`);
+    await logAudit('Exportación Aprobados Drive', `${nombreCursoExport} (${asistenciaFecha}) — ${rowsWithEmail.length} alumnos aprobados`);
   };
 
   // Exportar Planilla en PDF lista para imprimir (formato físico de firmas)

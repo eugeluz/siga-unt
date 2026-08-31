@@ -205,9 +205,9 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
   };
 
   return (
-    <div>
-      <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <FileText size={22} color="var(--primary)" /> Reportes y Consultas por Facultad / Dependencia
+    <div className="alumnos-institucional">
+      <h2 className="section-title" style={{ marginBottom: '16px' }}>
+        <FileText size={24} color="currentColor" /> Reportes y Consultas por Facultad / Dependencia
       </h2>
 
       <div className="details-box" style={{ marginBottom: '25px' }}>

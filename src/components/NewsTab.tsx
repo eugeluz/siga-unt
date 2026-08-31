@@ -75,8 +75,10 @@ export const NewsTab: React.FC = () => {
   };
 
   return (
-    <div>
-      <h2 className="section-title">Gestión de Noticias</h2>
+    <div className="alumnos-institucional">
+      <h2 className="section-title" style={{ marginBottom: '16px' }}>
+        <Megaphone size={24} color="currentColor" /> Gestión de Noticias
+      </h2>
 
       <div className="details-box" style={{ width: '100%', boxSizing: 'border-box' }}>
         <h3 style={{ margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: '8px' }}>

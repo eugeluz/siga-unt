@@ -418,7 +418,7 @@ export default function App() {
             <span className="user-badge-email" style={{ fontWeight: 500 }}>
               {userNombre || user.email}
             </span>
-            <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.8rem', minHeight: '40px' }} onClick={() => setShowLandingPreview(true)}>
+            <button className="btn-secondary btn-ingresar" style={{ padding: '8px 14px', fontSize: '0.8rem', minHeight: '40px' }} onClick={() => setShowLandingPreview(true)}>
               Vista Principal
             </button>
             <button className="btn-signout" onClick={handleSignOut}>
@@ -437,36 +437,36 @@ export default function App() {
           {/* Nav Tabs */}
           <nav className="tabs-nav">
             <button className={`tab-btn ${activeTab === 'inicio' ? 'active' : ''}`} onClick={() => setActiveTab('inicio')}>
-              <span className="tab-icon"><Home color="#003876" size={18} /></span>
+              <span className="tab-icon"><Home color="currentColor" size={18} /></span>
               <span className="tab-label">Inicio</span>
             </button>
             <button className={`tab-btn ${activeTab === 'alumnos' ? 'active' : ''}`} onClick={() => setActiveTab('alumnos')}>
-              <span className="tab-icon"><Users color="#003876" size={18} /></span>
+              <span className="tab-icon"><Users color="currentColor" size={18} /></span>
               <span className="tab-label">Alumnos</span>
             </button>
             <button className={`tab-btn ${(activeTab === 'asistencia' || activeTab === 'inscripciones') ? 'active' : ''}`} onClick={() => setActiveTab('asistencia')}>
-              <span className="tab-icon"><ClipboardCheck color="#003876" size={18} /></span>
+              <span className="tab-icon"><ClipboardCheck color="currentColor" size={18} /></span>
               <span className="tab-label">Asistencia</span>
             </button>
             <button className={`tab-btn ${(activeTab === 'cursos' || activeTab === 'fechas') ? 'active' : ''}`} onClick={() => setActiveTab('cursos')}>
-              <span className="tab-icon"><BookOpen color="#003876" size={18} /></span>
+              <span className="tab-icon"><BookOpen color="currentColor" size={18} /></span>
               <span className="tab-label">Cursos y Fechas</span>
             </button>
             <button className={`tab-btn ${(activeTab === 'reportes' || activeTab === 'facultades') ? 'active' : ''}`} onClick={() => setActiveTab('reportes')}>
-              <span className="tab-icon"><FileText color="#003876" size={18} /></span>
+              <span className="tab-icon"><FileText color="currentColor" size={18} /></span>
               <span className="tab-label">Reportes</span>
             </button>
             <button className={`tab-btn ${activeTab === 'noticias' ? 'active' : ''}`} onClick={() => setActiveTab('noticias')}>
-              <span className="tab-icon"><Megaphone color="#003876" size={18} /></span>
+              <span className="tab-icon"><Megaphone color="currentColor" size={18} /></span>
               <span className="tab-label">Noticias</span>
             </button>
             <button className={`tab-btn ${(activeTab === 'personal' || activeTab === 'usuarios') ? 'active' : ''}`} onClick={() => setActiveTab('personal')}>
-              <span className="tab-icon"><Users color="#003876" size={18} /></span>
+              <span className="tab-icon"><Users color="currentColor" size={18} /></span>
               <span className="tab-label">Personal</span>
             </button>
             {(user?.email || '').toLowerCase() === 'eugenia.gonzalez@webmail.unt.edu.ar' && (
               <button className={`tab-btn ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => setActiveTab('configuracion')}>
-                <span className="tab-icon"><Settings color="#003876" size={18} /></span>
+                <span className="tab-icon"><Settings color="currentColor" size={18} /></span>
                 <span className="tab-label">Configuración</span>
               </button>
             )}
@@ -483,7 +483,7 @@ export default function App() {
               </div>
             )}
 
-            <main className={`tab-content ${activeTab === 'alumnos' ? 'alumnos-institucional' : ''}`}>
+            <main className={`tab-content ${['alumnos', 'inscripciones', 'asistencia', 'cursos', 'fechas', 'personal', 'usuarios', 'reportes', 'facultades', 'noticias'].includes(activeTab) ? 'alumnos-institucional' : ''}`}>
               <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}><div className="spinner"></div></div>}>
                 {activeTab === 'inicio' && (
                   <DashboardHome

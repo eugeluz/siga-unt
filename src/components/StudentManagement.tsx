@@ -362,8 +362,9 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     <div className="alumnos-institucional">
       {currentSubTab !== 'inicio' ? (
         <div style={{ marginBottom: '24px' }}>
-          {/* Cabecera de la sección seleccionada con título a la izquierda y Volver al menú a la derecha */}
+          {/* Cabecera — mismo color que la pantalla principal (caja-titulo-principal) */}
           <div
+            className="caja-titulo-principal"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -371,19 +372,17 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
-              background: 'var(--card-bg)',
               padding: '14px 20px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-color)'
+              borderRadius: '12px'
             }}
           >
             <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {currentSubTab === 'alta' ? (
                 <>
-                  <GraduationCap size={22} color="var(--primary)" /> Gestión de Alumnos             </>
+                  <GraduationCap size={22} color="currentColor" /> Gestión de Alumnos             </>
               ) : (
                 <>
-                  <Search size={22} color="#10b981" /> Cursos por Alumno
+                  <Search size={22} color="currentColor" /> Cursos por Alumno
                 </>
               )}
             </h2>
@@ -643,10 +642,10 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
           )}
         </div>
       ) : (
-        /* Vista de inicio con 2 cajitas de igual tamaño para Alumnos — fondo gris claro para destacar cajas blancas */
-        <div style={{ background: '#F2F4F7', borderRadius: '16px', padding: '24px', border: '1px solid rgba(0,56,118,0.08)' }}>
+        /* Vista de inicio con 2 cajitas — caja institucional (gris claro en light, azul en dark) */
+        <div className="caja-titulo-principal">
           <h2 className="section-title" style={{ marginBottom: '16px' }}>
-            <GraduationCap size={24} color="#003876" /> Gestión de Alumnos
+            <GraduationCap size={24} color="currentColor" /> Gestión de Alumnos
           </h2>
           <div
             style={{
@@ -657,7 +656,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
               margin: '0 auto'
             }}
           >
-            {/* Cajita 1: Alta y modificación */}
+            {/* Cajita 1: Alta y modificación — fondo blanco con alto contraste */}
             <div
               className="details-box"
               onClick={() => setCurrentSubTab('alta')}
@@ -670,48 +669,48 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 alignItems: 'center',
                 textAlign: 'center',
                 transition: 'all 0.25s ease',
-                border: '2px solid var(--border-color)',
-                background: 'var(--card-bg)',
+                border: '2px solid #cbd5e1',
+                background: '#ffffff',
                 height: '100%',
                 justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.borderColor = '#003876';
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.borderColor = '#cbd5e1';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '14px', textAlign: 'left' }}>
                 <div
                   style={{
                     width: '72px',
                     height: '72px',
                     borderRadius: '18px',
-                    background: 'var(--primary-alpha-15, rgba(59, 130, 246, 0.12))',
+                    background: '#f0f4f8',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '20px'
+                    flexShrink: 0,
+                    border: '1px solid #cbd5e1'
                   }}
                 >
-                  <GraduationCap size={36} color="var(--primary, #3b82f6)" />
+                  <GraduationCap size={36} color="#003876" />
                 </div>
 
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
                   Alta y modificación de datos de alumnos
                 </p>
               </div>
 
               <button
-                className="btn-primary"
+                className="btn-primary btn-ingresar"
                 style={{
-                  marginTop: '28px',
                   width: '100%',
                   height: '46px',
                   display: 'flex',
@@ -720,7 +719,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   gap: '8px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  margin: 0
+                  margin: 0,
+                  marginTop: '36px'
                 }}
               >
                 Ingresar a Alumnos <ChevronRight size={18} />
@@ -740,11 +740,11 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 alignItems: 'center',
                 textAlign: 'center',
                 transition: 'all 0.25s ease',
-                border: '2px solid var(--border-color)',
-                background: 'var(--card-bg)',
+                border: '2px solid #cbd5e1',
+                background: '#ffffff',
                 height: '100%',
                 justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = '#003876';
@@ -752,37 +752,36 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.borderColor = '#cbd5e1';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '14px', textAlign: 'left' }}>
                 <div
                   style={{
                     width: '72px',
                     height: '72px',
                     borderRadius: '18px',
-                    background: 'var(--primary-alpha-15, rgba(0, 56, 118, 0.09))',
+                    background: '#f0f4f8',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '20px',
-                    border: '1px solid rgba(0,56,118,0.10)'
+                    flexShrink: 0,
+                    border: '1px solid #cbd5e1'
                   }}
                 >
                   <Search size={36} color="#003876" />
                 </div>
 
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
                   Consulta e historial de cursos por alumno
                 </p>
               </div>
 
               <button
-                className="btn-primary"
+                className="btn-primary btn-ingresar"
                 style={{
-                  marginTop: '28px',
                   width: '100%',
                   height: '46px',
                   display: 'flex',
@@ -791,7 +790,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   gap: '8px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  margin: 0
+                  margin: 0,
+                  marginTop: '36px'
                 }}
               >
                 Ingresar a Historial <ChevronRight size={18} />
