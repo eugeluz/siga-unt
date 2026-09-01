@@ -112,9 +112,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
   useEffect(() => {
     if (asistenciaCurso) {
-      const courseObj = cursos.find(c => c.curso === asistenciaCurso);
+      const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === asistenciaCurso);
       if (courseObj) {
-        const filtered = fechas.filter(f => f.idCurso === courseObj.idCurso);
+        const filtered = fechas.filter(f => String(f.idCurso) === String(courseObj.idCurso));
         setAsistenciaFechasFiltradas(filtered);
         if (filtered.length > 0) {
           setAsistenciaFecha(filtered[0].inicio || '');
@@ -160,12 +160,22 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     setLoadingAsistencia(true);
     try {
       console.log('Querying inscripciones for:', { curso: asistenciaCurso, fechaInicio: asistenciaFecha });
+      const courseObjForQuery = cursos.find(c => (c.nombreCompleto || c.curso) === asistenciaCurso);
       const q = query(
         collection(db, 'inscripciones'),
         where('curso', '==', asistenciaCurso),
         where('fechaInicio', '==', asistenciaFecha)
       );
-      const snap = await getDocs(q);
+      let snap = await getDocs(q);
+      if (snap.empty && courseObjForQuery && courseObjForQuery.curso && courseObjForQuery.curso !== asistenciaCurso) {
+        const qAlt = query(
+          collection(db, 'inscripciones'),
+          where('curso', '==', courseObjForQuery.curso),
+          where('fechaInicio', '==', asistenciaFecha)
+        );
+        const snapAlt = await getDocs(qAlt);
+        if (!snapAlt.empty) snap = snapAlt;
+      }
       let list = await Promise.all(
         snap.docs.map(async docSnap => {
           const data: any = docSnap.data();
@@ -403,7 +413,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       return;
     }
 
-    const cursoObj = cursos.find(c => c.curso === asistenciaCurso);
+    const cursoObj = cursos.find(c => (c.nombreCompleto || c.curso) === asistenciaCurso);
     const nombreCursoExport = cursoObj?.nombreCompleto?.trim() ? cursoObj.nombreCompleto.trim() : asistenciaCurso;
     const rowsWithEmail = await Promise.all(
       aprobados.map(async (a) => {
@@ -542,7 +552,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
           >
             <option value="">-- Seleccione un Curso --</option>
             {cursos.filter(c => !asistenciaPrograma || (c.programa?.trim() || 'Otros') === asistenciaPrograma).map(c => (
-              <option key={c.idCurso} value={c.curso}>{c.curso}</option>
+              <option key={c.idCurso} value={c.nombreCompleto || c.curso}>{c.nombreCompleto || c.curso}</option>
             ))}
           </select>
         </div>
@@ -594,14 +604,13 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
           {alumnosAsistencia.length > 0 && (
             <>
-              {/* Input compacto de Fecha de Clase justo antes de Imprimir PDF */}
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0, background: 'var(--bg-card)', padding: '0 8px', borderRadius: '8px', border: '1px solid var(--border-card)', height: '38px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              {/* Input Fecha de Clase — unificado, sin doble borde ni sobresaliente */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0, background: '#ffffff', padding: '0 10px', borderRadius: '8px', border: '1px solid #cbd5e1', height: '38px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#344054', whiteSpace: 'nowrap' }}>
                   Fecha Clase:
                 </span>
                 <input
                   type="date"
-                  className="form-control"
                   value={fechaClase}
                   onChange={e => setFechaClase(e.target.value)}
                   style={{
@@ -610,7 +619,13 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                     fontSize: '0.8rem',
                     border: 'none',
                     background: 'transparent',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    color: '#344054',
+                    minWidth: '125px',
+                    outline: 'none',
+                    boxShadow: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none'
                   }}
                   title="Establezca la fecha de la clase para imprimir la planilla"
                 />
@@ -633,7 +648,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                 onClick={downloadPDF}
                 title="Descargar Planilla en PDF para Imprimir"
               >
-                <Printer size={15} /> Imprimir PDF
+                <Printer size={15} /> Imprimir asistencia
               </button>
 
               <button
@@ -653,7 +668,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                 onClick={downloadPlanilla}
                 title="Descargar Planilla de Asistencia en Excel"
               >
-                <Upload size={15} /> Exportar Asistencia
+                <Upload size={15} /> Asistencia final
               </button>
             </>
           )}

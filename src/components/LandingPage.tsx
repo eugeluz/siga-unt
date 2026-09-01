@@ -127,10 +127,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
       const fechasList = fechas;
       const fullHistory = snapInsc.docs.map(d => {
         const insc = d.data();
-        const cursoObj = cursosList.find(c => c.curso === insc.curso);
-        const fechaObj = fechasList.find(f => f.curso === insc.curso && f.inicio === insc.fechaInicio);
+        const cursoObj = cursosList.find(c => String(c.idCurso) === String(insc.idCurso) || (c.nombreCompleto || c.curso) === insc.curso);
+        const fechaObj = fechasList.find(f => String(f.idCurso) === String(insc.idCurso) && f.inicio === insc.fechaInicio);
         return {
           ...insc,
+          curso: cursoObj?.nombreCompleto || insc.curso,
           resolucion: cursoObj?.resolucion || 'Sin dato',
           certificado: fechaObj?.certificado || '—'
         };
@@ -251,7 +252,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
         dni: Number(dni),
         apellido: toTitleCase(apellido),
         nombre: toTitleCase(nombre),
-        curso: courseObj?.curso || '',
+        curso: courseObj?.nombreCompleto || courseObj?.curso || '',
         fechaInicio: fechaId,
         resultado: 'Cursando',
         email: email.toLowerCase() || '',
@@ -462,7 +463,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                       <Star size={18} color="var(--warning)" />
-                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{c.curso}</h3>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{c.nombreCompleto || c.curso}</h3>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
                       {c.programa && <span>{c.programa}</span>}
@@ -878,7 +879,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                         <select className="form-control" value={cursoId} onChange={e => handleCursoChange(e.target.value)}>
                           <option value="">-- Seleccione un Curso --</option>
                           {cursosFiltrados.map(c => (
-                            <option key={c.idCurso} value={String(c.idCurso)}>{c.curso}</option>
+                            <option key={c.idCurso} value={String(c.idCurso)}>{c.nombreCompleto || c.curso}</option>
                           ))}
                         </select>
                       </div>

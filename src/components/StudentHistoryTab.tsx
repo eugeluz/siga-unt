@@ -62,11 +62,12 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
       }
 
       const fullHistory = listInsc.map(insc => {
-        const cursoObj = cursosList.find(c => c.curso === insc.curso);
-        const fechaObj = fechasList.find(f => f.curso === insc.curso && f.inicio === insc.fechaInicio);
+        const cursoObj = cursosList.find(c => String(c.idCurso) === String(insc.idCurso) || (c.nombreCompleto || c.curso) === insc.curso);
+        const fechaObj = fechasList.find(f => String(f.idCurso) === String(insc.idCurso) && f.inicio === insc.fechaInicio);
 
         return {
           ...insc,
+          curso: cursoObj?.nombreCompleto || insc.curso,
           resolucion: cursoObj?.resolucion || 'Sin dato',
           certificado: fechaObj?.certificado || '—'
         };
@@ -145,9 +146,11 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
               </tr>
             </thead>
             <tbody>
-              {historialAlumno.map(item => (
+              {historialAlumno.map(item => {
+                const cursoNombre = cursos.find(c => String(c.idCurso) === String(item.idCurso))?.nombreCompleto || item.curso;
+                return (
                 <tr key={item.id}>
-                  <td data-label="Curso">{item.curso}</td>
+                  <td data-label="Curso">{cursoNombre}</td>
                   <td data-label="Fecha Inicio">{formatDateAR(item.fechaInicio)}</td>
                   <td data-label="Certificado">{formatDateAR(item.certificado)}</td>
                   <td data-label="Estado">
@@ -157,7 +160,8 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
                   </td>
                   <td data-label="Resolución">{item.resolucion}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

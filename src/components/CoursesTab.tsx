@@ -81,10 +81,11 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   };
 
   const handleEdit = (course: any) => {
+    const nombre = course.nombreCompleto || course.nombre_completo || course.curso || '';
     setForm({
       idCurso: String(course.idCurso || ''),
-      curso: course.curso || '',
-      nombreCompleto: course.nombreCompleto || course.nombre_completo || '',
+      curso: nombre,
+      nombreCompleto: nombre,
       programa: course.programa || '',
       cargaHoraria: course.cargaHoraria || '',
       plan: course.plan || '',
@@ -134,7 +135,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   };
 
   const handleSave = async () => {
-    if (!form.curso.trim()) {
+    const nombreCurso = (form.nombreCompleto || form.curso).trim();
+    if (!nombreCurso) {
       await alert({ title: 'Campos incompletos', message: 'El nombre del curso es requerido.', variant: 'warning' });
       return;
     }
@@ -197,8 +199,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       }
       const courseData = {
         idCurso: idCursoVal,
-        curso: form.curso.trim(),
-        nombreCompleto: form.nombreCompleto.trim(),
+        curso: nombreCurso,
+        nombreCompleto: nombreCurso,
         programa: form.programa.trim(),
         cargaHoraria: form.cargaHoraria.trim(),
         plan: form.plan || '',
@@ -341,7 +343,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
             <option value="">Seleccionar Programa - Curso para Modificar</option>
             {courseList.map(c => (
               <option key={c.idCurso} value={c.idCurso}>
-                {c.programa ? `${c.programa} — ` : ''}{c.curso}
+                {c.programa ? `${c.programa} — ` : ''}{c.nombreCompleto || c.curso}
               </option>
             ))}
           </select>
@@ -364,8 +366,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               ))}
             </datalist>
           </div>
-          <FormField label="Nombre completo" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value })} placeholder="Nombre completo del curso" />
-          <FormField label="Nombre corto" value={form.curso} onChange={e => setForm({ ...form, curso: e.target.value })} placeholder="Nombre corto" />
+          <FormField label="Nombre del curso" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value, curso: e.target.value })} placeholder="Nombre del curso" />
         </div>
 
         <div className="form-row" style={{ width: '100%', marginTop: '15px' }}>
@@ -485,17 +486,6 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                 </>
               )}
 
-              <label style={{ margin: '0 0 0 16px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-                <input
-                  type="checkbox"
-                  checked={form.showOnLanding}
-                  onChange={e => setForm({ ...form, showOnLanding: e.target.checked })}
-                  style={{ accentColor: 'var(--accent)', width: '18px', height: '18px', cursor: 'pointer' }}
-                />
-                <span style={{ fontWeight: 500, fontSize: '0.85rem' }}>
-                  Mostrar en página principal
-                </span>
-              </label>
             </div>
           </div>
         </div>
@@ -507,7 +497,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               <div className="modal-header">
                 <h3>
                   <FileText size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
-                  Programa del Curso — {form.curso || 'Sin título'}
+                  Programa del Curso — {form.nombreCompleto || form.curso || 'Sin título'}
                 </h3>
                 <button className="modal-close" onClick={() => setShowPdfModal(false)}>×</button>
               </div>
@@ -577,7 +567,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               <div className="modal-header">
                 <h3>
                   <Calendar size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
-                  Fechas - {selectedCourseForDates.curso}
+                  Fechas - {selectedCourseForDates.nombreCompleto || selectedCourseForDates.curso}
                 </h3>
                 <button className="modal-close" onClick={() => setShowDatesModal(false)}>×</button>
               </div>

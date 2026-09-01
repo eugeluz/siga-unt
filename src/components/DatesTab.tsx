@@ -24,7 +24,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const sortedCursos = [...cursos].sort((a, b) => (a.curso || '').localeCompare(b.curso || ''));
+  const sortedCursos = [...cursos].sort((a, b) => (a.nombreCompleto || a.curso || '').localeCompare(b.nombreCompleto || b.curso || ''));
 
   const handleAddDate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
     try {
       await addDoc(collection(db, 'fechas'), {
         idCurso: Number(courseObj.idCurso),
-        curso: courseObj.curso,
+        curso: courseObj.nombreCompleto || courseObj.curso,
         inicio: dateForm.inicio,
         certificado: dateForm.certificado || '',
         cantidadClases: Number(dateForm.cantidadClases) || 4,
@@ -165,7 +165,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                   <option value="">-- Seleccione un Curso --</option>
                   {sortedCursos.filter(c => !selectedPrograma || (c.programa?.trim() || 'Otros') === selectedPrograma).map(c => (
                     <option key={c.idCurso} value={String(c.idCurso)}>
-                      {c.curso}
+                      {c.nombreCompleto || c.curso}
                     </option>
                   ))}
                 </select>
@@ -282,9 +282,11 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredFechas.map((f, i) => (
+                  {filteredFechas.map((f, i) => {
+                    const nombreCurso = cursos.find(c => c.idCurso === f.idCurso)?.nombreCompleto || f.curso;
+                    return (
                     <tr key={f.id || i}>
-                      <td data-label="Curso" style={{ fontWeight: 400 }}>{f.curso}</td>
+                      <td data-label="Curso" style={{ fontWeight: 400 }}>{nombreCurso}</td>
                       <td data-label="Inicio">{formatDateAR(f.inicio)}</td>
                       <td data-label="Certificado">{formatDateAR(f.certificado)}</td>
                       <td data-label="Cant. Clases" style={{ textAlign: 'center', fontWeight: 600, color: 'var(--primary)' }}>
@@ -312,7 +314,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                             type="button"
                             className="btn-secondary"
                             style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => handleVerInforme(f.curso, f.inicio)}
+                            onClick={() => handleVerInforme(nombreCurso, f.inicio)}
                             title="Ver informe del docente"
                           >
                             <FileText size={14} />
@@ -321,7 +323,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                             type="button"
                             className="btn-danger"
                             style={{ padding: '4px 8px', margin: 0, minHeight: '32px', fontSize: '0.75rem' }}
-                            onClick={() => handleDeleteDate(f.id, f.curso, f.inicio)}
+                            onClick={() => handleDeleteDate(f.id, nombreCurso, f.inicio)}
                             title="Eliminar fecha"
                           >
                             <Trash2 size={14} />
@@ -329,7 +331,8 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

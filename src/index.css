@@ -1508,11 +1508,12 @@ select option {
 [data-theme="dark"] .alumnos-institucional .details-box h3 {
   color: #f1f5f9 !important;
 }
-[data-theme="dark"] .alumnos-institucional .form-group label,
-[data-theme="dark"] .alumnos-institucional label {
+[data-theme="dark"] .alumnos-institucional .form-group label:not(.btn-secondary):not(.btn-primary),
+[data-theme="dark"] .alumnos-institucional label:not(.btn-secondary):not(.btn-primary) {
   color: #e2e8f0 !important;
 }
-[data-theme="dark"] .alumnos-institucional [style*="var(--text-secondary)"] {
+[data-theme="dark"] .alumnos-institucional [style*="var(--text-secondary)"],
+[data-theme="dark"] .alumnos-institucional [style*="var(--text-primary)"] {
   color: #e2e8f0 !important;
 }
 [data-theme="dark"] .alumnos-institucional .listbox-wrapper {
@@ -1594,5 +1595,18 @@ select option {
   background: rgba(56,189,248,0.18) !important;
   border-color: #7dd3fc !important;
   color: #7dd3fc !important;
+}
+
+/* Botones modo Inscripción — hover destacado antes del clic */
+.enroll-mode-btn {
+  transition: all 0.2s ease;
+}
+.enroll-mode-btn:hover {
+  background: rgba(0,161,222,0.08) !important;
+  color: #00A1DE !important;
+}
+[data-theme="dark"] .enroll-mode-btn:hover {
+  background: rgba(0,161,222,0.15) !important;
+  color: #38bdf8 !important;
 }
 

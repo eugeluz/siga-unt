@@ -75,10 +75,11 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     };
   });
 
-  // 2. Process Top Courses for Bar Chart
+  // 2. Process Top Courses for Bar Chart — usar nombre completo
   const courseCounts: Record<string, number> = {};
   inscripciones.forEach(ins => {
-    const curso = ins.curso || 'Sin curso';
+    const cursoObj = cursos.find(c => String(c.idCurso) === String(ins.idCurso) || (c.nombreCompleto || c.curso) === (ins.curso || ''));
+    const curso = cursoObj?.nombreCompleto || ins.curso || 'Sin curso';
     courseCounts[curso] = (courseCounts[curso] || 0) + 1;
   });
 

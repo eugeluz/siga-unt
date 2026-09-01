@@ -106,9 +106,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
   useEffect(() => {
     if (selectedCurso) {
-      const courseObj = cursos.find(c => c.curso === selectedCurso);
+      const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       if (courseObj) {
-        const filtered = fechas.filter(f => f.idCurso === courseObj.idCurso);
+        const filtered = fechas.filter(f => String(f.idCurso) === String(courseObj.idCurso));
         setFechasFiltradas(filtered);
         if (filtered.length > 0) {
           setSelectedFecha(filtered[0].inicio || '');
@@ -182,7 +182,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         medios: []
       });
 
-      const courseObj = cursos.find(c => c.curso === selectedCurso);
+      const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       const enrollmentData = {
         dni: Number(searchDni),
         apellido: toTitleCase(studentForm.apellido || ''),
@@ -210,7 +210,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   const handleEnroll = async () => {
     if (!studentForm.dni || !selectedCurso || !selectedFecha) return;
     try {
-      const courseObj = cursos.find(c => c.curso === selectedCurso);
+      const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       const enrollmentData = {
         dni: Number(studentForm.dni),
         apellido: toTitleCase(studentForm.apellido),
@@ -293,7 +293,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
     let count = 0;
     try {
-      const courseObj = cursos.find(c => c.curso === selectedCurso);
+      const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       const idCursoVal = courseObj ? courseObj.idCurso : '';
 
       for (const row of parsedLoteData) {
@@ -409,13 +409,24 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           idCurso: idCursoVal
         };
 
+        const courseObjForQuery = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
         const q = query(
           collection(db, 'inscripciones'),
           where('dni', '==', dniVal),
           where('curso', '==', selectedCurso),
           where('fechaInicio', '==', selectedFecha)
         );
-        const snap = await getDocs(q);
+        let snap = await getDocs(q);
+        if (snap.empty && courseObjForQuery && courseObjForQuery.curso && courseObjForQuery.curso !== selectedCurso) {
+          const qAlt = query(
+            collection(db, 'inscripciones'),
+            where('dni', '==', dniVal),
+            where('curso', '==', courseObjForQuery.curso),
+            where('fechaInicio', '==', selectedFecha)
+          );
+          const snapAlt = await getDocs(qAlt);
+          if (!snapAlt.empty) snap = snapAlt;
+        }
 
         if (!snap.empty) {
           const docId = snap.docs[0].id;
@@ -500,6 +511,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', borderBottom: '1px solid var(--border-card)', paddingBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           type="button"
+          className="enroll-mode-btn"
           onClick={() => { if (!isImportingLote) setEnrollMode('individual'); }}
           style={{
             padding: '8px 16px',
@@ -518,6 +530,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         </button>
         <button
           type="button"
+          className="enroll-mode-btn"
           onClick={() => { if (!isImportingLote) setEnrollMode('lotes'); }}
           style={{
             padding: '8px 16px',
@@ -663,7 +676,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
               >
                 <option value="">-- Seleccione un Curso --</option>
                 {cursos.filter(c => !cursoFilterIndiv || (c.programa?.trim() || 'Otros') === cursoFilterIndiv).map(c => (
-                  <option key={c.idCurso} value={c.curso}>{c.curso}</option>
+                  <option key={c.idCurso} value={c.nombreCompleto || c.curso}>{c.nombreCompleto || c.curso}</option>
                 ))}
               </select>
             </div>
@@ -734,7 +747,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
               >
                 <option value="">-- Seleccione un Curso --</option>
                 {cursos.filter(c => !cursoFilterLotes || (c.programa?.trim() || 'Otros') === cursoFilterLotes).map(c => (
-                  <option key={c.idCurso} value={c.curso}>{c.curso}</option>
+                  <option key={c.idCurso} value={c.nombreCompleto || c.curso}>{c.nombreCompleto || c.curso}</option>
                 ))}
               </select>
             </div>
