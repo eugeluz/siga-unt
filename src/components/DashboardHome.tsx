@@ -274,7 +274,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                       <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75%', color: 'var(--text-secondary)' }} title={course}>
                         {course}
                       </span>
-                      <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{count} Inscriptos</span>
+                      <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{count} Aprobados</span>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '6px', height: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.02)' }}>
                       <div style={{ background: 'linear-gradient(to right, var(--primary), var(--accent))', width: `${percentage}%`, height: '100%', borderRadius: '6px', transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}></div>

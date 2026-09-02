@@ -436,11 +436,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                   <div key={c.idCurso} style={{
                     background: 'var(--bg-card)', borderRadius: '14px',
                     border: '1px solid var(--border-card)', padding: '24px',
-                    transition: '0.2s', cursor: 'pointer',
+                    transition: '0.2s',
                   }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-card)'; e.currentTarget.style.transform = 'none'; }}
-                    onClick={() => openEnrollment(c)}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                       <Star size={18} color="var(--warning)" />
