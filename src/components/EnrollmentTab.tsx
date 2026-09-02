@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getDoc, doc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2 } from 'lucide-react';
+import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2, HelpCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatDateAR } from '../utils/dateAR';
 import { excelDateToJSDate } from '../utils/date';
@@ -20,7 +20,7 @@ interface EnrollmentTabProps {
 export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, facultades = [], alumnos = [] }) => {
   const { confirm, alert } = useModal();
   // Toggle Mode
-  const [enrollMode, setEnrollMode] = useState<'individual' | 'lotes'>('individual');
+  const [enrollMode, setEnrollMode] = useState<'individual' | 'lotes' | 'historico'>('individual');
 
   // Lote state
   const [parsedLoteData, setParsedLoteData] = useState<any[]>([]);
@@ -261,12 +261,19 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   };
 
   const executeLoteEnrollment = async () => {
-    if (!selectedCurso || !selectedFecha) {
-      await alert({ title: 'Campos incompletos', message: 'Debe seleccionar un curso y una fecha de inicio.', variant: 'warning' });
-      return;
-    }
     if (parsedLoteData.length === 0) {
       await alert({ title: 'Sin datos', message: 'No hay datos para inscribir.', variant: 'info' });
+      return;
+    }
+
+    // Validación: si el Excel no trae Programa/Curso/Fecha, se requiere selección manual
+    const hasPerRowCurso = parsedLoteData.length > 0 && (() => {
+      const sample = parsedLoteData[0] as Record<string, any>;
+      const keys = Object.keys(sample).map(k => k.toLowerCase());
+      return keys.some(k => k.includes('curso') || k.includes('programa'));
+    })();
+    if (!hasPerRowCurso && (!selectedCurso || !selectedFecha)) {
+      await alert({ title: 'Campos incompletos', message: 'Debe seleccionar un curso y una fecha de inicio, o incluir las columnas Programa / Curso / Fecha de inicio en el Excel.', variant: 'warning' });
       return;
     }
 
@@ -274,9 +281,36 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     setImportLoteProgress({ current: 0, total: parsedLoteData.length, status: 'Iniciando inscripción por lotes...' });
 
     let count = 0;
+    // Cachés para cursos/fechas creados en este lote (evita duplicados)
+    const newCursosMap = new Map<string, any>();
+    const newFechasMap = new Map<string, any>();
+    let nextCursoId = cursos.length > 0 ? Math.max(...cursos.map((c: any) => Number(c.idCurso) || 0)) + 1 : 1;
+    const fallbackCourseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
+    const fallbackIdCurso = fallbackCourseObj ? fallbackCourseObj.idCurso : '';
+    const parseFechaInicio = (raw: any): string | undefined => {
+      if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
+      if (typeof raw === 'number') {
+        const d = excelDateToJSDate(raw);
+        return d || undefined;
+      }
+      const s = String(raw).trim();
+      // Intentar YYYY-MM-DD
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(s)) {
+        const parts = s.split(/[-/]/);
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      }
+      // DD/MM/YYYY o DD-MM-YYYY -> YYYY-MM-DD
+      const dm = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+      if (dm) {
+        let [, dd, mm, yyyy] = dm;
+        if (yyyy.length === 2) yyyy = '20' + yyyy;
+        return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+      }
+      const d2 = excelDateToJSDate(s);
+      if (d2) return d2;
+      return s;
+    };
     try {
-      const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
-      const idCursoVal = courseObj ? courseObj.idCurso : '';
 
       for (const row of parsedLoteData) {
         count++;
@@ -306,6 +340,91 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const rawDni = getVal(['dni', 'documento', 'nro doc', 'nro de documento', 'cedula', 'identificacion', 'doc']);
         const dniVal = Number(String(rawDni || '').replace(/\D/g, ''));
         if (!dniVal) continue;
+
+        // Resolver curso/fecha por fila (si el Excel trae Programa/Curso/Fecha se auto-crean)
+        const cursoFilaRaw = getVal(['curso', 'nombre del curso', 'nombre curso', 'materia', 'capacitacion']);
+        const programaFilaRaw = getVal(['programa', 'programa al que pertenece']);
+        const fechaFilaRaw = getVal(['fecha de inicio', 'fecha inicio', 'inicio', 'fecha', 'fechainicio']);
+        const cantidadFilaRaw = getVal(['cantidad clases', 'cant clases', 'cantidad de clases', 'clases', 'cant. clases']);
+        const cargaFilaRaw = getVal(['carga horaria', 'carga horaria hs', 'horas', 'carga']);
+        const cursoNombreFila = cursoFilaRaw ? String(cursoFilaRaw).trim() : '';
+        const programaFila = programaFilaRaw ? String(programaFilaRaw).trim() : '';
+        const fechaInicioFila = parseFechaInicio(fechaFilaRaw) || selectedFecha;
+        const cursoEfectivo = cursoNombreFila || selectedCurso;
+        if (!cursoEfectivo || !fechaInicioFila) continue;
+        const programaEfectivo = programaFila || fallbackCourseObj?.programa || 'Calidad de vida laboral';
+        let cursoObjFila: any = null;
+        if (programaFila) {
+          cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo && (c.programa?.trim() || '') === programaFila.trim()) || null;
+          if (!cursoObjFila) {
+            cursoObjFila = newCursosMap.get(`${cursoEfectivo}||${programaEfectivo}`) || null;
+          }
+        } else {
+          cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo) || null;
+          if (!cursoObjFila) {
+            for (const v of newCursosMap.values()) {
+              if ((v.nombreCompleto || v.curso) === cursoEfectivo) { cursoObjFila = v; break; }
+            }
+          }
+        }
+        if (!cursoObjFila) {
+          const keyCurso = `${cursoEfectivo}||${programaEfectivo}`;
+          cursoObjFila = newCursosMap.get(keyCurso) || null;
+          if (!cursoObjFila) {
+            for (const v of newCursosMap.values()) {
+              if ((v.nombreCompleto || v.curso) === cursoEfectivo && v.programa === programaEfectivo) { cursoObjFila = v; break; }
+            }
+          }
+          if (!cursoObjFila) {
+            const nuevoId = nextCursoId++;
+            const nuevoCurso: any = {
+              idCurso: nuevoId,
+              curso: cursoEfectivo,
+              nombreCompleto: cursoEfectivo,
+              programa: programaEfectivo,
+              cargaHoraria: '',
+              cargaHorariaHs: cargaFilaRaw ? String(cargaFilaRaw).trim() : '',
+              plan: '',
+              planName: '',
+              idDocente: null,
+              docenteNombre: '',
+              resolucion: '',
+              showOnLanding: true
+            };
+            try { await setDoc(doc(db, 'cursos', String(nuevoId)), nuevoCurso); } catch (e) { console.error('Error creando curso auto:', e); }
+            cursoObjFila = nuevoCurso;
+            newCursosMap.set(keyCurso, cursoObjFila);
+          }
+        } else if (cargaFilaRaw && !cursoObjFila.cargaHorariaHs) {
+          try { await setDoc(doc(db, 'cursos', String(cursoObjFila.idCurso)), { cargaHorariaHs: String(cargaFilaRaw).trim() }, { merge: true }); } catch {}
+        }
+        const idCursoValFila = cursoObjFila.idCurso;
+        const cursoParaInscripcion = cursoEfectivo;
+        const fechaParaInscripcion = fechaInicioFila;
+        // Buscar o crear fecha para ese curso
+        let fechaObjFila: any = fechas.find((f: any) => String(f.idCurso) === String(idCursoValFila) && f.inicio === fechaInicioFila);
+        if (!fechaObjFila) {
+          const keyFecha = `${idCursoValFila}||${fechaInicioFila}`;
+          fechaObjFila = newFechasMap.get(keyFecha) || null;
+          if (!fechaObjFila) {
+            const cantidadVal = cantidadFilaRaw ? Number(String(cantidadFilaRaw).replace(/\D/g, '')) : 4;
+            const nuevaFecha: any = {
+              idCurso: idCursoValFila,
+              curso: cursoObjFila.nombreCompleto || cursoObjFila.curso,
+              inicio: fechaInicioFila,
+              certificado: '',
+              cantidadClases: cantidadVal || 4
+            };
+            try {
+              const ref = await addDoc(collection(db, 'fechas'), nuevaFecha);
+              fechaObjFila = { id: ref.id, ...nuevaFecha };
+            } catch (e) {
+              console.error('Error creando fecha auto:', e);
+              fechaObjFila = nuevaFecha;
+            }
+            newFechasMap.set(keyFecha, fechaObjFila);
+          }
+        }
 
         // 1. Datos solo para inscripción — NO se crea/actualiza en 'alumnos' (control de aprobados)
         const studentData: any = {
@@ -366,30 +485,30 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           dni: dniVal,
           apellido: studentData.apellido || '',
           nombre: studentData.nombre || '',
-          curso: selectedCurso,
-          fechaInicio: selectedFecha,
+          curso: cursoParaInscripcion,
+          fechaInicio: fechaParaInscripcion,
           resultado: resultadoVal,
           email: studentData.email || '',
           cargoFuncion: studentData.cargoFuncion || '',
           unidadAcademica: studentData.unidadAcademica || 'Sin dato',
-          ua: idCursoVal,
-          idCurso: idCursoVal
+          ua: idCursoValFila,
+          idCurso: idCursoValFila
         };
 
-        const courseObjForQuery = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
+        const courseObjForQuery = cursoObjFila;
         const q = query(
           collection(db, 'inscripciones'),
           where('dni', '==', dniVal),
-          where('curso', '==', selectedCurso),
-          where('fechaInicio', '==', selectedFecha)
+          where('curso', '==', cursoParaInscripcion),
+          where('fechaInicio', '==', fechaParaInscripcion)
         );
         let snap = await getDocs(q);
-        if (snap.empty && courseObjForQuery && courseObjForQuery.curso && courseObjForQuery.curso !== selectedCurso) {
+        if (snap.empty && courseObjForQuery && courseObjForQuery.curso && courseObjForQuery.curso !== cursoParaInscripcion) {
           const qAlt = query(
             collection(db, 'inscripciones'),
             where('dni', '==', dniVal),
             where('curso', '==', courseObjForQuery.curso),
-            where('fechaInicio', '==', selectedFecha)
+            where('fechaInicio', '==', fechaParaInscripcion)
           );
           const snapAlt = await getDocs(qAlt);
           if (!snapAlt.empty) snap = snapAlt;
@@ -409,8 +528,10 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         });
       }
 
-      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito. Se inscribieron y/o actualizaron ${count} alumnos.`, variant: 'success' });
-      await logAudit('Inscripción por lotes', `${count} alumnos — ${selectedCurso} (${selectedFecha})`);
+      const creadosCursosMsg = newCursosMap.size ? ` Se crearon ${newCursosMap.size} curso(s) nuevo(s).` : '';
+      const creadasFechasMsg = newFechasMap.size ? ` Se crearon ${newFechasMap.size} fecha(s) nueva(s).` : '';
+      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito. Se inscribieron y/o actualizaron ${count} alumnos.${creadosCursosMsg}${creadasFechasMsg}`, variant: 'success' });
+      await logAudit('Inscripción por lotes', `${count} alumnos${creadosCursosMsg}${creadasFechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
       setParsedLoteData([]);
       setWorkbook(null);
       setSheetNames([]);
@@ -513,6 +634,26 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           }}
         >
           <Upload size={16} /> Inscripción por Lotes
+        </button>
+        <button
+          type="button"
+          className="enroll-mode-btn"
+          onClick={() => { if (!isImportingLote) setEnrollMode('historico'); }}
+          style={{
+            padding: '8px 16px',
+            background: enrollMode === 'historico' ? 'rgba(232,188,0,0.18)' : 'transparent',
+            border: 'none',
+            borderRadius: '6px',
+            color: enrollMode === 'historico' ? '#b45309' : 'var(--text-secondary)',
+            cursor: isImportingLote ? 'not-allowed' : 'pointer',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+          title="Para carga masiva de datos antiguos con Programa/Curso/Fecha por fila"
+        >
+          <Database size={16} /> Lotes históricos
         </button>
       </div>
 
@@ -686,11 +827,14 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             )}
           </div>
         </div>
-      ) : (
+      ) : enrollMode === 'lotes' ? (
         <div className="details-grid">
-          {/* Lotes Paso 1: Selección de Curso */}
+          {/* Lotes simple Paso 1 */}
           <div className="details-box" style={{ height: 'fit-content' }}>
-            <h3>Paso 1: Destinatario de la Inscripción</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Paso 1: Destinatario de la Inscripción
+              <button type="button" onClick={() => alert({ title: 'Paso 1 — Destinatario', message: 'Seleccione Programa → Curso → Fecha de inicio. Ese destino se aplicará a TODAS las filas del Excel.\n\nIdeal para lotes actuales donde todas las personas van al mismo curso.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: 'var(--primary)' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+            </h3>
             
             <div className="form-group">
               <label>Programa</label>
@@ -735,13 +879,12 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             </div>
           </div>
 
-          {/* Lotes Paso 2: Carga y Procesamiento */}
+          {/* Lotes simple Paso 2 */}
           <div className="details-box">
-            <h3>Paso 2: Cargar Excel / CSV</h3>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.5, background: 'var(--surface-bg)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-              <strong>Estructura mínima requerida:</strong> <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>DNI</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Apellido</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Nombre</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Condición</code> <span style={{ color: 'var(--text-muted)' }}>(valores: Cursando, Aprobado, Desaprobado, Abandonó — por defecto Cursando)</span><br />
-              <span style={{ fontSize: '0.78rem' }}>Programa/Curso/Fecha se toman del <strong>Paso 1</strong> (no del Excel). No se modifica el padrón de <strong>Alumnos</strong> — solo se crean registros en <strong>Inscriptos</strong>.</span>
-            </div>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Paso 2: Cargar Excel / CSV
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel simple', message: 'Excel con 4 columnas:\n\nDNI | Apellido | Nombre | Condición\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl Programa/Curso/Fecha se toma del Paso 1 para todas las filas. No se modifica el padrón de Alumnos, solo Inscriptos.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: 'var(--primary)' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+            </h3>
             
             <div className="form-group">
               <label>Seleccionar Archivo (Excel o CSV)</label>
@@ -802,9 +945,147 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                     className="btn-primary" 
                     style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%' }} 
                     onClick={executeLoteEnrollment}
-                    disabled={!selectedCurso || !selectedFecha}
+                    disabled={!selectedCurso || !selectedFecha || parsedLoteData.length === 0 || isImportingLote}
                   >
                     <Database size={16} /> Confirmar Inscripción Masiva ({parsedLoteData.length} alumnos)
+                  </button>
+                ) : (
+                  <div style={{ marginTop: '20px' }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}>
+                      {importLoteProgress.status}
+                    </p>
+                    <div className="progress-bar-container" style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', marginTop: '5px' }}>
+                      <div 
+                        className="progress-bar" 
+                        style={{ width: `${(importLoteProgress.current / importLoteProgress.total) * 100}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.2s ease' }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="details-grid">
+          {/* Histórico Paso 1 */}
+          <div className="details-box" style={{ height: 'fit-content' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Paso 1: Destinatario <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--text-muted)' }}>(opcional)</span>
+              <button type="button" onClick={() => alert({ title: 'Paso 1 — Histórico (opcional)', message: 'Opcional. Si el Excel ya trae columnas Programa / Curso / Fecha de inicio por fila (ej. Informática — Excel / Word / Power Point o Calidad de vida laboral), puede dejar este paso vacío.\n\nSi no trae esas columnas, seleccione aquí un Programa → Curso → Fecha que se aplicará a todas las filas.\n\nLos cursos y fechas que no existan se crearán automáticamente con Cantidad clases y Carga horaria de la fila.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#b45309' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+            </h3>
+            <div className="form-group">
+              <label>Programa (filtro)</label>
+              {(() => {
+                const programas = [...new Set(cursos.map(c => c.programa?.trim() || 'Otros'))].sort();
+                return (
+                  <select className="form-control" value={cursoFilterLotes} onChange={e => { setCursoFilterLotes(e.target.value); setSelectedCurso(''); setSelectedFecha(''); }} disabled={isImportingLote}>
+                    <option value="">-- Todos los programas --</option>
+                    {programas.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                );
+              })()}
+            </div>
+            <div className="form-group">
+              <label>Seleccionar Curso (opcional)</label>
+              <select
+                className="form-control"
+                value={selectedCurso}
+                onChange={e => setSelectedCurso(e.target.value)}
+                disabled={isImportingLote}
+              >
+                <option value="">-- Por fila del Excel --</option>
+                {cursos.filter(c => !cursoFilterLotes || (c.programa?.trim() || 'Otros') === cursoFilterLotes).map(c => (
+                  <option key={c.idCurso} value={c.nombreCompleto || c.curso}>{c.nombreCompleto || c.curso}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Fecha de Inicio (opcional)</label>
+              <select
+                className="form-control"
+                value={selectedFecha}
+                onChange={e => setSelectedFecha(e.target.value)}
+                disabled={!selectedCurso || isImportingLote}
+              >
+                <option value="">-- Por fila del Excel --</option>
+                {fechasFiltradas.map((f, i) => (
+                  <option key={i} value={f.inicio}>{formatDateAR(f.inicio)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Histórico Paso 2 */}
+          <div className="details-box">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Paso 2: Cargar Excel histórico
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Estructura requerida (9 columnas):\n\nDNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria\n\n• Programa/Curso/Fecha: cada fila puede tener valores distintos (ej. Informática — Excel / Word / Power Point). Se crean automáticamente si no existen.\n• Cantidad clases / Carga horaria: opcionales, se usan al crear el curso/fecha.\n• Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nNo se modifica el padrón de Alumnos, solo Inscriptos.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#b45309' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+            </h3>
+            
+            <div className="form-group">
+              <label>Seleccionar Archivo (Excel o CSV)</label>
+              <input 
+                type="file" 
+                className="form-control" 
+                accept=".xlsx, .xls, .xlsm, .csv" 
+                onChange={handleLoteFileChange}
+                disabled={isImportingLote}
+              />
+            </div>
+
+            {sheetNames.length > 1 && (
+              <div className="form-group">
+                <label>Seleccionar Hoja de Excel</label>
+                <select 
+                  className="form-control"
+                  value={selectedSheet}
+                  onChange={e => handleLoteSheetChange(e.target.value)}
+                  disabled={isImportingLote}
+                >
+                  {sheetNames.map((s, idx) => (
+                    <option key={idx} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {parsedLoteData.length > 0 && (
+              <div style={{ marginTop: '15px' }}>
+                <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>
+                  <strong>Vista Previa (Primeras 5 filas):</strong> {parsedLoteData.length} inscriptos cargados.
+                </p>
+                <div className="preview-table-wrapper" style={{ overflowX: 'auto', maxHeight: '180px' }}>
+                  <table className="listbox-table" style={{ fontSize: '0.75rem' }}>
+                    <thead>
+                      <tr>
+                        {Object.keys(parsedLoteData[0]).map((k, idx) => (
+                          <th key={idx}>{k}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedLoteData.slice(0, 5).map((row, rowIdx) => (
+                        <tr key={rowIdx}>
+                          {Object.values(row).map((v: any, valIdx) => (
+                            <td key={valIdx}>{String(v)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {!isImportingLote ? (
+                  <button 
+                    type="button"
+                    className="btn-primary" 
+                    style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', background: '#b45309', borderColor: '#b45309' }} 
+                    onClick={executeLoteEnrollment}
+                    disabled={parsedLoteData.length === 0 || isImportingLote}
+                  >
+                    <Database size={16} /> Confirmar Lote Histórico ({parsedLoteData.length} inscriptos)
                   </button>
                 ) : (
                   <div style={{ marginTop: '20px' }}>
