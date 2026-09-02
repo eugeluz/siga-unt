@@ -68,7 +68,7 @@ export const AttendanceAndEnrollmentTab: React.FC<AttendanceAndEnrollmentTabProp
         /* Vista de inicio — caja igual que Alumnos (azul en modo oscuro) */
         <div className="caja-titulo-principal">
           <h2 className="section-title" style={{ marginBottom: '16px' }}>
-            <ClipboardCheck size={24} color="currentColor" /> Asistencia e Inscripción
+            <ClipboardCheck size={24} color="currentColor" /> Inscripción y Asistencia
           </h2>
           <div
             style={{

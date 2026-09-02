@@ -12,9 +12,11 @@ interface CoursesTabProps {
   cursos: any[];
   docentes: any[];
   fechas: any[];
+  modoCurso?: 'nuevo' | 'modificar';
+  onModoChange?: (m: 'nuevo' | 'modificar') => void;
 }
 
-export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas }) => {
+export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas, modoCurso: modoProp, onModoChange }) => {
   const { confirm, alert } = useModal();
   const [courseList, setCourseList] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
@@ -27,7 +29,9 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   const [cursoFilter, setCursoFilter] = useState('');
   const [programaFilter, setProgramaFilter] = useState('');
   const [editProgramaFilter, setEditProgramaFilter] = useState('');
-  const [modoCurso, setModoCurso] = useState<'nuevo' | 'modificar'>('nuevo');
+  const [modoCursoLocal, setModoCursoLocal] = useState<'nuevo' | 'modificar'>('nuevo');
+  const modoCurso = modoProp ?? modoCursoLocal;
+  const setModoCurso = onModoChange ?? setModoCursoLocal;
 
   const [form, setForm] = useState({
     idCurso: '',
@@ -290,39 +294,23 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
 
   const programasDisponibles = Array.from(new Set(courseList.map(c => c.programa?.trim()).filter(Boolean))).sort();
 
+  useEffect(() => {
+    if (modoProp === undefined) return;
+    if (modoProp === 'nuevo') {
+      resetForm();
+      setEditProgramaFilter('');
+    } else if (modoProp === 'modificar') {
+      setSelectedCourseId(null);
+      setEditProgramaFilter('');
+    }
+  }, [modoProp]);
+
   return (
     <div>
       <div className="details-box" style={{ width: '100%', boxSizing: 'border-box' }}>
-        {/* Encabezado */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BookOpen size={20} color="var(--primary)" />
-            {modoCurso === 'modificar' ? (selectedCourseId ? `Modificar Curso #${selectedCourseId}` : 'Modificar Curso') : 'Nuevo Curso'}
-          </h3>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--surface-bg)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-card)' }}>
-            {modoCurso === 'modificar' ? 'Editando curso existente' : 'Creando curso nuevo'}
-          </span>
-        </div>
 
-        {/* Selector claro de modo — evita confusión */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', padding: '10px', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px solid var(--border-card)', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => { setModoCurso('nuevo'); handleNew(); }}
-            className={modoCurso === 'nuevo' ? 'btn-primary' : 'btn-secondary'}
-            style={{ margin: 0, flex: '1 1 160px', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem' }}
-          >
-            <Plus size={16} /> Nuevo curso
-          </button>
-          <button
-            type="button"
-            onClick={() => { setModoCurso('modificar'); setSelectedCourseId(null); resetForm(); }}
-            className={modoCurso === 'modificar' ? 'btn-primary' : 'btn-secondary'}
-            style={{ margin: 0, flex: '1 1 160px', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem' }}
-          >
-            <Pencil size={16} /> Modificar curso
-          </button>
-        </div>
+
+
 
         {modoCurso === 'modificar' && (
           <div className="form-row" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>

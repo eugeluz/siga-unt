@@ -3,7 +3,7 @@ import { collection, addDoc, deleteDoc, doc, setDoc, query, where, getDocs } fro
 import { db } from '../firebase';
 import { FormField } from './FormField';
 import { formatDateAR } from '../utils/dateAR';
-import { Plus, Trash2, Calendar, Search, ArrowUpDown, Eye, EyeOff, FileText, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, Search, ArrowUpDown, Eye, EyeOff, FileText, HelpCircle, Link2 } from 'lucide-react';
 import { useModal } from './ModalProvider';
 
 interface DatesTabProps {
@@ -68,6 +68,20 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
     } catch (err) {
       console.error('Error al cambiar visibilidad:', err);
       await alert({ title: 'Error', message: 'No se pudo actualizar la visibilidad de la fecha. Intente nuevamente.', variant: 'danger' });
+    }
+  };
+
+  const handleEditUrl = async (f: any) => {
+    const nombreCurso = cursos.find(c => c.idCurso === f.idCurso)?.nombreCompleto || f.curso;
+    const current = f.inscripcionUrl || '';
+    const input = window.prompt(`URL del formulario de Google para:\n${nombreCurso} — ${formatDateAR(f.inicio)}\n\nPegue el enlace (https://docs.google.com/forms/...)`, current);
+    if (input === null) return;
+    try {
+      await setDoc(doc(db, 'fechas', f.id), { inscripcionUrl: input.trim() }, { merge: true });
+      await alert({ title: 'URL actualizada', message: input.trim() ? 'URL del formulario guardada con éxito.' : 'URL eliminada. El curso mostrará “Sin formulario”.', variant: 'success' });
+    } catch (err) {
+      console.error('Error al guardar URL:', err);
+      await alert({ title: 'Error', message: 'No se pudo guardar la URL. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -312,15 +326,15 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                               >
                                 {f.showOnLanding !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                               </button>
-                              <button
-                                type="button"
-                                className="btn-secondary"
-                                style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                onClick={() => handleVerInforme(nombreCurso, f.inicio)}
-                                title="Ver informe del docente"
-                              >
-                                <FileText size={14} />
-                              </button>
+                                                          <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: f.inscripcionUrl ? 'var(--accent)' : undefined, color: f.inscripcionUrl ? 'var(--accent)' : undefined }}
+                              onClick={() => handleEditUrl(f)}
+                              title={f.inscripcionUrl ? `Editar URL del formulario:\n${f.inscripcionUrl}` : 'Agregar URL del formulario de Google'}
+                            >
+                              <Link2 size={14} />
+                            </button>
                               <button
                                 type="button"
                                 className="btn-danger"

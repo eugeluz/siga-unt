@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CoursesTab } from './CoursesTab';
 import { DatesTab } from './DatesTab';
-import { BookOpen, Calendar, ChevronRight } from 'lucide-react';
+import { BookOpen, Calendar, ChevronRight, Plus, Pencil } from 'lucide-react';
 
 interface CoursesAndDatesTabProps {
   cursos: any[];
@@ -11,6 +11,7 @@ interface CoursesAndDatesTabProps {
 
 export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, docentes, fechas }) => {
   const [subTab, setSubTab] = useState<'inicio' | 'cursos' | 'fechas'>('inicio');
+  const [modoCurso, setModoCurso] = useState<'nuevo' | 'modificar'>('nuevo');
 
   return (
     <div className="alumnos-institucional">
@@ -22,7 +23,7 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'flex-start',
+              justifyContent: 'space-between',
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
@@ -41,11 +42,31 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                 </>
               )}
             </h2>
+            {subTab === 'cursos' && (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setModoCurso('nuevo')}
+                  className={modoCurso === 'nuevo' ? 'btn-primary' : 'btn-secondary'}
+                  style={{ margin: 0, height: '36px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                >
+                  <Plus size={14} /> Nuevo curso
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoCurso('modificar')}
+                  className={modoCurso === 'modificar' ? 'btn-primary' : 'btn-secondary'}
+                  style={{ margin: 0, height: '36px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                >
+                  <Pencil size={14} /> Modificar curso
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Renderizado del componente correspondiente */}
           {subTab === 'cursos' ? (
-            <CoursesTab cursos={cursos} docentes={docentes} fechas={fechas} />
+            <CoursesTab cursos={cursos} docentes={docentes} fechas={fechas} modoCurso={modoCurso} onModoChange={setModoCurso} />
           ) : (
             <DatesTab cursos={cursos} fechas={fechas} />
           )}
