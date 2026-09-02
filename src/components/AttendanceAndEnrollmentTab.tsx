@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { EnrollmentTab } from './EnrollmentTab';
 import { AttendanceTab } from './AttendanceTab';
-import { ClipboardCheck, UserPlus, ArrowLeft, ChevronRight } from 'lucide-react';
+import { ClipboardCheck, UserPlus, ChevronRight } from 'lucide-react';
 
 interface AttendanceAndEnrollmentTabProps {
   cursos: any[];
@@ -28,7 +28,7 @@ export const AttendanceAndEnrollmentTab: React.FC<AttendanceAndEnrollmentTabProp
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-start',
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
@@ -36,7 +36,6 @@ export const AttendanceAndEnrollmentTab: React.FC<AttendanceAndEnrollmentTabProp
               borderRadius: '12px'
             }}
           >
-            {/* Título — mismo color que pantalla principal */}
             <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {subTab === 'inscripcion' ? (
                 <>
@@ -48,24 +47,6 @@ export const AttendanceAndEnrollmentTab: React.FC<AttendanceAndEnrollmentTabProp
                 </>
               )}
             </h2>
-
-            {/* Botón de volver al menú a la derecha */}
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setSubTab('inicio')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                margin: 0,
-                padding: '8px 16px',
-                fontSize: '0.9rem',
-                height: '40px'
-              }}
-            >
-              <ArrowLeft size={16} /> Volver al menú
-            </button>
           </div>
 
           {/* Renderizado del componente correspondiente */}

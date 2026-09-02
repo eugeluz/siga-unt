@@ -97,6 +97,13 @@ export default function App() {
 
   // App Tabs Navigation State
   const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'reportes' | 'facultades' | 'cursos' | 'fechas' | 'personal' | 'usuarios' | 'noticias' | 'configuracion'>('inicio');
+  const [tabKeys, setTabKeys] = useState<Record<string, number>>({ inicio: 0, alumnos: 0, asistencia: 0, cursos: 0, reportes: 0, noticias: 0, personal: 0, configuracion: 0 });
+  const handleNav = (tab: typeof activeTab) => {
+    const groupMap: Record<string, string> = { asistencia: 'asistencia', inscripciones: 'asistencia', cursos: 'cursos', fechas: 'cursos', reportes: 'reportes', facultades: 'reportes', personal: 'personal', usuarios: 'personal' };
+    const group = groupMap[tab] || tab;
+    setActiveTab(tab);
+    setTabKeys(prev => ({ ...prev, [group]: (prev[group] || 0) + 1 }));
+  };
 
 
   // Usuario del panel (nombre, activo) para trazabilidad
@@ -436,36 +443,36 @@ export default function App() {
         <div className="main-layout">
           {/* Nav Tabs */}
           <nav className="tabs-nav">
-            <button className={`tab-btn ${activeTab === 'inicio' ? 'active' : ''}`} onClick={() => setActiveTab('inicio')}>
+            <button className={`tab-btn ${activeTab === 'inicio' ? 'active' : ''}`} onClick={() => handleNav('inicio')}>
               <span className="tab-icon"><Home color="currentColor" size={18} /></span>
               <span className="tab-label">Inicio</span>
             </button>
-            <button className={`tab-btn ${activeTab === 'alumnos' ? 'active' : ''}`} onClick={() => setActiveTab('alumnos')}>
+            <button className={`tab-btn ${activeTab === 'alumnos' ? 'active' : ''}`} onClick={() => handleNav('alumnos')}>
               <span className="tab-icon"><Users color="currentColor" size={18} /></span>
               <span className="tab-label">Alumnos</span>
             </button>
-            <button className={`tab-btn ${(activeTab === 'asistencia' || activeTab === 'inscripciones') ? 'active' : ''}`} onClick={() => setActiveTab('asistencia')}>
+            <button className={`tab-btn ${(activeTab === 'asistencia' || activeTab === 'inscripciones') ? 'active' : ''}`} onClick={() => handleNav('asistencia')}>
               <span className="tab-icon"><ClipboardCheck color="currentColor" size={18} /></span>
               <span className="tab-label">Asistencia</span>
             </button>
-            <button className={`tab-btn ${(activeTab === 'cursos' || activeTab === 'fechas') ? 'active' : ''}`} onClick={() => setActiveTab('cursos')}>
+            <button className={`tab-btn ${(activeTab === 'cursos' || activeTab === 'fechas') ? 'active' : ''}`} onClick={() => handleNav('cursos')}>
               <span className="tab-icon"><BookOpen color="currentColor" size={18} /></span>
               <span className="tab-label">Cursos y Fechas</span>
             </button>
-            <button className={`tab-btn ${(activeTab === 'reportes' || activeTab === 'facultades') ? 'active' : ''}`} onClick={() => setActiveTab('reportes')}>
+            <button className={`tab-btn ${(activeTab === 'reportes' || activeTab === 'facultades') ? 'active' : ''}`} onClick={() => handleNav('reportes')}>
               <span className="tab-icon"><FileText color="currentColor" size={18} /></span>
               <span className="tab-label">Reportes</span>
             </button>
-            <button className={`tab-btn ${activeTab === 'noticias' ? 'active' : ''}`} onClick={() => setActiveTab('noticias')}>
+            <button className={`tab-btn ${activeTab === 'noticias' ? 'active' : ''}`} onClick={() => handleNav('noticias')}>
               <span className="tab-icon"><Megaphone color="currentColor" size={18} /></span>
               <span className="tab-label">Noticias</span>
             </button>
-            <button className={`tab-btn ${(activeTab === 'personal' || activeTab === 'usuarios') ? 'active' : ''}`} onClick={() => setActiveTab('personal')}>
+            <button className={`tab-btn ${(activeTab === 'personal' || activeTab === 'usuarios') ? 'active' : ''}`} onClick={() => handleNav('personal')}>
               <span className="tab-icon"><Users color="currentColor" size={18} /></span>
               <span className="tab-label">Personal</span>
             </button>
             {(user?.email || '').toLowerCase() === 'eugenia.gonzalez@webmail.unt.edu.ar' && (
-              <button className={`tab-btn ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => setActiveTab('configuracion')}>
+              <button className={`tab-btn ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => handleNav('configuracion')}>
                 <span className="tab-icon"><Settings color="currentColor" size={18} /></span>
                 <span className="tab-label">Configuración</span>
               </button>
@@ -496,6 +503,7 @@ export default function App() {
                 )}
                 {activeTab === 'alumnos' && (
                   <StudentManagement
+                    key={`alumnos-${tabKeys['alumnos'] || 0}`}
                     facultades={facultades}
                     activeTab={activeTab}
                     alumnos={alumnos}
@@ -505,6 +513,7 @@ export default function App() {
                 )}
                 {(activeTab === 'asistencia' || activeTab === 'inscripciones') && (
                   <AttendanceAndEnrollmentTab
+                    key={`asistencia-${tabKeys['asistencia'] || 0}`}
                     cursos={cursos}
                     fechas={fechas}
                     facultades={facultades}
@@ -513,6 +522,7 @@ export default function App() {
                 )}
                 {(activeTab === 'cursos' || activeTab === 'fechas') && (
                   <CoursesAndDatesTab
+                    key={`cursos-${tabKeys['cursos'] || 0}`}
                     cursos={cursos}
                     docentes={docentes}
                     fechas={fechas}
@@ -527,7 +537,7 @@ export default function App() {
                   />
                 )}
                 {(activeTab === 'personal' || activeTab === 'usuarios') && (
-                  <PersonalAndUsersTab />
+                  <PersonalAndUsersTab key={`personal-${tabKeys['personal'] || 0}`} />
                 )}
                 {activeTab === 'configuracion' && (
                   <ConfigTab currentUserEmail={user?.email} />

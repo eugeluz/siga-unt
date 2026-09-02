@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CoursesTab } from './CoursesTab';
 import { DatesTab } from './DatesTab';
-import { BookOpen, Calendar, ArrowLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Calendar, ChevronRight } from 'lucide-react';
 
 interface CoursesAndDatesTabProps {
   cursos: any[];
@@ -22,7 +22,7 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-start',
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
@@ -30,7 +30,6 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
               borderRadius: '12px'
             }}
           >
-            {/* Título — mismo color que pantalla principal */}
             <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {subTab === 'cursos' ? (
                 <>
@@ -42,24 +41,6 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                 </>
               )}
             </h2>
-
-            {/* Botón de volver al menú a la derecha */}
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setSubTab('inicio')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                margin: 0,
-                padding: '8px 16px',
-                fontSize: '0.9rem',
-                height: '40px'
-              }}
-            >
-              <ArrowLeft size={16} /> Volver al menú
-            </button>
           </div>
 
           {/* Renderizado del componente correspondiente */}

@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { FormField } from './FormField';
 import { ImportModal } from './ImportModal';
-import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ArrowLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ChevronRight, Trash2 } from 'lucide-react';
 import { downloadExcel } from '../utils/excel';
 import { StudentHistoryTab } from './StudentHistoryTab';
 import { useModal } from './ModalProvider';
@@ -368,7 +368,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-start',
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
@@ -386,23 +386,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 </>
               )}
             </h2>
-
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setCurrentSubTab('inicio')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                margin: 0,
-                padding: '8px 16px',
-                fontSize: '0.9rem',
-                height: '40px'
-              }}
-            >
-              <ArrowLeft size={16} /> Volver al menú
-            </button>
           </div>
 
           {currentSubTab === 'historial' ? (
@@ -604,7 +587,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     options={cargoOptions}
                   />
                   <FormField
-                    label="Personas"
+                    label="Personal a cargo"
                     type="number"
                     value={studentForm.personas}
                     onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })}

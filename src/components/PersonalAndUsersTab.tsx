@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PersonalTab } from './PersonalTab';
 import { UsersTab } from './UsersTab';
-import { Users, UserCog, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Users, UserCog, ChevronRight } from 'lucide-react';
 
 export const PersonalAndUsersTab: React.FC = () => {
   const [subTab, setSubTab] = useState<'inicio' | 'personal' | 'usuarios'>('inicio');
@@ -16,7 +16,7 @@ export const PersonalAndUsersTab: React.FC = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-start',
               marginBottom: '20px',
               flexWrap: 'wrap',
               gap: '12px',
@@ -35,23 +35,6 @@ export const PersonalAndUsersTab: React.FC = () => {
                 </>
               )}
             </h2>
-
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setSubTab('inicio')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                margin: 0,
-                padding: '8px 16px',
-                fontSize: '0.9rem',
-                height: '40px'
-              }}
-            >
-              <ArrowLeft size={16} /> Volver al menú
-            </button>
           </div>
 
           {subTab === 'personal' ? (

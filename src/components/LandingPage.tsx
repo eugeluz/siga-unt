@@ -473,7 +473,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                           • Fecha Inicio {fs.length > 1 ? 's' : ''}: {fs.map(f => formatDateAR(f.inicio)).join(', ')}
                         </span>
                       )}
-                      {c.docenteNombre && <span>• Docente: {c.docenteNombre}</span>}
+                      {c.docenteNombre && <span>• Docente: {toTitleCase(c.docenteNombre)}</span>}
                     </div>
                     {c.plan && (
                       <a

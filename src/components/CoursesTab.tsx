@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { FormField } from './FormField';
 import { logAudit } from '../utils/audit';
 import { formatDateAR } from '../utils/dateAR';
-import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download } from 'lucide-react';
+import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download, Pencil, AlertTriangle } from 'lucide-react';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
 
@@ -26,6 +26,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
 
   const [cursoFilter, setCursoFilter] = useState('');
   const [programaFilter, setProgramaFilter] = useState('');
+  const [editProgramaFilter, setEditProgramaFilter] = useState('');
+  const [modoCurso, setModoCurso] = useState<'nuevo' | 'modificar'>('nuevo');
 
   const [form, setForm] = useState({
     idCurso: '',
@@ -80,6 +82,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   const handleNew = () => {
     resetForm();
     setEditing(true);
+    setModoCurso('nuevo');
+    setEditProgramaFilter('');
   };
 
   const handleEdit = (course: any) => {
@@ -94,12 +98,13 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       plan: course.plan || '',
       planName: course.planName || (course.plan ? 'Programa_Curso.pdf' : ''),
       idDocente: String(course.idDocente || ''),
-      docenteNombre: course.docenteNombre || '',
+      docenteNombre: course.docenteNombre ? toTitleCase(course.docenteNombre) : '',
       resolucion: course.resolucion || '',
       showOnLanding: course.showOnLanding !== false
     });
     setSelectedCourseId(course.idCurso);
     setEditing(true);
+    setModoCurso('modificar');
   };
 
   const handleDelete = async (idCurso: number) => {
@@ -150,7 +155,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       let effectiveDocenteNombre = '';
       const docenteSel = docentes.find(d => String(d.idDocente) === form.idDocente);
       if (docenteSel) {
-        effectiveDocenteNombre = `${docenteSel.apellido}, ${docenteSel.nombre}`;
+        effectiveDocenteNombre = `${toTitleCase(docenteSel.apellido)}, ${toTitleCase(docenteSel.nombre)}`;
       } else if (form.docenteNombre.trim()) {
         const typed = form.docenteNombre.trim();
         const existingByName = docentes.find(d => {
@@ -162,7 +167,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         });
         if (existingByName) {
           effectiveIdDocente = existingByName.idDocente;
-          effectiveDocenteNombre = `${existingByName.apellido}, ${existingByName.nombre}`;
+          effectiveDocenteNombre = `${toTitleCase(existingByName.apellido)}, ${toTitleCase(existingByName.nombre)}`;
         } else {
           let apellido = '';
           let nombre = '';
@@ -196,7 +201,8 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
             effectiveDocenteNombre = `${newDocente.apellido}, ${newDocente.nombre}`;
           } catch (e) {
             console.error('Error creando docente:', e);
-            effectiveDocenteNombre = typed;
+            const partsFallback = typed.includes(',') ? typed.split(',').map(s => s.trim()) : [typed];
+            effectiveDocenteNombre = partsFallback.length > 1 ? `${toTitleCase(partsFallback[0])}, ${toTitleCase(partsFallback[1])}` : toTitleCase(typed);
           }
         }
       }
@@ -279,7 +285,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
 
   const docenteName = (id: number) => {
     const d = docentes.find(doc => doc.idDocente === id);
-    return d ? `${d.apellido}, ${d.nombre}` : 'Sin asignar';
+    return d ? `${toTitleCase(d.apellido)}, ${toTitleCase(d.nombre)}` : 'Sin asignar';
   };
 
   const programasDisponibles = Array.from(new Set(courseList.map(c => c.programa?.trim()).filter(Boolean))).sort();
@@ -287,282 +293,297 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   return (
     <div>
       <div className="details-box" style={{ width: '100%', boxSizing: 'border-box' }}>
-        {/* Encabezado y 3 Botones en la misma línea */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        {/* Encabezado */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <BookOpen size={20} color="var(--primary)" />
-            {selectedCourseId ? `Modificar Curso #${selectedCourseId}` : 'Nuevo Curso'}
+            {modoCurso === 'modificar' ? (selectedCourseId ? `Modificar Curso #${selectedCourseId}` : 'Modificar Curso') : 'Nuevo Curso'}
           </h3>
-
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
-            <button
-              className="btn-primary"
-              style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-              onClick={handleNew}
-            >
-              <Plus size={15} /> Nuevo Curso
-            </button>
-            <button
-              className="btn-primary"
-              style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap', background: 'var(--primary)' }}
-              onClick={handleSave}
-            >
-              <Save size={15} /> Guardar Curso
-            </button>
-            <button
-              className="btn-secondary"
-              style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-              onClick={resetForm}
-            >
-              Cancelar
-            </button>
-            {selectedCourseId && (
-              <button
-                className="btn-danger"
-                style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-                onClick={() => handleDelete(selectedCourseId)}
-              >
-                <Trash2 size={15} /> Eliminar
-              </button>
-            )}
-          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--surface-bg)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-card)' }}>
+            {modoCurso === 'modificar' ? 'Editando curso existente' : 'Creando curso nuevo'}
+          </span>
         </div>
 
-        {/* Desplegable para seleccionar curso a editar */}
-        <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 600 }}>Modificar Curso</label>
-          <select
-            className="form-control"
-            value={selectedCourseId || ''}
-            onChange={e => {
-              const val = e.target.value;
-              if (!val) {
-                handleNew();
-              } else {
-                const found = courseList.find(c => String(c.idCurso) === val);
-                if (found) handleEdit(found);
-              }
-            }}
+        {/* Selector claro de modo — evita confusión */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', padding: '10px', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px solid var(--border-card)', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => { setModoCurso('nuevo'); handleNew(); }}
+            className={modoCurso === 'nuevo' ? 'btn-primary' : 'btn-secondary'}
+            style={{ margin: 0, flex: '1 1 160px', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem' }}
           >
-            <option value="">Seleccionar Programa - Curso para Modificar</option>
-            {courseList.map(c => (
-              <option key={c.idCurso} value={c.idCurso}>
-                {c.programa ? `${c.programa} — ` : ''}{c.nombreCompleto || c.curso}
-              </option>
-            ))}
-          </select>
+            <Plus size={16} /> Nuevo curso
+          </button>
+          <button
+            type="button"
+            onClick={() => { setModoCurso('modificar'); setSelectedCourseId(null); resetForm(); }}
+            className={modoCurso === 'modificar' ? 'btn-primary' : 'btn-secondary'}
+            style={{ margin: 0, flex: '1 1 160px', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <Pencil size={16} /> Modificar curso
+          </button>
         </div>
 
-        <div className="form-row" style={{ width: '100%' }}>
-          <div className="form-group">
-            <label style={{ fontWeight: 600 }}>Programa al que pertenece</label>
-            <input
-              type="text"
-              className="form-control"
-              list="programas-existentes-list"
-              placeholder="Seleccione o escriba..."
-              value={form.programa}
-              onChange={e => setForm({ ...form, programa: e.target.value })}
-            />
-            <datalist id="programas-existentes-list">
-              {programasDisponibles.map((prog, idx) => (
-                <option key={idx} value={prog} />
-              ))}
-            </datalist>
-          </div>
-          <FormField label="Nombre del curso" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value, curso: e.target.value })} placeholder="Nombre del curso" />
-        </div>
-
-        <div className="form-row" style={{ width: '100%', marginTop: '15px' }}>
-          <FormField label="Cantidad de clases" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 6" />
-          <div className="form-group">
-            <label style={{ fontWeight: 600 }}>Docente Coordinador</label>
-            <div style={{ display: 'flex', gap: '6px' }}>
+        {modoCurso === 'modificar' && (
+          <div className="form-row" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: '0 0 220px', minWidth: '180px', margin: 0 }}>
+              <label style={{ fontWeight: 600 }}>Programa</label>
               <select
                 className="form-control"
-                value={form.idDocente}
-                onChange={e => {
-                  const val = e.target.value;
-                  const selected = docentes.find(d => String(d.idDocente) === val);
-                  setForm(prev => ({
-                    ...prev,
-                    idDocente: val,
-                    docenteNombre: selected ? `${selected.apellido}, ${selected.nombre}` : ''
-                  }));
-                }}
-                style={{ flex: 1 }}
+                value={editProgramaFilter}
+                onChange={e => setEditProgramaFilter(e.target.value)}
               >
-                <option value="">-- Seleccionar--</option>
-                {docentes.map(d => (
-                  <option key={d.idDocente} value={d.idDocente}>
-                    {d.apellido}, {d.nombre}
-                  </option>
+                <option value="">-- Todos los programas --</option>
+                {programasDisponibles.map((prog, idx) => (
+                  <option key={idx} value={prog}>{prog}</option>
                 ))}
               </select>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="O escriba..."
-                value={form.docenteNombre}
-                onChange={e => setForm(prev => ({ ...prev, idDocente: '', docenteNombre: e.target.value }))}
-                style={{ flex: 1 }}
-              />
             </div>
-          </div>
-          <div className="form-group" style={{ flex: '0.5' }}>
-            <FormField label="Resolución" value={form.resolucion} onChange={e => setForm({ ...form, resolucion: e.target.value })} placeholder="Ej: RES-123/24" />
-          </div>
-          <div className="form-group" style={{ flex: '0.5' }}>
-            <FormField label="Carga horaria" value={form.cargaHorariaHs} onChange={e => setForm({ ...form, cargaHorariaHs: e.target.value })} placeholder="Ej: 40 hs" />
-          </div>
-        </div>
-
-        <div className="form-row" style={{ width: '100%', marginTop: '15px', alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Plan del Curso</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <label
-                className="btn-secondary"
-                style={{
-                  margin: 0,
-                  height: '42px',
-                  padding: '0 14px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+            <div className="form-group" style={{ flex: '1 1 auto', minWidth: '220px', margin: 0 }}>
+              <label style={{ fontWeight: 600 }}>Seleccionar curso a modificar</label>
+              <select
+                className="form-control"
+                value={selectedCourseId || ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (!val) {
+                    resetForm();
+                  } else {
+                    const found = courseList.find(c => String(c.idCurso) === val);
+                    if (found) handleEdit(found);
+                  }
                 }}
               >
-                <Upload size={16} color="var(--accent)" />
-                {form.plan ? 'Cambiar PDF' : 'Subir PDF'}
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      if (file.type !== 'application/pdf') {
-                        alert({ title: 'Archivo inválido', message: 'Por favor seleccione un archivo en formato PDF.', variant: 'warning' });
-                        return;
-                      }
-                      if (file.size > 3 * 1024 * 1024) {
-                        alert({ title: 'Archivo demasiado grande', message: 'El archivo PDF es demasiado grande. Seleccione un archivo menor a 3MB.', variant: 'warning' });
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (evt) => {
-                        const base64 = evt.target?.result as string;
-                        setForm(prev => ({
-                          ...prev,
-                          plan: base64,
-                          planName: file.name
-                        }));
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-              </label>
-
-              {form.plan && (
-                <>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '4px' }} title={form.planName}>
-                    {form.planName}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ margin: 0, height: '35px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '0 8px', fontSize: '0.8rem' }}
-                    onClick={() => setShowPdfModal(true)}
-                    title="Vista previa del PDF"
-                  >
-                    <Eye size={15} /> Ver PDF
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-danger"
-                    style={{ height: '35px', padding: '0 8px', margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem' }}
-                    onClick={() => setForm(prev => ({ ...prev, plan: '', planName: '' }))}
-                    title="Quitar PDF del Plan"
-                  >
-                    <Trash2 size={14} /> Eliminar
-                  </button>
-                </>
-              )}
-
-            </div>
-          </div>
-        </div>
-
-        {/* Modal de vista previa del PDF del programa */}
-        {showPdfModal && form.plan && (
-          <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
-            <div className="modal-card" style={{ maxWidth: '720px' }} onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>
-                  <FileText size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
-                  Programa del Curso — {form.nombreCompleto || form.curso || 'Sin título'}
-                </h3>
-                <button className="modal-close" onClick={() => setShowPdfModal(false)}>×</button>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{form.planName}</span>
-                <a
-                  href={form.plan}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={form.planName || 'Programa_del_Curso.pdf'}
-                  className="btn-secondary"
-                  style={{ margin: 0, textDecoration: 'none', height: '40px' }}
-                >
-                  <Download size={15} /> Descargar
-                </a>
-              </div>
-              <iframe
-                src={form.plan}
-                title="Vista previa del programa PDF"
-                style={{ width: '100%', height: '65vh', border: '1px solid var(--border-card)', borderRadius: '8px', background: '#fff' }}
-              />
+                <option value="">-- Seleccionar Curso --</option>
+                {[...courseList]
+                  .filter(c => !editProgramaFilter || (c.programa?.trim() || 'Sin programa') === editProgramaFilter)
+                  .sort((a, b) => (a.nombreCompleto || a.curso || '').localeCompare(b.nombreCompleto || b.curso || ''))
+                  .map(c => (
+                    <option key={c.idCurso} value={c.idCurso}>
+                      {c.nombreCompleto || c.curso}
+                    </option>
+                  ))}
+              </select>
             </div>
           </div>
         )}
 
-        {/* Botones en una misma línea al pie */}
-        <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            className="btn-primary"
-            style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-            onClick={handleNew}
-          >
-            <Plus size={15} /> Nuevo Curso
-          </button>
-          <button
-            className="btn-primary"
-            style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap', background: 'var(--primary)' }}
-            onClick={handleSave}
-          >
-            <Save size={15} /> Guardar Curso
-          </button>
-          <button
-            className="btn-secondary"
-            style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-            onClick={resetForm}
-          >
-            Cancelar
-          </button>
-          {selectedCourseId && (
-            <button
-              className="btn-danger"
-              style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-              onClick={() => handleDelete(selectedCourseId)}
-            >
-              <Trash2 size={15} /> Eliminar
-            </button>
-          )}
-        </div>
+        {/* Formulario: en modo nuevo siempre visible; en modo modificar solo tras seleccionar */}
+        {(modoCurso === 'nuevo' || (modoCurso === 'modificar' && selectedCourseId)) ? (
+          <>
+            <div className="form-row" style={{ width: '100%' }}>
+              <div className="form-group">
+                <label style={{ fontWeight: 600 }}>Programa al que pertenece</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  list="programas-existentes-list"
+                  placeholder="Seleccione o escriba..."
+                  value={form.programa}
+                  onChange={e => setForm({ ...form, programa: e.target.value })}
+                />
+                <datalist id="programas-existentes-list">
+                  {programasDisponibles.map((prog, idx) => (
+                    <option key={idx} value={prog} />
+                  ))}
+                </datalist>
+              </div>
+              <FormField label="Nombre del curso" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value, curso: e.target.value })} placeholder="Nombre del curso" />
+            </div>
+
+            <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'nowrap' }}>
+              <div className="form-group" style={{ flex: '1 1 auto', minWidth: '180px', margin: 0 }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Capacitador/a</label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <select
+                    className="form-control"
+                    value={form.idDocente}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const selected = docentes.find(d => String(d.idDocente) === val);
+                      setForm(prev => ({
+                        ...prev,
+                        idDocente: val,
+                        docenteNombre: selected ? `${toTitleCase(selected.apellido)}, ${toTitleCase(selected.nombre)}` : ''
+                      }));
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="">-- Seleccionar--</option>
+                    {docentes.map(d => (
+                      <option key={d.idDocente} value={d.idDocente}>
+                        {toTitleCase(d.apellido)}, {toTitleCase(d.nombre)}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="O escriba..."
+                    value={form.docenteNombre}
+                    onChange={e => setForm(prev => ({ ...prev, idDocente: '', docenteNombre: e.target.value }))}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: '0 0 130px', maxWidth: '140px', minWidth: '110px', margin: 0 }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Carga horaria</label>
+                <input className="form-control" value={form.cargaHorariaHs} onChange={e => setForm({ ...form, cargaHorariaHs: e.target.value })} placeholder="Ej: 40 hs" />
+              </div>
+            </div>
+
+            <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'nowrap' }}>
+              <div style={{ flex: '0 0 200px', maxWidth: '220px', minWidth: '160px', margin: 0 }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Resolución</label>
+                <input className="form-control" value={form.resolucion} onChange={e => setForm({ ...form, resolucion: e.target.value })} placeholder="Ej: RES-123/24" />
+              </div>
+              <div className="form-group" style={{ margin: 0, flex: '1 1 auto', minWidth: '200px' }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Planificación del curso</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <label
+                    className="btn-secondary"
+                    style={{
+                      margin: 0,
+                      height: '44px',
+                      padding: '0 14px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Upload size={16} color="var(--accent)" />
+                    {form.plan ? 'Cambiar PDF' : 'Subir PDF'}
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.type !== 'application/pdf') {
+                            alert({ title: 'Archivo inválido', message: 'Por favor seleccione un archivo en formato PDF.', variant: 'warning' });
+                            return;
+                          }
+                          if (file.size > 3 * 1024 * 1024) {
+                            alert({ title: 'Archivo demasiado grande', message: 'El archivo PDF es demasiado grande. Seleccione un archivo menor a 3MB.', variant: 'warning' });
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            const base64 = evt.target?.result as string;
+                            setForm(prev => ({
+                              ...prev,
+                              plan: base64,
+                              planName: file.name
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  {form.plan && (
+                    <>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '4px' }} title={form.planName}>
+                        {form.planName}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ margin: 0, height: '35px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '0 8px', fontSize: '0.8rem' }}
+                        onClick={() => setShowPdfModal(true)}
+                        title="Vista previa del PDF"
+                      >
+                        <Eye size={15} /> Ver PDF
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        style={{ height: '35px', padding: '0 8px', margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem' }}
+                        onClick={() => setForm(prev => ({ ...prev, plan: '', planName: '' }))}
+                        title="Quitar PDF del Plan"
+                      >
+                        <Trash2 size={14} /> Eliminar
+                      </button>
+                    </>
+                  )}
+
+                </div>
+              </div>
+            </div>
+
+            {/* Modal de vista previa del PDF del programa */}
+            {showPdfModal && form.plan && (
+              <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
+                <div className="modal-card" style={{ maxWidth: '720px' }} onClick={e => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h3>
+                      <FileText size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
+                      Programa del Curso — {form.nombreCompleto || form.curso || 'Sin título'}
+                    </h3>
+                    <button className="modal-close" onClick={() => setShowPdfModal(false)}>×</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{form.planName}</span>
+                    <a
+                      href={form.plan}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={form.planName || 'Programa_del_Curso.pdf'}
+                      className="btn-secondary"
+                      style={{ margin: 0, textDecoration: 'none', height: '40px' }}
+                    >
+                      <Download size={15} /> Descargar
+                    </a>
+                  </div>
+                  <iframe
+                    src={form.plan}
+                    title="Vista previa del programa PDF"
+                    style={{ width: '100%', height: '65vh', border: '1px solid var(--border-card)', borderRadius: '8px', background: '#fff' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Botones al pie — según modo */}
+            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                className="btn-primary"
+                style={{ margin: 0, width: '160px', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap', background: 'var(--primary)' }}
+                onClick={handleSave}
+              >
+                <Save size={15} /> {modoCurso === 'modificar' ? 'Guardar Cambios' : 'Guardar Curso'}
+              </button>
+              <button
+                className="btn-secondary"
+                style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
+                onClick={resetForm}
+              >
+                Cancelar
+              </button>
+              {selectedCourseId && (
+                <button
+                  className="btn-danger"
+                  style={{ margin: 0, width: '145px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
+                  onClick={() => handleDelete(selectedCourseId)}
+                >
+                  <Trash2 size={15} /> Eliminar
+                </button>
+              )}
+            </div>
+          </>
+        ) : modoCurso === 'modificar' ? (
+          <div style={{ textAlign: 'center', padding: '28px 20px', color: 'var(--text-secondary)', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px dashed var(--border-card)', marginTop: '4px' }}>
+            <p style={{ margin: 0, fontSize: '0.92rem' }}>Seleccione un <strong>Programa</strong> y un <strong>Curso</strong> para corregirlo.</p>
+            <p style={{ margin: '10px auto 0', fontSize: '0.82rem', fontWeight: 600, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px' }}>
+              <AlertTriangle size={16} color="#b45309" /> Los cambios afectarán a todas las personas que hayan realizado el curso seleccionado.
+            </p>
+          </div>
+        ) : null}
       </div>
 
 

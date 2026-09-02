@@ -163,25 +163,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   const handleAltaYInscribir = async () => {
     if (!searchDni || !selectedCurso || !selectedFecha) return;
     try {
-      await setDoc(doc(db, 'alumnos', searchDni), {
-        dni: Number(searchDni),
-        apellido: toTitleCase(studentForm.apellido || ''),
-        nombre: toTitleCase(studentForm.nombre || ''),
-        fechaNac: altaForm.fechaNac,
-        edad: altaForm.fechaNac ? Math.floor((Date.now() - new Date(altaForm.fechaNac).getTime()) / 31557600000) : 0,
-        telPart: altaForm.telPart,
-        nivelEstudio: altaForm.nivelEstudio,
-        titulo: altaForm.titulo,
-        unidadAcademica: studentForm.unidadAcademica || 'Sin dato',
-        area: altaForm.area,
-        cargoFuncion: studentForm.cargoFuncion || '',
-        personas: Number(altaForm.personas),
-        email: (studentForm.email || '').toLowerCase(),
-        telLab: altaForm.telLab,
-        interno: altaForm.interno,
-        medios: []
-      });
-
+      // No se crea registro en 'alumnos' — solo inscripción para control de aprobados
       const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       const enrollmentData = {
         dni: Number(searchDni),
@@ -199,7 +181,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await addDoc(collection(db, 'inscripciones'), enrollmentData);
       await logAudit('Inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} — ${selectedCurso} (${selectedFecha})`);
 
-      await alert({ title: 'Alta e inscripción exitosa', message: 'Alumno dado de alta e inscrito con éxito.', variant: 'success' });
+      await alert({ title: 'Inscripción exitosa', message: 'Inscripto registrado con éxito (sin crear ficha de alumno).', variant: 'success' });
       resetAll();
     } catch (err) {
       console.error(err);
@@ -325,7 +307,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const dniVal = Number(String(rawDni || '').replace(/\D/g, ''));
         if (!dniVal) continue;
 
-        // 1. Save or update the student in 'alumnos' collection using merge (overwriting data)
+        // 1. Datos solo para inscripción — NO se crea/actualiza en 'alumnos' (control de aprobados)
         const studentData: any = {
           dni: dniVal
         };
@@ -339,31 +321,16 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
           setIfPresent(['apellido', 'apellidos', 'surname', 'last name', 'apellido y nombre', 'apellidos y nombres'], 'apellido', (v) => toTitleCase(String(v).trim()));
           setIfPresent(['nombre', 'nombres', 'name', 'first name'], 'nombre', (v) => toTitleCase(String(v).trim()));
-          setIfPresent(['fecha nac', 'nacimiento', 'fechanac', 'fecha de nacimiento', 'fec nac', 'fecha nacimiento'], 'fechaNac', (v) => excelDateToJSDate(v));
-          setIfPresent(['edad', 'age'], 'edad', (v) => Number(v) || 0);
-          setIfPresent(['tel part', 'telefono', 'telpart', 'celular', 'tel', 'whatsapp', 'movil', 'telefono particular', 'tel particular', 'celular particular', 'telefono contacto'], 'telPart', (v) => String(v).trim());
-          setIfPresent(['nivel estudio', 'estudios', 'nivelestudio', 'nivel de estudios', 'estudio', 'nivel academico', 'nivel de estudio', 'estudios alcanzados'], 'nivelEstudio', (v) => String(v).trim());
-          setIfPresent(['titulo', 'titulo obtenido', 'profesion', 'carrera'], 'titulo', (v) => String(v).trim());
           setIfPresent([
             'unidad academica', 'unidad academica / dependencia', 'unidad academica/dependencia', 'unidad academica o dependencia',
             'facultad', 'dependencia', 'unidadacademica', 'unidad', 'lugar de trabajo', 'lugar trabajo', 'facultad / dependencia',
             'facultad/dependencia', 'unidad / dependencia', 'unidad/dependencia', 'organismo', 'instituto', 'escuela', 'ua'
           ], 'unidadAcademica', (v) => String(v).trim());
-          setIfPresent([
-            'area', 'area de trabajo', 'areadetrabajo', 'sector', 'departamento', 'seccion', 'division', 'oficina', 'area laboral',
-            'sector de trabajo', 'lugar especifico', 'area sector', 'area / sector', 'area/sector'
-          ], 'area', (v) => String(v).trim());
           setIfPresent(['cargo', 'funcion', 'cargofuncion', 'cargo / funcion', 'cargo/funcion', 'cargo o funcion', 'puesto', 'puesto de trabajo'], 'cargoFuncion', (v) => String(v).trim());
-          setIfPresent(['personas', 'personas a cargo', 'personal', 'personal a cargo', 'gente a cargo'], 'personas', (v) => Number(v) || 0);
           setIfPresent(['email', 'correo', 'e-mail', 'mail', 'correo electronico', 'e mail', 'direccion de correo', 'email personal', 'email laboral'], 'email', (v) => String(v).toLowerCase().trim());
-          setIfPresent(['tel lab', 'tellab', 'telefono laboral', 'tel trabajo', 'laboral', 'telefono de trabajo', 'tel oficina'], 'telLab', (v) => String(v).trim());
-          setIfPresent(['interno', 'int', 'nro interno', 'numero interno'], 'interno', (v) => String(v).trim());
 
-        // Save student
-        await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
-
-        // 2. Inscribe the student in el curso+fecha seleccionado (programa/curso/fecha ya elegidos en UI, no del Excel — evita choque)
-        // Solo requiere DNI, Apellido, Nombre y Condición del Excel; si alumno no existe se crea mínimo (dni, apellido, nombre)
+        // 2. Inscribe solo en 'inscripciones' (no toca 'alumnos')
+        // Solo requiere DNI, Apellido, Nombre y Condición del Excel
         const rawCond = getVal(['condicion', 'condición', 'condicion final', 'resultado', 'estado', 'situacion', 'situación', 'cond']);
         let resultadoVal = rawCond ? String(rawCond).trim() : 'Cursando';
         // Normalizar a valores permitidos (case-insensitive)
@@ -568,7 +535,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
             {notFound && (
               <div style={{ padding: '12px', marginBottom: '15px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', fontSize: '0.85rem' }}>
-                <strong>DNI no registrado.</strong> Completá los datos para dar de alta al alumno.
+                <strong>DNI no registrado en el padrón.</strong> Podés inscribir igual — no se creará ficha en Alumnos (solo en Inscriptos).
               </div>
             )}
 
@@ -704,7 +671,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                 onClick={handleAltaYInscribir}
                 disabled={!searchDni || !studentForm.apellido || !studentForm.nombre || !selectedCurso || !selectedFecha}
               >
-                <UserPlus size={16} /> Dar de Alta e Inscribir
+                <UserPlus size={16} /> Inscribir (sin alta en padrón)
               </button>
             ) : (
               <button
@@ -773,7 +740,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             <h3>Paso 2: Cargar Excel / CSV</h3>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.5, background: 'var(--surface-bg)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
               <strong>Estructura mínima requerida:</strong> <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>DNI</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Apellido</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Nombre</code> | <code style={{ background: 'var(--primary-alpha-10)', padding: '1px 4px', borderRadius: '4px' }}>Condición</code> <span style={{ color: 'var(--text-muted)' }}>(valores: Cursando, Aprobado, Desaprobado, Abandonó — por defecto Cursando)</span><br />
-              <span style={{ fontSize: '0.78rem' }}>Programa/Curso/Fecha se toman del <strong>Paso 1</strong> (no del Excel, evita choques). Si el alumno no está en la base, se crea automáticamente con esos 4 datos.</span>
+              <span style={{ fontSize: '0.78rem' }}>Programa/Curso/Fecha se toman del <strong>Paso 1</strong> (no del Excel). No se modifica el padrón de <strong>Alumnos</strong> — solo se crean registros en <strong>Inscriptos</strong>.</span>
             </div>
             
             <div className="form-group">
