@@ -33,6 +33,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
     nombreCompleto: '',
     programa: '',
     cargaHoraria: '',
+    cargaHorariaHs: '',
     plan: '',
     planName: '',
     idDocente: '',
@@ -64,6 +65,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       nombreCompleto: '',
       programa: '',
       cargaHoraria: '',
+      cargaHorariaHs: '',
       plan: '',
       planName: '',
       idDocente: '',
@@ -88,6 +90,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
       nombreCompleto: nombre,
       programa: course.programa || '',
       cargaHoraria: course.cargaHoraria || '',
+      cargaHorariaHs: course.cargaHorariaHs || course.horas || '',
       plan: course.plan || '',
       planName: course.planName || (course.plan ? 'Programa_Curso.pdf' : ''),
       idDocente: String(course.idDocente || ''),
@@ -203,6 +206,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
         nombreCompleto: nombreCurso,
         programa: form.programa.trim(),
         cargaHoraria: form.cargaHoraria.trim(),
+        cargaHorariaHs: form.cargaHorariaHs.trim(),
         plan: form.plan || '',
         planName: form.planName || '',
         idDocente: effectiveIdDocente,
@@ -406,7 +410,10 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
             </div>
           </div>
           <div className="form-group" style={{ flex: '0.5' }}>
-            <FormField label="Resolución" value={form.resolucion} onChange={e => setForm({ ...form, resolucion: e.target.value })} />
+            <FormField label="Resolución" value={form.resolucion} onChange={e => setForm({ ...form, resolucion: e.target.value })} placeholder="Ej: RES-123/24" />
+          </div>
+          <div className="form-group" style={{ flex: '0.5' }}>
+            <FormField label="Carga horaria" value={form.cargaHorariaHs} onChange={e => setForm({ ...form, cargaHorariaHs: e.target.value })} placeholder="Ej: 40 hs" />
           </div>
         </div>
 
