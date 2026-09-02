@@ -582,8 +582,8 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-        <button onClick={async () => { const next = asistenciaPanel === 'generar' ? null : 'generar'; setAsistenciaPanel(next); if (next === 'generar') await searchAsistencia(); }} className={asistenciaPanel === 'generar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px' }}><FileText size={16} /> Generar planilla</button>
-        <button onClick={() => setAsistenciaPanel(p => p === 'cerrar' ? null : 'cerrar')} className={asistenciaPanel === 'cerrar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px' }}><Check size={16} /> Cerrar curso</button>
+        <button onClick={async () => { const next = asistenciaPanel === 'generar' ? null : 'generar'; setAsistenciaPanel(next); if (next === 'generar') await searchAsistencia(); }} disabled={!asistenciaCurso || !asistenciaFecha} className={asistenciaPanel === 'generar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px', opacity: (!asistenciaCurso || !asistenciaFecha) ? 0.5 : 1, cursor: (!asistenciaCurso || !asistenciaFecha) ? 'not-allowed' : 'pointer' }}><FileText size={16} /> Generar planilla</button>
+        <button onClick={() => setAsistenciaPanel(p => p === 'cerrar' ? null : 'cerrar')} disabled={!asistenciaCurso || !asistenciaFecha} className={asistenciaPanel === 'cerrar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px', opacity: (!asistenciaCurso || !asistenciaFecha) ? 0.5 : 1, cursor: (!asistenciaCurso || !asistenciaFecha) ? 'not-allowed' : 'pointer' }}><Check size={16} /> Cerrar curso</button>
       </div>
 
       {asistenciaPanel === 'generar' && (
@@ -612,9 +612,8 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
               <button
                 className="btn-secondary"
                 onClick={downloadPlanilla}
-                disabled={!cursoCerrado}
-                style={{ margin: 0, height: '38px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap', opacity: !cursoCerrado ? 0.5 : 1, cursor: !cursoCerrado ? 'not-allowed' : 'pointer' }}
-                title={cursoCerrado ? 'Descargar Planilla de Asistencia en Excel' : 'Cerrar el curso para habilitar'}
+                style={{ margin: 0, height: '38px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                title="Descargar Planilla de Asistencia en Excel"
               >
                 <Upload size={15} /> Exportar Asistencia
               </button>

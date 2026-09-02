@@ -147,10 +147,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {/* Formulario de Alta de Fecha en 1 sola fila compacta superior */}
         <div className="details-box" style={{ width: '100%', padding: '16px 20px', marginBottom: '15px', boxSizing: 'border-box' }}>
-          <h3 style={{ margin: '0 0 14px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Calendar size={18} color="var(--primary)" />
-            Registrar Nueva Fecha
-          </h3>
+
           <form onSubmit={handleAddDate}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', width: '100%' }}>
               <div className="form-group" style={{ flex: '1 1 160px', margin: 0 }}>
@@ -164,7 +161,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
               </div>
 
               <div className="form-group" style={{ flex: '2 1 220px', margin: 0 }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Seleccionar Curso</label>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Curso</label>
                 <select
                   className="form-control"
                   value={selectedCursoId}
@@ -208,6 +205,11 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 />
               </div>
 
+              <div className="form-group" style={{ flex: '1 1 260px', margin: 0 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>URL Formulario Inscripción</label>
+                <input className="form-control" value={dateForm.inscripcionUrl} onChange={e => setDateForm({ ...dateForm, inscripcionUrl: e.target.value })} placeholder="https://docs.google.com/forms/.../viewform" style={{ fontSize: '0.85rem' }} />
+              </div>
+
               <button
                 type="submit"
                 className="btn-primary"
@@ -227,15 +229,6 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
               >
                 <Plus size={16} /> Registrar Fecha
               </button>
-            </div>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-              <div className="form-group" style={{ flex: '1 1 auto', margin: 0 }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  URL Formulario Inscripción (Google Forms)
-                  <button type="button" onClick={() => alert({ title: 'URL del formulario', message: 'Pegue aquí el enlace del Google Forms para esta fecha del curso.\n\nEn la página principal el botón “Inscribirse” abrirá directamente ese formulario vacío, sin pedir datos de alumno en la web.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={14} /></button>
-                </label>
-                <input className="form-control" value={dateForm.inscripcionUrl} onChange={e => setDateForm({ ...dateForm, inscripcionUrl: e.target.value })} placeholder="https://docs.google.com/forms/d/e/.../viewform" style={{ fontSize: '0.85rem' }} />
-              </div>
             </div>
           </form>
         </div>
@@ -272,86 +265,86 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
 
           {filteredFechas.length > 0 ? (
             <>
-            <div className="listbox-wrapper" style={{ maxHeight: '420px', overflowY: 'auto', width: '100%' }}>
-              <table className="listbox-table" style={{ width: '100%', tableLayout: 'auto' }}>
-                <thead>
-                  <tr>
-                    <th>Nombre del Curso</th>
-                    <th
-                      style={{ cursor: 'pointer', userSelect: 'none', width: '130px' }}
-                      onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Fecha Inicio {sortOrder === 'asc' ? '▲' : '▼'}
-                      </div>
-                    </th>
-                    <th style={{ width: '130px' }}>Fecha Certificado</th>
-                    <th style={{ width: '110px', textAlign: 'center' }}>Cant. Clases</th>
-                    <th style={{ width: '140px', textAlign: 'center' }}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedFechas.map((f, i) => {
-                    const nombreCurso = cursos.find(c => c.idCurso === f.idCurso)?.nombreCompleto || f.curso;
-                    return (
-                    <tr key={f.id || i}>
-                      <td data-label="Curso" style={{ fontWeight: 400 }}>{nombreCurso}</td>
-                      <td data-label="Inicio">{formatDateAR(f.inicio)}</td>
-                      <td data-label="Certificado">{formatDateAR(f.certificado)}</td>
-                      <td data-label="Cant. Clases" style={{ textAlign: 'center', fontWeight: 600, color: 'var(--primary)' }}>
-                        {f.cantidadClases || 4}
-                      </td>
-                      <td data-label="Acciones" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            style={{
-                              padding: '4px 8px',
-                              margin: 0,
-                              minHeight: '32px',
-                              fontSize: '0.75rem',
-                              color: f.showOnLanding !== false ? 'var(--success)' : 'var(--danger)',
-                              borderColor: f.showOnLanding !== false ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
-                            }}
-                            onClick={() => handleToggleVisibility(f.id, f.showOnLanding !== false)}
-                            title={f.showOnLanding !== false ? 'Visible en página principal (Clic para ocultar)' : 'Oculto en página principal (Clic para mostrar)'}
-                          >
-                            {f.showOnLanding !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => handleVerInforme(nombreCurso, f.inicio)}
-                            title="Ver informe del docente"
-                          >
-                            <FileText size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger"
-                            style={{ padding: '4px 8px', margin: 0, minHeight: '32px', fontSize: '0.75rem' }}
-                            onClick={() => handleDeleteDate(f.id, nombreCurso, f.inicio)}
-                            title="Eliminar fecha"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+              <div className="listbox-wrapper" style={{ maxHeight: '420px', overflowY: 'auto', width: '100%' }}>
+                <table className="listbox-table" style={{ width: '100%', tableLayout: 'auto' }}>
+                  <thead>
+                    <tr>
+                      <th>Nombre del Curso</th>
+                      <th
+                        style={{ cursor: 'pointer', userSelect: 'none', width: '130px' }}
+                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Fecha Inicio {sortOrder === 'asc' ? '▲' : '▼'}
                         </div>
-                      </td>
+                      </th>
+                      <th style={{ width: '130px' }}>Fecha Certificado</th>
+                      <th style={{ width: '110px', textAlign: 'center' }}>Cant. Clases</th>
+                      <th style={{ width: '140px', textAlign: 'center' }}>Acciones</th>
                     </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
-                <button type="button" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>‹ Anterior</button>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Página {currentPage} de {totalPages} — {filteredFechas.length} fechas</span>
-                <button type="button" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Siguiente ›</button>
+                  </thead>
+                  <tbody>
+                    {paginatedFechas.map((f, i) => {
+                      const nombreCurso = cursos.find(c => c.idCurso === f.idCurso)?.nombreCompleto || f.curso;
+                      return (
+                        <tr key={f.id || i}>
+                          <td data-label="Curso" style={{ fontWeight: 400 }}>{nombreCurso}</td>
+                          <td data-label="Inicio">{formatDateAR(f.inicio)}</td>
+                          <td data-label="Certificado">{formatDateAR(f.certificado)}</td>
+                          <td data-label="Cant. Clases" style={{ textAlign: 'center', fontWeight: 600, color: 'var(--primary)' }}>
+                            {f.cantidadClases || 4}
+                          </td>
+                          <td data-label="Acciones" style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{
+                                  padding: '4px 8px',
+                                  margin: 0,
+                                  minHeight: '32px',
+                                  fontSize: '0.75rem',
+                                  color: f.showOnLanding !== false ? 'var(--success)' : 'var(--danger)',
+                                  borderColor: f.showOnLanding !== false ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+                                }}
+                                onClick={() => handleToggleVisibility(f.id, f.showOnLanding !== false)}
+                                title={f.showOnLanding !== false ? 'Visible en página principal (Clic para ocultar)' : 'Oculto en página principal (Clic para mostrar)'}
+                              >
+                                {f.showOnLanding !== false ? <Eye size={14} /> : <EyeOff size={14} />}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                onClick={() => handleVerInforme(nombreCurso, f.inicio)}
+                                title="Ver informe del docente"
+                              >
+                                <FileText size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-danger"
+                                style={{ padding: '4px 8px', margin: 0, minHeight: '32px', fontSize: '0.75rem' }}
+                                onClick={() => handleDeleteDate(f.id, nombreCurso, f.inicio)}
+                                title="Eliminar fecha"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            )}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>‹ Anterior</button>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Página {currentPage} de {totalPages} — {filteredFechas.length} fechas</span>
+                  <button type="button" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Siguiente ›</button>
+                </div>
+              )}
             </>
           ) : (
             <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>
