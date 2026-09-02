@@ -367,25 +367,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
         <p style={{ fontSize: '1 rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 32px', lineHeight: 1.6 }}>
           Promovemos la formación continua, la innovación y el desarrollo profesional del personal docente y nodocente de la Universidad Nacional de Tucumán a través de capacitaciones adaptadas a las exigencias del entorno universitario.
         </p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap', marginBottom: '24px' }}>
-          <button onClick={() => openEnrollment()} style={{
-            display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '16px 36px',
-            background: 'var(--primary)',
-            border: 'none', borderRadius: '12px', color: '#fff', cursor: 'pointer',
-            fontWeight: 700, fontSize: '1.1rem',
-            transition: '0.2s',
-          }}>
-            <UserPlus size={20} /> Inscribirme <ChevronRight size={18} />
-          </button>
-          <button onClick={() => setShowConsulta(true)} style={{
-            display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '16px 36px',
-            background: 'rgba(37,154,214,0.12)', border: '1px solid var(--accent)',
-            borderRadius: '12px', color: 'var(--accent)', cursor: 'pointer',
-            fontWeight: 700, fontSize: '1.1rem', transition: '0.2s',
-          }}>
-            <UserSearch size={20} /> Mis Capacitaciones
-          </button>
-        </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <a href={SOCIAL.whatsapp} target="_blank" rel="noopener noreferrer" style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px',
@@ -473,7 +454,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                           • Fecha Inicio {fs.length > 1 ? 's' : ''}: {fs.map(f => formatDateAR(f.inicio)).join(', ')}
                         </span>
                       )}
-                      {c.docenteNombre && <span>• Docente: {toTitleCase(c.docenteNombre)}</span>}
+                      {c.docenteNombre && <span>• Capacitador: {toTitleCase(c.docenteNombre)}</span>}
                     </div>
                     {c.plan && (
                       <a
@@ -497,16 +478,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ cursos, fechas, onLogi
                         <FileText size={14} /> Ver Programa (PDF)
                       </a>
                     )}
-                    <button style={{
-                      width: '100%', padding: '10px', borderRadius: '8px',
-                      border: '1px solid var(--accent)', background: 'rgba(37,154,214,0.1)',
-                      color: 'var(--accent)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
-                      transition: '0.2s',
-                    }}
-                      onClick={(e) => { e.stopPropagation(); openEnrollment(c); }}
-                    >
-                      Inscribirse
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {fs.map(f => (
+                        <div key={f.id || f.inicio} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px 12px', background: 'var(--surface-bg)', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{formatDateAR(f.inicio)} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({f.cantidadClases || 4} clases)</span></span>
+                          {f.inscripcionUrl ? (
+                            <a href={f.inscripcionUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--accent)', background: 'rgba(37,154,214,0.1)', color: 'var(--accent)', fontWeight: 600, fontSize: '0.8rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                              Inscribirse
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Sin formulario</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}

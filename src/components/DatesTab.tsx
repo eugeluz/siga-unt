@@ -3,7 +3,7 @@ import { collection, addDoc, deleteDoc, doc, setDoc, query, where, getDocs } fro
 import { db } from '../firebase';
 import { FormField } from './FormField';
 import { formatDateAR } from '../utils/dateAR';
-import { Plus, Trash2, Calendar, Search, ArrowUpDown, Eye, EyeOff, FileText } from 'lucide-react';
+import { Plus, Trash2, Calendar, Search, ArrowUpDown, Eye, EyeOff, FileText, HelpCircle } from 'lucide-react';
 import { useModal } from './ModalProvider';
 
 interface DatesTabProps {
@@ -17,12 +17,14 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
   const [selectedPrograma, setSelectedPrograma] = useState('');
   const [dateForm, setDateForm] = useState({
     inicio: '',
-    certificado: '',
-    cantidadClases: 6
+    cantidadClases: 6,
+    inscripcionUrl: ''
   });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 10;
 
   const sortedCursos = [...cursos].sort((a, b) => (a.nombreCompleto || a.curso || '').localeCompare(b.nombreCompleto || b.curso || ''));
 
@@ -44,12 +46,13 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
         idCurso: Number(courseObj.idCurso),
         curso: courseObj.nombreCompleto || courseObj.curso,
         inicio: dateForm.inicio,
-        certificado: dateForm.certificado || '',
+        certificado: '',
         cantidadClases: Number(dateForm.cantidadClases) || 4,
+        inscripcionUrl: dateForm.inscripcionUrl.trim(),
         showOnLanding: true
       });
 
-      setDateForm({ inicio: '', certificado: '', cantidadClases: 4 });
+      setDateForm({ inicio: '', cantidadClases: 4, inscripcionUrl: '' });
       setSelectedCursoId('');
       await alert({ title: 'Fecha agregada', message: 'Fecha de curso agregada con éxito.', variant: 'success' });
     } catch (err) {
@@ -132,6 +135,13 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
       return (a.curso || '').localeCompare(b.curso || '');
     });
 
+  const totalPages = Math.max(1, Math.ceil(filteredFechas.length / perPage));
+  const paginatedFechas = filteredFechas.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+  // Reset page when filters change
+  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, sortOrder]);
+  React.useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [totalPages]);
+
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -183,17 +193,6 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 />
               </div>
 
-              <div className="form-group" style={{ flex: '1 1 130px', margin: 0 }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Fecha Certificado</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={dateForm.certificado}
-                  onChange={e => setDateForm({ ...dateForm, certificado: e.target.value })}
-                  style={{ fontSize: '0.85rem' }}
-                />
-              </div>
-
               <div className="form-group" style={{ flex: '0 1 110px', margin: 0 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Cant. Clases</label>
                 <input
@@ -229,6 +228,15 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 <Plus size={16} /> Registrar Fecha
               </button>
             </div>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+              <div className="form-group" style={{ flex: '1 1 auto', margin: 0 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  URL Formulario Inscripción (Google Forms)
+                  <button type="button" onClick={() => alert({ title: 'URL del formulario', message: 'Pegue aquí el enlace del Google Forms para esta fecha del curso.\n\nEn la página principal el botón “Inscribirse” abrirá directamente ese formulario vacío, sin pedir datos de alumno en la web.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={14} /></button>
+                </label>
+                <input className="form-control" value={dateForm.inscripcionUrl} onChange={e => setDateForm({ ...dateForm, inscripcionUrl: e.target.value })} placeholder="https://docs.google.com/forms/d/e/.../viewform" style={{ fontSize: '0.85rem' }} />
+              </div>
+            </div>
           </form>
         </div>
 
@@ -263,6 +271,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
           </div>
 
           {filteredFechas.length > 0 ? (
+            <>
             <div className="listbox-wrapper" style={{ maxHeight: '420px', overflowY: 'auto', width: '100%' }}>
               <table className="listbox-table" style={{ width: '100%', tableLayout: 'auto' }}>
                 <thead>
@@ -282,7 +291,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredFechas.map((f, i) => {
+                  {paginatedFechas.map((f, i) => {
                     const nombreCurso = cursos.find(c => c.idCurso === f.idCurso)?.nombreCompleto || f.curso;
                     return (
                     <tr key={f.id || i}>
@@ -290,7 +299,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                       <td data-label="Inicio">{formatDateAR(f.inicio)}</td>
                       <td data-label="Certificado">{formatDateAR(f.certificado)}</td>
                       <td data-label="Cant. Clases" style={{ textAlign: 'center', fontWeight: 600, color: 'var(--primary)' }}>
-                        {f.cantidadClases || 4} clases
+                        {f.cantidadClases || 4}
                       </td>
                       <td data-label="Acciones" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -336,6 +345,14 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
+                <button type="button" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>‹ Anterior</button>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Página {currentPage} de {totalPages} — {filteredFechas.length} fechas</span>
+                <button type="button" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Siguiente ›</button>
+              </div>
+            )}
+            </>
           ) : (
             <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>
               No se encontraron fechas de cursos.

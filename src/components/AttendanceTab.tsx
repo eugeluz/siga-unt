@@ -6,7 +6,7 @@ import { logAudit } from '../utils/audit';
 import { downloadCSV } from '../utils/csv';
 import { downloadExcel } from '../utils/excel';
 import { formatDateAR } from '../utils/dateAR';
-import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2, HelpCircle, Check } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
@@ -31,6 +31,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
   // Control de Clases Dictadas (guardadas en el doc de fecha o localmente)
   const [clasesDictadas, setClasesDictadas] = useState<Record<number, boolean>>({});
+  const [certificadoFecha, setCertificadoFecha] = useState('');
+  const [cursoCerrado, setCursoCerrado] = useState(false);
+  const [asistenciaPanel, setAsistenciaPanel] = useState<'generar' | 'cerrar' | null>(null);
 
   // Informes PDF de docentes
   const [informes, setInformes] = useState<any[]>([]);
@@ -131,14 +134,19 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   const currentFechaObj = asistenciaFechasFiltradas.find(f => f.inicio === asistenciaFecha);
   const totalClases = currentFechaObj?.cantidadClases ? Number(currentFechaObj.cantidadClases) : 4;
 
-  // Sincronizar clasesDictadas cuando cambia la fecha seleccionada
   useEffect(() => {
-    if (currentFechaObj && currentFechaObj.clasesDictadas) {
-      setClasesDictadas(currentFechaObj.clasesDictadas);
-    } else {
-      setClasesDictadas({});
-    }
+    if (currentFechaObj && currentFechaObj.clasesDictadas) setClasesDictadas(currentFechaObj.clasesDictadas); else setClasesDictadas({});
+    if (currentFechaObj) { setCertificadoFecha(currentFechaObj.certificado || ''); setCursoCerrado(!!currentFechaObj.cerrado); } else { setCertificadoFecha(''); setCursoCerrado(false); }
   }, [currentFechaObj]);
+
+  const handleCertificadoChange = async (newVal: string) => {
+    setCertificadoFecha(newVal);
+    if (currentFechaObj?.id) await updateDoc(doc(db, 'fechas', currentFechaObj.id), { certificado: newVal });
+  };
+  const handleToggleCerrado = async (val: boolean) => {
+    setCursoCerrado(val);
+    if (currentFechaObj?.id) await updateDoc(doc(db, 'fechas', currentFechaObj.id), { cerrado: val });
+  };
 
   const handleToggleClaseDictada = async (numClase: number) => {
     const nextState = { ...clasesDictadas, [numClase]: !clasesDictadas[numClase] };
@@ -531,8 +539,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
   return (
     <div>
-      <h2 className="section-title">Planilla de Asistencia e Informe del Capacitador</h2>
-
       <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '16px' }}>
         <div className="form-group">
           <label>Programa</label>
@@ -575,129 +581,60 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-        {/* Fila 1: Asistencia */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap', overflowX: 'auto' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', width: '85px', flexShrink: 0 }}>
-            Asistencia:
-          </span>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+        <button onClick={async () => { const next = asistenciaPanel === 'generar' ? null : 'generar'; setAsistenciaPanel(next); if (next === 'generar') await searchAsistencia(); }} className={asistenciaPanel === 'generar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px' }}><FileText size={16} /> Generar planilla</button>
+        <button onClick={() => setAsistenciaPanel(p => p === 'cerrar' ? null : 'cerrar')} className={asistenciaPanel === 'cerrar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px' }}><Check size={16} /> Cerrar curso</button>
+      </div>
 
-          <button
-            className="btn-secondary"
-            style={{
-              margin: 0,
-              height: '38px',
-              padding: '0 14px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              fontSize: '0.85rem',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-            onClick={searchAsistencia}
-            title="Generar y cargar planilla de asistencia"
-          >
-            <FileText size={15} /> Generar planilla
-          </button>
-
-          {alumnosAsistencia.length > 0 && (
+      {asistenciaPanel === 'generar' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px', padding: '12px', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px solid var(--border-card)' }}>
+          {alumnosAsistencia.length > 0 ? (
             <>
-              {/* Input Fecha de Clase — unificado, sin doble borde ni sobresaliente */}
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0, background: '#ffffff', padding: '0 10px', borderRadius: '8px', border: '1px solid #cbd5e1', height: '38px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#344054', whiteSpace: 'nowrap' }}>
-                  Fecha Clase:
-                </span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#ffffff', padding: '0 10px', borderRadius: '8px', border: '1px solid #cbd5e1', height: '38px', boxSizing: 'border-box' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#344054', whiteSpace: 'nowrap' }}>Fecha Clase:</span>
                 <input
                   type="date"
                   value={fechaClase}
                   onChange={e => setFechaClase(e.target.value)}
-                  style={{
-                    height: '28px',
-                    padding: '2px 6px',
-                    fontSize: '0.8rem',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: '#344054',
-                    minWidth: '125px',
-                    outline: 'none',
-                    boxShadow: 'none',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none'
-                  }}
+                  style={{ height: '28px', padding: '2px 6px', fontSize: '0.8rem', border: 'none', background: 'transparent', cursor: 'pointer', color: fechaClase ? '#344054' : 'transparent', minWidth: fechaClase ? '125px' : '24px', outline: 'none', boxShadow: 'none' }}
                   title="Establezca la fecha de la clase para imprimir la planilla"
                 />
               </div>
-
               <button
                 className="btn-secondary"
-                style={{
-                  margin: 0,
-                  height: '38px',
-                  padding: '0 14px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontSize: '0.85rem',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}
                 onClick={downloadPDF}
+                disabled={!fechaClase}
+                style={{ margin: 0, height: '38px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap', opacity: !fechaClase ? 0.5 : 1, cursor: !fechaClase ? 'not-allowed' : 'pointer' }}
                 title="Descargar Planilla en PDF para Imprimir"
               >
-                <Printer size={15} /> Imprimir asistencia
+                <Printer size={15} /> Imprimir planilla
               </button>
-
               <button
                 className="btn-secondary"
-                style={{
-                  margin: 0,
-                  height: '38px',
-                  padding: '0 14px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontSize: '0.85rem',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}
                 onClick={downloadPlanilla}
-                title="Descargar Planilla de Asistencia en Excel"
+                disabled={!cursoCerrado}
+                style={{ margin: 0, height: '38px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap', opacity: !cursoCerrado ? 0.5 : 1, cursor: !cursoCerrado ? 'not-allowed' : 'pointer' }}
+                title={cursoCerrado ? 'Descargar Planilla de Asistencia en Excel' : 'Cerrar el curso para habilitar'}
               >
-                <Upload size={15} /> Asistencia final
+                <Upload size={15} /> Exportar Asistencia
               </button>
             </>
+          ) : (
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Generando planilla...</span>
           )}
         </div>
+      )}
 
-        {/* Fila 2: Cierre */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', width: '85px', flexShrink: 0 }}>
-            Cierre:
-          </span>
+      {asistenciaPanel === 'cerrar' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px', padding: '12px', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px solid var(--border-card)' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={cursoCerrado} onChange={e => handleToggleCerrado(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#003876' }} />
+            Cerrar Curso
+          </label>
 
           <label
             className="btn-secondary"
-            style={{
-              margin: 0,
-              height: '38px',
-              padding: '0 12px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              borderColor: informes.length > 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.4)',
-              background: informes.length > 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.05)',
-              color: informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)'
-            }}
+            style={{ margin: 0, height: '38px', minWidth: '165px', width: '165px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 500, fontFamily: 'var(--font-primary)', boxSizing: 'border-box', cursor: 'pointer', whiteSpace: 'nowrap', borderColor: informes.length > 0 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.4)', background: informes.length > 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.05)', color: informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)' }}
           >
             <FileText size={15} color={informes.length > 0 ? 'var(--success)' : 'rgba(239, 68, 68, 0.85)'} />
             Informe Docente
@@ -706,63 +643,41 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
               accept="application/pdf"
               style={{ display: 'none' }}
               disabled={!asistenciaCurso || !asistenciaFecha}
-              onChange={e => {
-                const file = e.target.files?.[0];
-                if (file) handleUploadInforme(file);
-                e.target.value = '';
-              }}
+              onChange={e => { const file = e.target.files?.[0]; if (file) handleUploadInforme(file); e.target.value = ''; }}
             />
           </label>
 
-          {alumnosAsistencia.length > 0 && (
-            <button
-              className="btn-secondary"
-              style={{
-                margin: 0,
-                height: '38px',
-                padding: '0 12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                fontSize: '0.85rem',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-              onClick={downloadPlanillaCertificados}
-              title="Exportar archivo Excel modelo para el script de envío de Certificados en Google Drive"
-            >
-              <Upload size={15} /> Exportar Aprobados
-            </button>
-          )}
-
-          {informes.map(info => (
-            <div key={info.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '3px 8px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={info.fileName}>
-                {info.fileName}
-              </span>
+          {cursoCerrado && alumnosAsistencia.length > 0 && (
+            <>
               <button
-                type="button"
                 className="btn-secondary"
-                style={{ padding: '0 6px', margin: 0, minHeight: '26px', minWidth: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onClick={() => setInformeView(info)}
-                title="Ver informe PDF"
+                style={{ margin: 0, height: '38px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                onClick={downloadPlanillaCertificados}
+                title="Exportar archivo Excel modelo para el script de envío de Certificados en Google Drive"
               >
-                <Eye size={12} />
+                <Upload size={15} /> Exportar Aprobados
               </button>
-              <button
-                type="button"
-                className="btn-danger"
-                style={{ padding: '0 6px', margin: 0, minHeight: '26px', minWidth: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onClick={() => handleDeleteInforme(info)}
-                title="Eliminar informe"
-              >
-                <Trash2 size={12} />
-              </button>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#ffffff', padding: '0 10px', borderRadius: '8px', border: '1px solid #cbd5e1', height: '38px', boxSizing: 'border-box' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#344054', whiteSpace: 'nowrap' }}>Fecha Certificado:</span>
+                <input
+                  type="date"
+                  value={certificadoFecha}
+                  onChange={e => handleCertificadoChange(e.target.value)}
+                  style={{ height: '28px', padding: '2px 6px', fontSize: '0.8rem', border: 'none', background: 'transparent', cursor: 'pointer', color: certificadoFecha ? '#344054' : 'transparent', minWidth: certificadoFecha ? '125px' : '24px', outline: 'none', boxShadow: 'none' }}
+                  title="Fecha de certificado del curso"
+                />
+              </div>
+            </>
+          )}
+                    {informes.map(info => (
+            <div key={info.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', padding: '3px 8px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={info.fileName}>{info.fileName}</span>
+              <button type="button" className="btn-secondary" style={{ padding: '0 6px', margin: 0, minHeight: '26px', minWidth: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setInformeView(info)} title="Ver informe PDF"><Eye size={12} /></button>
+              <button type="button" className="btn-danger" style={{ padding: '0 6px', margin: 0, minHeight: '26px', minWidth: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleDeleteInforme(info)} title="Eliminar informe"><Trash2 size={12} /></button>
             </div>
           ))}
         </div>
-      </div>
+      )}
 
       {/* Modal ver informe */}
       {informeView && (
@@ -803,27 +718,25 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
       {sortedAlumnos.length > 0 && !loadingAsistencia && (
         <div style={{ marginTop: '20px' }}>
-          <div className="details-box" style={{ marginBottom: '15px', background: 'rgba(30, 78, 140, 0.08)', border: '1px solid rgba(30, 78, 140, 0.3)', padding: '16px' }}>
+          <div className="details-box" style={{ marginBottom: '15px', background: 'var(--surface-bg)', border: '1px solid var(--border-card)', padding: '16px' }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {asistenciaCurso}
               </h3>
               <div style={{ margin: '14px 0 0 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
-                  <span><strong>Fecha de Inicio:</strong> {formatDateAR(asistenciaFecha)}</span>
-                  <span style={{ color: 'var(--primary)', fontWeight: 600 }}>| Total Clases: {totalClases}</span>
-
-                  {currentFechaObj?.certificado ? (
-                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>
-                      | Certificado: {formatDateAR(currentFechaObj.certificado)}
-                    </span>
+                  <span>Fecha de Inicio: <span style={{ color: 'light-dark(#003876, #E8BC00)', fontWeight: 600 }}>{formatDateAR(asistenciaFecha)}</span></span>
+                  <span>Total Clases: <span style={{ color: 'light-dark(#003876, #E8BC00)', fontWeight: 600 }}>{totalClases}</span></span>
+                  <span>Total alumnos: <span style={{ color: 'light-dark(#003876, #E8BC00)', fontWeight: 600 }}>{sortedAlumnos.length}</span></span>
+                  {(certificadoFecha || currentFechaObj?.certificado) ? (
+                    <span>Certificado: <span style={{ color: 'light-dark(#003876, #E8BC00)', fontWeight: 600 }}>{formatDateAR(certificadoFecha || currentFechaObj.certificado)}</span></span>
                   ) : null}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    💡 <em>Tildá el círculo de cada clase arriba para indicar que fue dictada.</em>
-                  </span>
+                  <button onClick={() => alert({ title: 'Clases dictadas', message: 'Tildá el círculo de cada clase arriba (C1, C2, ...) para indicar que fue dictada. Solo las clases marcadas como dictadas se cuentan para inasistencias.', variant: 'info' })} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="Ayuda sobre clases dictadas">
+                    <HelpCircle size={16} color="#E8BC00" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -854,33 +767,20 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                         style={{
                           textAlign: 'center',
                           minWidth: '55px',
-                          background: isDictada ? 'rgba(16, 185, 129, 0.12)' : 'inherit',
+                          background: '#ffffff',
                           borderLeft: '1px solid var(--border-card)',
                           padding: '6px 4px'
                         }}
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>C{numClase}</span>
-                          <label
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>C{numClase}</span>
+                          <button
+                            onClick={() => handleToggleClaseDictada(numClase)}
                             title={isDictada ? `Clase ${numClase} Dictada (Clic para desmarcar)` : `Marcar Clase ${numClase} como Dictada`}
-                            style={{ margin: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            style={{ width: '18px', height: '18px', borderRadius: '50%', border: isDictada ? '1.5px solid #10b981' : '1.5px solid #cbd5e1', background: '#ffffff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={isDictada}
-                              onChange={() => handleToggleClaseDictada(numClase)}
-                              style={{
-                                width: '18px',
-                                height: '18px',
-                                cursor: 'pointer',
-                                borderRadius: '50%',
-                                accentColor: '#10b981'
-                              }}
-                            />
-                          </label>
-                          <span style={{ fontSize: '0.65rem', color: isDictada ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
-                            {isDictada ? 'Dada' : 'No'}
-                          </span>
+                            {isDictada && <Check size={12} color="#10b981" strokeWidth={3} />}
+                          </button>
                         </div>
                       </th>
                     );
@@ -1027,6 +927,3 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     </div>
   );
 };
-
-
-

@@ -833,7 +833,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box" style={{ height: 'fit-content' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 1: Destinatario de la Inscripción
-              <button type="button" onClick={() => alert({ title: 'Paso 1 — Destinatario', message: 'Seleccione Programa → Curso → Fecha de inicio. Ese destino se aplicará a TODAS las filas del Excel.\n\nIdeal para lotes actuales donde todas las personas van al mismo curso.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: 'var(--primary)' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 1 — Destinatario', message: 'Seleccione Programa → Curso → Fecha de inicio. Ese destino se aplicará a TODAS las filas del Excel.\n\nIdeal para lotes actuales donde todas las personas van al mismo curso.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">
@@ -883,7 +883,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel / CSV
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel simple', message: 'Excel con 4 columnas:\n\nDNI | Apellido | Nombre | Condición\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl Programa/Curso/Fecha se toma del Paso 1 para todas las filas. No se modifica el padrón de Alumnos, solo Inscriptos.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: 'var(--primary)' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel simple', message: 'Excel con 4 columnas:\n\nDNI | Apellido | Nombre | Condición\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl Programa/Curso/Fecha se toma del Paso 1 para todas las filas. No se modifica el padrón de Alumnos, solo Inscriptos.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">
@@ -972,7 +972,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box" style={{ height: 'fit-content' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 1: Destinatario <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--text-muted)' }}>(opcional)</span>
-              <button type="button" onClick={() => alert({ title: 'Paso 1 — Histórico (opcional)', message: 'Opcional. Si el Excel ya trae columnas Programa / Curso / Fecha de inicio por fila (ej. Informática — Excel / Word / Power Point o Calidad de vida laboral), puede dejar este paso vacío.\n\nSi no trae esas columnas, seleccione aquí un Programa → Curso → Fecha que se aplicará a todas las filas.\n\nLos cursos y fechas que no existan se crearán automáticamente con Cantidad clases y Carga horaria de la fila.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#b45309' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 1 — Histórico (opcional)', message: 'Opcional. Si el Excel ya trae columnas Programa / Curso / Fecha de inicio por fila (ej. Informática — Excel / Word / Power Point o Calidad de vida laboral), puede dejar este paso vacío.\n\nSi no trae esas columnas, seleccione aquí un Programa → Curso → Fecha que se aplicará a todas las filas.\n\nLos cursos y fechas que no existan se crearán automáticamente con Cantidad clases y Carga horaria de la fila.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             <div className="form-group">
               <label>Programa (filtro)</label>
@@ -1021,7 +1021,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel histórico
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Estructura requerida (9 columnas):\n\nDNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria\n\n• Programa/Curso/Fecha: cada fila puede tener valores distintos (ej. Informática — Excel / Word / Power Point). Se crean automáticamente si no existen.\n• Cantidad clases / Carga horaria: opcionales, se usan al crear el curso/fecha.\n• Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nNo se modifica el padrón de Alumnos, solo Inscriptos.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#b45309' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Estructura requerida (9 columnas):\n\nDNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria\n\n• Programa/Curso/Fecha: cada fila puede tener valores distintos (ej. Informática — Excel / Word / Power Point). Se crean automáticamente si no existen.\n• Cantidad clases / Carga horaria: opcionales, se usan al crear el curso/fecha.\n• Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nNo se modifica el padrón de Alumnos, solo Inscriptos.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">

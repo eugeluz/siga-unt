@@ -75,15 +75,18 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     };
   });
 
-  // 2. Process Top Courses for Bar Chart — usar nombre completo
-  const courseCounts: Record<string, number> = {};
+  // 2. Process Top Courses for Bar Chart — agrupado por nombre de curso (ignora programa y fechas)
+  const courseCounts: Record<string, { display: string; count: number }> = {};
   inscripciones.forEach(ins => {
     const cursoObj = cursos.find(c => String(c.idCurso) === String(ins.idCurso) || (c.nombreCompleto || c.curso) === (ins.curso || ''));
-    const curso = cursoObj?.nombreCompleto || ins.curso || 'Sin curso';
-    courseCounts[curso] = (courseCounts[curso] || 0) + 1;
+    const rawName = (cursoObj?.nombreCompleto || ins.curso || 'Sin curso').trim();
+    const key = rawName.toLowerCase();
+    if (!courseCounts[key]) courseCounts[key] = { display: rawName, count: 0 };
+    courseCounts[key].count += 1;
   });
 
   const topCourses = Object.entries(courseCounts)
+    .map(([key, v]) => [v.display, v.count] as [string, number])
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
@@ -271,7 +274,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                       <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75%', color: 'var(--text-secondary)' }} title={course}>
                         {course}
                       </span>
-                      <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{count} inscriptos</span>
+                      <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{count} Inscriptos</span>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '6px', height: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.02)' }}>
                       <div style={{ background: 'linear-gradient(to right, var(--primary), var(--accent))', width: `${percentage}%`, height: '100%', borderRadius: '6px', transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}></div>

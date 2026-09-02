@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { FormField } from './FormField';
 import { logAudit } from '../utils/audit';
 import { formatDateAR } from '../utils/dateAR';
-import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download, Pencil, AlertTriangle } from 'lucide-react';
+import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download, Pencil, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
 
@@ -578,9 +578,9 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
           </>
         ) : modoCurso === 'modificar' ? (
           <div style={{ textAlign: 'center', padding: '28px 20px', color: 'var(--text-secondary)', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px dashed var(--border-card)', marginTop: '4px' }}>
-            <p style={{ margin: 0, fontSize: '0.92rem' }}>Seleccione un <strong>Programa</strong> y un <strong>Curso</strong> para corregirlo.</p>
-            <p style={{ margin: '10px auto 0', fontSize: '0.82rem', fontWeight: 600, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px' }}>
-              <AlertTriangle size={16} color="#b45309" /> Los cambios afectarán a todas las personas que hayan realizado el curso seleccionado.
+            <p style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              Seleccione un <strong>Programa</strong> y un <strong>Curso</strong> para corregirlo.
+              <button type="button" onClick={() => alert({ title: 'Aviso', message: 'Los cambios afectarán a todas las personas que hayan realizado el curso seleccionado.', variant: 'warning' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </p>
           </div>
         ) : null}
