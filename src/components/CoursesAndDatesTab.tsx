@@ -31,24 +31,26 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
               borderRadius: '12px'
             }}
           >
-            <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {subTab === 'cursos' ? (
-                <>
-                  <BookOpen size={22} color="currentColor" /> Gestión de Cursos de Capacitación
-                </>
-              ) : (
-                <>
-                  <Calendar size={22} color="currentColor" /> Fechas de Inicio de Cursos
-                </>
-              )}
-            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {subTab === 'cursos' ? (
+                  <>
+                    <BookOpen size={22} color="currentColor" /> Gestión de Cursos de Capacitación
+                  </>
+                ) : (
+                  <>
+                    <Calendar size={22} color="currentColor" /> Fechas de Inicio de Cursos
+                  </>
+                )}
+              </h2>
+            </div>
             {subTab === 'cursos' && (
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={() => setModoCurso('nuevo')}
                   className={modoCurso === 'nuevo' ? 'btn-primary' : 'btn-secondary'}
-                  style={{ margin: 0, height: '36px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                  style={{ margin: 0, height: '36px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap', background: modoCurso === 'nuevo' ? undefined : '#ffffff', color: modoCurso === 'nuevo' ? undefined : '#00A1DE', borderColor: modoCurso === 'nuevo' ? undefined : '#00A1DE', borderWidth: modoCurso === 'nuevo' ? undefined : '1.5px' }}
                 >
                   <Plus size={14} /> Nuevo curso
                 </button>
@@ -56,7 +58,7 @@ export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, 
                   type="button"
                   onClick={() => setModoCurso('modificar')}
                   className={modoCurso === 'modificar' ? 'btn-primary' : 'btn-secondary'}
-                  style={{ margin: 0, height: '36px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                  style={{ margin: 0, height: '36px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', whiteSpace: 'nowrap', background: modoCurso === 'modificar' ? undefined : '#ffffff', color: modoCurso === 'modificar' ? undefined : '#00A1DE', borderColor: modoCurso === 'modificar' ? undefined : '#00A1DE', borderWidth: modoCurso === 'modificar' ? undefined : '1.5px' }}
                 >
                   <Pencil size={14} /> Modificar curso
                 </button>

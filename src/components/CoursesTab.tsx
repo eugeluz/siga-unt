@@ -312,6 +312,15 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
 
 
 
+        <h3 style={{ margin: '0 0 14px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+          {modoCurso === 'nuevo' ? <Plus size={18} color="var(--primary)" /> : <Pencil size={18} color="var(--primary)" />} {modoCurso === 'nuevo' ? 'Nuevo curso' : 'Modificar curso'}
+        </h3>
+
+        {modoCurso === 'modificar' && (
+          <div style={{ marginBottom: '12px', padding: '10px 12px', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 600, color: '#b45309', width: '100%', boxSizing: 'border-box', textAlign: 'center' }}>
+            <AlertTriangle size={14} color="#b45309" /> Los cambios afectarán a todas las personas que hayan realizado el curso seleccionado.
+          </div>
+        )}
         {modoCurso === 'modificar' && (
           <div className="form-row" style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div className="form-group" style={{ flex: '0 0 220px', minWidth: '180px', margin: 0 }}>
@@ -321,7 +330,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                 value={editProgramaFilter}
                 onChange={e => setEditProgramaFilter(e.target.value)}
               >
-                <option value="">-- Todos los programas --</option>
+                <option value="">-- Seleccionar programa --</option>
                 {programasDisponibles.map((prog, idx) => (
                   <option key={idx} value={prog}>{prog}</option>
                 ))}
@@ -366,7 +375,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                   type="text"
                   className="form-control"
                   list="programas-existentes-list"
-                  placeholder="Seleccione o escriba..."
+                  placeholder="Seleccionar o escribir..."
                   value={form.programa}
                   onChange={e => setForm({ ...form, programa: e.target.value })}
                 />
@@ -376,7 +385,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                   ))}
                 </datalist>
               </div>
-              <FormField label="Nombre del curso" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value, curso: e.target.value })} placeholder="Nombre del curso" />
+              <FormField label="Nombre del curso" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value, curso: e.target.value })} placeholder="Escribir el nombre" />
             </div>
 
             <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'nowrap' }}>
@@ -407,7 +416,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="O escriba..."
+                    placeholder="O escribir..."
                     value={form.docenteNombre}
                     onChange={e => setForm(prev => ({ ...prev, idDocente: '', docenteNombre: e.target.value }))}
                     style={{ flex: 1 }}
@@ -566,10 +575,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
           </>
         ) : modoCurso === 'modificar' ? (
           <div style={{ textAlign: 'center', padding: '28px 20px', color: 'var(--text-secondary)', background: 'var(--surface-bg)', borderRadius: '10px', border: '1px dashed var(--border-card)', marginTop: '4px' }}>
-            <p style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              Seleccione un <strong>Programa</strong> y un <strong>Curso</strong> para corregirlo.
-              <button type="button" onClick={() => alert({ title: 'Aviso', message: 'Los cambios afectarán a todas las personas que hayan realizado el curso seleccionado.', variant: 'warning' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
-            </p>
+            <p style={{ margin: 0, fontSize: '0.92rem' }}>Seleccione un <strong>Programa</strong> y un <strong>Curso</strong> para corregirlo.</p>
           </div>
         ) : null}
       </div>

@@ -167,7 +167,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
               <div className="form-group" style={{ flex: '1 1 160px', margin: 0 }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Programa</label>
                 <select className="form-control" value={selectedPrograma} onChange={e => { setSelectedPrograma(e.target.value); setSelectedCursoId(''); }} style={{ fontSize: '0.85rem' }}>
-                  <option value="">-- Todos los programas --</option>
+                  <option value="">-- Seleccionar programa --</option>
                   {[...new Set(cursos.map(c => c.programa?.trim() || 'Otros'))].sort().map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -183,7 +183,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                   required
                   style={{ fontSize: '0.85rem' }}
                 >
-                  <option value="">-- Seleccione un Curso --</option>
+                  <option value="">-- Seleccionar Curso --</option>
                   {sortedCursos.filter(c => !selectedPrograma || (c.programa?.trim() || 'Otros') === selectedPrograma).map(c => (
                     <option key={c.idCurso} value={String(c.idCurso)}>
                       {c.nombreCompleto || c.curso}
@@ -326,15 +326,15 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                               >
                                 {f.showOnLanding !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                               </button>
-                                                          <button
-                              type="button"
-                              className="btn-secondary"
-                              style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: f.inscripcionUrl ? 'var(--accent)' : undefined, color: f.inscripcionUrl ? 'var(--accent)' : undefined }}
-                              onClick={() => handleEditUrl(f)}
-                              title={f.inscripcionUrl ? `Editar URL del formulario:\n${f.inscripcionUrl}` : 'Agregar URL del formulario de Google'}
-                            >
-                              <Link2 size={14} />
-                            </button>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{ padding: '0 8px', margin: 0, minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: f.inscripcionUrl ? 'var(--accent)' : undefined, color: f.inscripcionUrl ? 'var(--accent)' : undefined }}
+                                onClick={() => handleEditUrl(f)}
+                                title={f.inscripcionUrl ? `Editar URL del formulario:\n${f.inscripcionUrl}` : 'Agregar URL del formulario de Google'}
+                              >
+                                <Link2 size={14} />
+                              </button>
                               <button
                                 type="button"
                                 className="btn-danger"
