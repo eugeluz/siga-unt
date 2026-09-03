@@ -6,11 +6,12 @@ import { logAudit } from '../utils/audit';
 import { downloadCSV } from '../utils/csv';
 import { downloadExcel } from '../utils/excel';
 import { formatDateAR } from '../utils/dateAR';
-import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2, HelpCircle, Check } from 'lucide-react';
+import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2, HelpCircle, Check, FileCheck } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
 import { useModal } from './ModalProvider';
+import { generateConstanciaAsistenciaPDF } from '../utils/constanciaPDF';
 
 interface AttendanceTabProps {
   cursos: any[];
@@ -29,8 +30,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   const [loadingCompleto, setLoadingCompleto] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Control de Clases Dictadas (guardadas en el doc de fecha o localmente)
+  // Control de Clases Dictadas y Fechas de clases (guardadas en el doc de fecha)
   const [clasesDictadas, setClasesDictadas] = useState<Record<number, boolean>>({});
+  const [fechasClases, setFechasClases] = useState<Record<number, string>>({});
   const [certificadoFecha, setCertificadoFecha] = useState('');
   const [cursoCerrado, setCursoCerrado] = useState(false);
   const [asistenciaPanel, setAsistenciaPanel] = useState<'generar' | 'cerrar' | null>(null);
@@ -136,6 +138,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
   useEffect(() => {
     if (currentFechaObj && currentFechaObj.clasesDictadas) setClasesDictadas(currentFechaObj.clasesDictadas); else setClasesDictadas({});
+    if (currentFechaObj && currentFechaObj.fechasClases) setFechasClases(currentFechaObj.fechasClases); else setFechasClases({});
     if (currentFechaObj) { setCertificadoFecha(currentFechaObj.certificado || ''); setCursoCerrado(!!currentFechaObj.cerrado); } else { setCertificadoFecha(''); setCursoCerrado(false); }
   }, [currentFechaObj]);
 
@@ -146,6 +149,32 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   const handleToggleCerrado = async (val: boolean) => {
     setCursoCerrado(val);
     if (currentFechaObj?.id) await updateDoc(doc(db, 'fechas', currentFechaObj.id), { cerrado: val });
+    if (val && alumnosAsistencia.length === 0) {
+      await searchAsistencia();
+    }
+  };
+
+  const handleFechaClaseChange = async (numClase: number, newFecha: string) => {
+    const nextFechas = { ...fechasClases, [numClase]: newFecha };
+    if (!newFecha) {
+      delete nextFechas[numClase];
+    }
+    setFechasClases(nextFechas);
+
+    const isDictada = Boolean(newFecha);
+    const nextDictadas = { ...clasesDictadas, [numClase]: isDictada };
+    setClasesDictadas(nextDictadas);
+
+    if (currentFechaObj && currentFechaObj.id) {
+      try {
+        await updateDoc(doc(db, 'fechas', currentFechaObj.id), {
+          fechasClases: nextFechas,
+          clasesDictadas: nextDictadas
+        });
+      } catch (e) {
+        console.error('Error guardando fecha de clase:', e);
+      }
+    }
   };
 
   const handleToggleClaseDictada = async (numClase: number) => {
@@ -301,8 +330,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
   const calcularInasistenciasDictadas = (alumno: any) => {
     let inasistencias = 0;
     for (let c = 1; c <= totalClases; c++) {
-      if (clasesDictadas[c]) {
-        // La clase fue dictada: si el alumno no tiene true en asistencias, es inasistencia
+      const isDictada = Boolean(fechasClases[c] || clasesDictadas[c]);
+      if (isDictada) {
+        // La clase fue dictada (con fecha o marcada): si el alumno no tiene true en asistencias, es inasistencia
         if (!alumno.asistencias?.[c]) {
           inasistencias++;
         }
@@ -378,7 +408,11 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
       'Apellido',
       'Nombre',
       'DNI',
-      ...Array.from({ length: totalClases }, (_, i) => `C${i + 1}`),
+      ...Array.from({ length: totalClases }, (_, i) => {
+        const num = i + 1;
+        const f = fechasClases[num];
+        return f ? `C${num} (${formatDateAR(f)})` : `C${num}`;
+      }),
       '% Asistencia',
       'Condición'
     ];
@@ -583,7 +617,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
         <button onClick={async () => { const next = asistenciaPanel === 'generar' ? null : 'generar'; setAsistenciaPanel(next); if (next === 'generar') await searchAsistencia(); }} disabled={!asistenciaCurso || !asistenciaFecha} className={asistenciaPanel === 'generar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px', margin: 0, transform: 'none', boxShadow: 'none', verticalAlign: 'middle', lineHeight: 1, opacity: (!asistenciaCurso || !asistenciaFecha) ? 0.5 : 1, cursor: (!asistenciaCurso || !asistenciaFecha) ? 'not-allowed' : 'pointer' }}><FileText size={16} /> Generar planilla</button>
-        <button onClick={() => setAsistenciaPanel(p => p === 'cerrar' ? null : 'cerrar')} disabled={!asistenciaCurso || !asistenciaFecha} className={asistenciaPanel === 'cerrar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px', margin: 0, transform: 'none', boxShadow: 'none', verticalAlign: 'middle', lineHeight: 1, opacity: (!asistenciaCurso || !asistenciaFecha) ? 0.5 : 1, cursor: (!asistenciaCurso || !asistenciaFecha) ? 'not-allowed' : 'pointer' }}><Check size={16} /> Cerrar curso</button>
+        <button onClick={async () => { const next = asistenciaPanel === 'cerrar' ? null : 'cerrar'; setAsistenciaPanel(next); if (next === 'cerrar') await searchAsistencia(); }} disabled={!asistenciaCurso || !asistenciaFecha} className={asistenciaPanel === 'cerrar' ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', height: '42px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, boxSizing: 'border-box', borderWidth: '1px', margin: 0, transform: 'none', boxShadow: 'none', verticalAlign: 'middle', lineHeight: 1, opacity: (!asistenciaCurso || !asistenciaFecha) ? 0.5 : 1, cursor: (!asistenciaCurso || !asistenciaFecha) ? 'not-allowed' : 'pointer' }}><Check size={16} /> Cerrar curso</button>
       </div>
 
       {asistenciaPanel === 'generar' && (
@@ -645,6 +679,16 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
               onChange={e => { const file = e.target.files?.[0]; if (file) handleUploadInforme(file); e.target.value = ''; }}
             />
           </label>
+
+          <button
+            className="btn-secondary"
+            onClick={downloadPlanilla}
+            disabled={sortedAlumnos.length === 0}
+            style={{ margin: 0, height: '38px', padding: '0 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.85rem', whiteSpace: 'nowrap', opacity: sortedAlumnos.length === 0 ? 0.5 : 1 }}
+            title="Descargar Planilla de Asistencia en Excel"
+          >
+            <Upload size={15} /> Exportar Asistencia
+          </button>
 
           {cursoCerrado && alumnosAsistencia.length > 0 && (
             <>
@@ -717,6 +761,91 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
       {sortedAlumnos.length > 0 && !loadingAsistencia && (
         <div style={{ marginTop: '20px' }}>
+          {/* Tabla aparte para registrar fechas de cada clase, ANTES del nombre del curso */}
+          <div className="details-box" style={{ marginBottom: '16px', background: 'var(--surface-bg)', border: '1px solid var(--border-card)', padding: '16px', borderRadius: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                <Calendar size={18} /> Fechas de Clases Dictadas ({totalClases} clases)
+              </h4>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Asigná la fecha en la que se dictó cada clase
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="listbox-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+                <thead>
+                  <tr>
+                    {Array.from({ length: totalClases }, (_, i) => {
+                      const num = i + 1;
+                      const f = fechasClases[num];
+                      const isD = Boolean(f || clasesDictadas[num]);
+                      return (
+                        <th key={num} style={{ textAlign: 'center', padding: '6px 8px', fontSize: '0.8rem', minWidth: '130px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                            <span>Clase {num}</span>
+                            {isD && <Check size={12} color="#10b981" strokeWidth={3} />}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {Array.from({ length: totalClases }, (_, i) => {
+                      const num = i + 1;
+                      const f = fechasClases[num] || '';
+                      const isD = Boolean(f || clasesDictadas[num]);
+                      return (
+                        <td key={num} style={{ padding: '8px 6px', textAlign: 'center', background: isD ? 'rgba(16, 185, 129, 0.05)' : 'inherit' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                            <input
+                              type="date"
+                              value={f}
+                              onChange={e => handleFechaClaseChange(num, e.target.value)}
+                              style={{
+                                height: '28px',
+                                fontSize: '0.78rem',
+                                padding: '2px 4px',
+                                border: isD ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+                                borderRadius: '5px',
+                                background: 'var(--input-bg, #ffffff)',
+                                color: 'var(--text-primary, #1e293b)',
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                                maxWidth: '120px',
+                                width: '100%'
+                              }}
+                              title={f ? `Clase ${num}: ${formatDateAR(f)}` : `Asignar fecha para Clase ${num}`}
+                            />
+                            {f && (
+                              <button
+                                type="button"
+                                onClick={() => handleFechaClaseChange(num, '')}
+                                title={`Quitar fecha de Clase ${num}`}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  color: '#94a3b8'
+                                }}
+                              >
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div className="details-box" style={{ marginBottom: '15px', background: 'var(--surface-bg)', border: '1px solid var(--border-card)', padding: '16px' }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -733,7 +862,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button onClick={() => alert({ title: 'Clases dictadas', message: 'Tildá el círculo de cada clase arriba (C1, C2, ...) para indicar que fue dictada. Solo las clases marcadas como dictadas se cuentan para inasistencias.', variant: 'info' })} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="Ayuda sobre clases dictadas">
+                  <button onClick={() => alert({ title: 'Fechas de clases', message: 'Registrá la fecha de cada clase en la tabla superior para indicar cuándo fue dictada. Las clases con fecha registrada se consideran dictadas y se cuentan para las inasistencias.', variant: 'info' })} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="Ayuda sobre fechas de clases">
                     <HelpCircle size={16} color="#E8BC00" />
                   </button>
                 </div>
@@ -756,30 +885,35 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                   <th style={{ minWidth: '130px' }}>Nombre</th>
                   <th style={{ minWidth: '95px' }}>DNI</th>
 
-                  {/* Columnas dinámicas de clases con círculo/checkbox de clase dictada */}
+                  {/* Columnas dinámicas de clases compactas como antes */}
                   {Array.from({ length: totalClases }, (_, i) => {
                     const numClase = i + 1;
-                    const isDictada = !!clasesDictadas[numClase];
+                    const fechaClase = fechasClases[numClase] || '';
+                    const isDictada = Boolean(fechaClase || clasesDictadas[numClase]);
                     return (
                       <th
                         key={numClase}
                         style={{
                           textAlign: 'center',
                           minWidth: '55px',
+                          width: '55px',
                           background: '#ffffff',
                           borderLeft: '1px solid var(--border-card)',
                           padding: '6px 4px'
                         }}
+                        title={fechaClase ? `Clase ${numClase} (${formatDateAR(fechaClase)})` : `Clase ${numClase}`}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>C{numClase}</span>
-                          <button
-                            onClick={() => handleToggleClaseDictada(numClase)}
-                            title={isDictada ? `Clase ${numClase} Dictada (Clic para desmarcar)` : `Marcar Clase ${numClase} como Dictada`}
-                            style={{ width: '18px', height: '18px', borderRadius: '50%', border: isDictada ? '1.5px solid #10b981' : '1.5px solid #cbd5e1', background: '#ffffff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
-                          >
-                            {isDictada && <Check size={12} color="#10b981" strokeWidth={3} />}
-                          </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isDictada ? '#059669' : '#334155' }}>
+                            C{numClase}
+                          </span>
+                          {isDictada ? (
+                            <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 600 }}>
+                              {fechaClase ? formatDateAR(fechaClase).slice(0, 5) : '✓'}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>—</span>
+                          )}
                         </div>
                       </th>
                     );
@@ -806,10 +940,11 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                       <td data-label="Nombre">{item.nombre}</td>
                       <td data-label="DNI">{item.dni}</td>
 
-                      {/* Checkboxes de asistencia para cada clase */}
+                      {/* Checkboxes de asistencia para cada clase compactos */}
                       {Array.from({ length: totalClases }, (_, i) => {
                         const numClase = i + 1;
-                        const isDictada = !!clasesDictadas[numClase];
+                        const fechaClase = fechasClases[numClase] || '';
+                        const isDictada = Boolean(fechaClase || clasesDictadas[numClase]);
                         const isPresente = !!item.asistencias?.[numClase];
 
                         return (
@@ -817,6 +952,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                             key={numClase}
                             style={{
                               textAlign: 'center',
+                              width: '55px',
                               borderLeft: '1px solid var(--border-card)',
                               background: isDictada && !isPresente ? 'rgba(239, 68, 68, 0.08)' : (isPresente ? 'rgba(16, 185, 129, 0.06)' : 'inherit')
                             }}
@@ -831,7 +967,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                                 cursor: 'pointer',
                                 accentColor: 'var(--primary)'
                               }}
-                              title={`Marcar asistencia para Clase ${numClase}`}
+                              title={fechaClase ? `Marcar asistencia para Clase ${numClase} (${formatDateAR(fechaClase)})` : `Marcar asistencia para Clase ${numClase}`}
                             />
                           </td>
                         );
@@ -899,15 +1035,39 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                       </td>
 
                       <td data-label="Acciones" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-danger"
-                          style={{ padding: '4px 8px', margin: 0, minHeight: '32px', fontSize: '0.75rem' }}
-                          onClick={() => handleDeleteStudent(item.id, `${item.apellido}, ${item.nombre}`)}
-                          title="Eliminar de la planilla"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              generateConstanciaAsistenciaPDF({
+                                alumno: {
+                                  nombre: item.nombre,
+                                  apellido: item.apellido,
+                                  dni: item.dni
+                                },
+                                curso: asistenciaCurso,
+                                fechaInicio: asistenciaFecha,
+                                cantidadClases: totalClases,
+                                fechasClases: fechasClases,
+                                asistencias: item.asistencias || {}
+                              });
+                            }}
+                            style={{ padding: 0, margin: 0, width: '30px', height: '30px', minHeight: '30px', minWidth: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
+                            title={`Emitir Constancia de Asistencia para ${item.nombre} ${item.apellido}`}
+                          >
+                            <FileCheck size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            style={{ padding: 0, margin: 0, width: '30px', height: '30px', minHeight: '30px', minWidth: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
+                            onClick={() => handleDeleteStudent(item.id, `${item.apellido}, ${item.nombre}`)}
+                            title="Eliminar de la planilla"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

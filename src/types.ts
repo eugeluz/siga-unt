@@ -48,6 +48,7 @@ export interface Fecha {
   certificado?: string;
   cantidadClases?: number;
   clasesDictadas?: Record<string, boolean>;
+  fechasClases?: Record<string, string>;
   showOnLanding?: boolean;
 }
 

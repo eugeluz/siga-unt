@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { getDoc, doc, getDocs, collection, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatDateAR } from '../utils/dateAR';
-import { FolderOpen, Search } from 'lucide-react';
+import { Search, Award, FileCheck } from 'lucide-react';
 import { useModal } from './ModalProvider';
+import { generateConstanciaAsistenciaPDF } from '../utils/constanciaPDF';
 
 interface StudentHistoryTabProps {
   alumnos: any[];
@@ -47,29 +48,39 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
 
       const qInsc = query(collection(db, 'inscripciones'), where('dni', '==', Number(searchVal)));
       const snapInsc = await getDocs(qInsc);
-      const listInsc = snapInsc.docs.map(d => d.data());
+      let listInsc: any[] = snapInsc.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
-      let cursosList = cursos;
-      let fechasList = fechas;
+      if (listInsc.length === 0) {
+        const qInscStr = query(collection(db, 'inscripciones'), where('dni', '==', String(searchVal).trim()));
+        const snapInscStr = await getDocs(qInscStr);
+        listInsc = snapInscStr.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      }
+
+      let cursosList: any[] = cursos;
+      let fechasList: any[] = fechas;
 
       if (cursosList.length === 0 || fechasList.length === 0) {
         const [snapCursos, snapFechas] = await Promise.all([
           getDocs(collection(db, 'cursos')),
           getDocs(collection(db, 'fechas'))
         ]);
-        if (cursosList.length === 0) cursosList = snapCursos.docs.map(d => d.data());
-        if (fechasList.length === 0) fechasList = snapFechas.docs.map(d => d.data());
+        if (cursosList.length === 0) cursosList = snapCursos.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (fechasList.length === 0) fechasList = snapFechas.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
       }
 
-      const fullHistory = listInsc.map(insc => {
+      const fullHistory = listInsc.map((insc: any) => {
         const cursoObj = cursosList.find(c => String(c.idCurso) === String(insc.idCurso) || (c.nombreCompleto || c.curso) === insc.curso);
         const fechaObj = fechasList.find(f => String(f.idCurso) === String(insc.idCurso) && f.inicio === insc.fechaInicio);
 
         return {
           ...insc,
+          id: insc.id,
           curso: cursoObj?.nombreCompleto || insc.curso,
           resolucion: cursoObj?.resolucion || 'Sin dato',
-          certificado: fechaObj?.certificado || '—'
+          certificado: fechaObj?.certificado || '—',
+          cantidadClases: fechaObj?.cantidadClases || 4,
+          fechasClases: fechaObj?.fechasClases || {},
+          asistencias: insc.asistencias || {}
         };
       });
 
@@ -84,6 +95,68 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
 
   const handleSearchClick = () => {
     searchHistorial();
+  };
+
+  const handleEmitirCertificado = async (item: any) => {
+    const estado = (item.resultado || 'Cursando').trim().toLowerCase();
+    if (!estado.includes('aprob')) {
+      await alert({
+        title: 'Certificado no disponible',
+        message: 'No se puede emitir Certificado: la condición del alumno es Cursando. El certificado solo se emite para alumnos Aprobados.',
+        variant: 'warning'
+      });
+      return;
+    }
+
+    const studentName = alumnoSelected
+      ? `${alumnoSelected.apellido}, ${alumnoSelected.nombre}`
+      : 'el alumno';
+    await alert({
+      title: 'Emitir Certificado',
+      message: `Emisión de Certificado de Aprobación para ${studentName} en el curso "${item.curso}".\n\n(A la espera del modelo oficial de certificado).`,
+      variant: 'info'
+    });
+  };
+
+  const handleEmitirConstancia = async (item: any) => {
+    const studentName = alumnoSelected
+      ? `${alumnoSelected.apellido}, ${alumnoSelected.nombre}`
+      : 'el alumno';
+    await alert({
+      title: 'Constancia de Aprobación',
+      message: `Emisión de Constancia de Aprobación para ${studentName} en el curso "${item.curso}".\n\n(A la espera del modelo oficial de constancia).`,
+      variant: 'info'
+    });
+  };
+
+  const handlePlanillaAsistencia = async (item: any) => {
+    try {
+      generateConstanciaAsistenciaPDF({
+        alumno: {
+          nombre: alumnoSelected?.nombre || item.nombre,
+          apellido: alumnoSelected?.apellido || item.apellido,
+          dni: alumnoSelected?.dni || item.dni || consultaDni
+        },
+        curso: item.curso,
+        fechaInicio: item.fechaInicio,
+        cantidadClases: item.cantidadClases || 4,
+        fechasClases: item.fechasClases || {},
+        asistencias: item.asistencias || {}
+      });
+
+      await alert({
+        title: 'Constancia de Asistencia generada',
+        message: `La constancia de asistencia en PDF para "${item.curso}" se descargó con éxito.`,
+        variant: 'success'
+      });
+    } catch (err) {
+      console.error('Error generando constancia:', err);
+      await alert({
+        title: 'Error',
+        message: 'No se pudo generar la constancia de asistencia. Intente nuevamente.',
+        variant: 'danger'
+      });
+    }
   };
 
   return (
@@ -142,23 +215,96 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
                 <th>Fecha Inicio</th>
                 <th>Fecha Certificado</th>
                 <th>Estado</th>
-                <th>Resolución</th>
+                <th style={{ textAlign: 'center', minWidth: '180px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {historialAlumno.map(item => {
+              {historialAlumno.map((item, idx) => {
                 const cursoNombre = cursos.find(c => String(c.idCurso) === String(item.idCurso))?.nombreCompleto || item.curso;
+                const estado = (item.resultado || 'Cursando').trim().toLowerCase();
+                const isAprobado = estado.includes('aprob');
+                const isCursando = estado.includes('cursan');
+
                 return (
-                <tr key={item.id}>
+                <tr key={item.id || idx}>
                   <td data-label="Curso">{cursoNombre}</td>
                   <td data-label="Fecha Inicio">{formatDateAR(item.fechaInicio)}</td>
                   <td data-label="Certificado">{formatDateAR(item.certificado)}</td>
                   <td data-label="Estado">
                     <span className={`badge badge-${(item.resultado || 'cursando').toLowerCase().replace('ó', 'o')}`}>
-                      {item.resultado}
+                      {item.resultado || 'Cursando'}
                     </span>
                   </td>
-                  <td data-label="Resolución">{item.resolucion}</td>
+                  <td data-label="Acciones" style={{ textAlign: 'center' }}>
+                    {isAprobado && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            padding: 0,
+                            margin: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '6px'
+                          }}
+                          onClick={() => handleEmitirCertificado(item)}
+                          title="Emitir Certificado de Aprobación"
+                          aria-label="Emitir Certificado de Aprobación"
+                        >
+                          <Award size={17} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            padding: 0,
+                            margin: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '6px'
+                          }}
+                          onClick={() => handleEmitirConstancia(item)}
+                          title="Emitir Constancia de Aprobación"
+                          aria-label="Emitir Constancia de Aprobación"
+                        >
+                          <FileCheck size={17} />
+                        </button>
+                      </div>
+                    )}
+                    {isCursando && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            padding: 0,
+                            margin: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '6px'
+                          }}
+                          onClick={() => handlePlanillaAsistencia(item)}
+                          title="Emitir Constancia de Asistencia (No emite certificado por estar Cursando)"
+                          aria-label="Emitir Constancia de Asistencia con fechas asistidas"
+                        >
+                          <FileCheck size={17} />
+                        </button>
+                      </div>
+                    )}
+                    {!isAprobado && !isCursando && (
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>—</span>
+                    )}
+                  </td>
                 </tr>
                 );
               })}
