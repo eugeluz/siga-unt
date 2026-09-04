@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, where, getDocs, doc, setDoc, orderBy, limit, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { formatDateAR } from '../utils/dateAR';
+import { formatDateAR, formatDateTimeAR } from '../utils/dateAR';
 import { Users, Printer, FileText, CheckSquare, RefreshCw, ClipboardCheck, History } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -321,12 +321,7 @@ export const PersonalTab: React.FC = () => {
     loadAuditoria();
   }, []);
 
-  const formatFecha = (f: any) => {
-    if (!f) return '—';
-    if (typeof f === 'string') return new Date(f).toLocaleString('es-AR');
-    if (f.toDate) return f.toDate().toLocaleString('es-AR');
-    return '—';
-  };
+  const formatFecha = (f: any) => formatDateTimeAR(f);
 
   const [historialUser, setHistorialUser] = useState<any>(null);
   const [historialList, setHistorialList] = useState<any[]>([]);

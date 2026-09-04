@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { setDoc, doc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { setDoc, doc, collection, addDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Upload, Database, AlertTriangle } from 'lucide-react';
+import { Download, Database, AlertTriangle } from 'lucide-react';
 
 import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
@@ -112,6 +112,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     setImportProgress({ current: 0, total: parsedData.length, status: 'Iniciando importación...' });
 
     let count = 0;
+    const stats = { created: 0, updated: 0, dupsRemoved: 0 };
     try {
       for (const row of parsedData) {
         count++;
@@ -215,13 +216,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             );
             const snap = await getDocs(q);
             if (!snap.empty) {
-              const docId = snap.docs[0].id;
-              await setDoc(doc(db, 'inscripciones', docId), insData, { merge: true });
+              // Pisar la coincidencia (merge: conserva asistencias y datos no incluidos)
+              // y eliminar duplicados con la misma clave DNI + Curso + Fecha
+              await setDoc(doc(db, 'inscripciones', snap.docs[0].id), insData, { merge: true });
+              stats.updated++;
+              for (const extra of snap.docs.slice(1)) {
+                await deleteDoc(extra.ref);
+                stats.dupsRemoved++;
+              }
             } else {
               await addDoc(collection(db, 'inscripciones'), insData);
+              stats.created++;
             }
           } else {
             await addDoc(collection(db, 'inscripciones'), insData);
+            stats.created++;
           }
         } else if (importType === 'cursos') {
           const idCursoVal = Number(getVal(['idcurso', 'id', 'id_curso']) || count);
@@ -257,7 +266,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         });
       }
 
-      await alert({ title: 'Importación completada', message: `Importación completada con éxito. Se procesaron ${count} registros.`, variant: 'success' });
+      const doneMsg = importType === 'inscripciones'
+        ? `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados.`
+        : `Importación completada con éxito. Se procesaron ${count} registros.`;
+      await alert({ title: 'Importación completada', message: doneMsg, variant: 'success' });
       onImportComplete();
     } catch (err: unknown) {
       console.error(err);
@@ -274,7 +286,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         <div className="modal-header">
           <h3>
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Upload size={18} color="var(--accent)" /> Importar desde Excel / CSV
+              <Download size={18} color="var(--accent)" /> Importar desde Excel / CSV
             </span>
           </h3>
           <button className="modal-close" onClick={() => {

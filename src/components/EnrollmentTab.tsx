@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getDoc, doc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2, HelpCircle } from 'lucide-react';
+import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2, HelpCircle, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatDateAR } from '../utils/dateAR';
+import { downloadExcel } from '../utils/excel';
 import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
@@ -29,16 +30,28 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [isImportingLote, setIsImportingLote] = useState(false);
   const [importLoteProgress, setImportLoteProgress] = useState({ current: 0, total: 0, status: '' });
+  const [exportingInscriptos, setExportingInscriptos] = useState(false);
 
   const [searchDni, setSearchDni] = useState('');
-  const [studentForm, setStudentForm] = useState({
+  const emptyStudentForm = {
     dni: '',
     apellido: '',
     nombre: '',
     email: '',
+    telPart: '',
+    fechaNac: '',
+    edad: '',
+    nivelEstudio: 'Sin dato',
+    titulo: '',
     unidadAcademica: '',
-    cargoFuncion: ''
-  });
+    direccionOficina: '',
+    area: '',
+    cargoFuncion: '',
+    personas: '0',
+    telLab: '',
+    interno: ''
+  };
+  const [studentForm, setStudentForm] = useState({ ...emptyStudentForm });
   const [selectedCurso, setSelectedCurso] = useState('');
   const [selectedFecha, setSelectedFecha] = useState('');
   const [cursoFilterIndiv, setCursoFilterIndiv] = useState('');
@@ -46,16 +59,37 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   const [fechasFiltradas, setFechasFiltradas] = useState<any[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [showAltaForm, setShowAltaForm] = useState(false);
-  const [altaForm, setAltaForm] = useState({
-    fechaNac: '',
-    telPart: '',
-    nivelEstudio: 'Sin dato',
-    titulo: '',
-    area: '',
-    personas: '0',
-    telLab: '',
-    interno: ''
-  });
+
+  // Edad automática igual que en Gestión de Alumnos
+  useEffect(() => {
+    if (studentForm.fechaNac) {
+      const birth = new Date(studentForm.fechaNac);
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        calculatedAge--;
+      }
+      setStudentForm(prev => (prev.edad === calculatedAge.toString() ? prev : { ...prev, edad: calculatedAge.toString() }));
+    }
+  }, [studentForm.fechaNac]);
+
+  const cargoOptions = useMemo(() => {
+    const base: { value: string; label: string }[] = [
+      { value: '', label: '-- Seleccione --' },
+      { value: 'Administrativo/a', label: 'Administrativo/a' },
+      { value: 'Profesor', label: 'Profesor' },
+      { value: 'JTP/Aux. Docente', label: 'JTP/Aux. Docente' },
+      { value: 'Técnico/Profesional', label: 'Técnico/Profesional' },
+      { value: 'Mantenimiento', label: 'Mantenimiento' },
+      { value: 'Producción', label: 'Producción' },
+      { value: 'Servicios Grales.', label: 'Servicios Grales.' },
+    ];
+    if (studentForm.cargoFuncion && !base.some((o) => o.value === studentForm.cargoFuncion)) {
+      base.push({ value: studentForm.cargoFuncion, label: studentForm.cargoFuncion });
+    }
+    return base;
+  }, [studentForm.cargoFuncion]);
 
   const facultadesOptions = useMemo(() => {
     return [
@@ -108,7 +142,19 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     if (selectedCurso) {
       const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       if (courseObj) {
-        const filtered = fechas.filter(f => String(f.idCurso) === String(courseObj.idCurso));
+        // Incluye fechas cuyo idCurso coincida o cuyo nombre de curso coincida
+        // (cubre fechas creadas por lote histórico bajo un ID duplicado)
+        const courseName = courseObj.nombreCompleto || courseObj.curso;
+        const seen = new Set<string>();
+        const filtered = fechas.filter(f => {
+          if (String(f.idCurso) === String(courseObj.idCurso) || (f.curso || '') === courseName) {
+            const key = f.id || `${f.idCurso}||${f.curso}||${f.inicio}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }
+          return false;
+        });
         setFechasFiltradas(filtered);
         if (filtered.length > 0) {
           setSelectedFecha(filtered[0].inicio || '');
@@ -123,8 +169,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   }, [selectedCurso, cursos, fechas]);
 
   const resetAll = () => {
-    setStudentForm({ dni: '', apellido: '', nombre: '', email: '', unidadAcademica: '', cargoFuncion: '' });
-    setAltaForm({ fechaNac: '', telPart: '', nivelEstudio: 'Sin dato', titulo: '', area: '', personas: '0', telLab: '', interno: '' });
+    setStudentForm({ ...emptyStudentForm });
     setSearchDni('');
     setSelectedCurso('');
     setSelectedFecha('');
@@ -142,15 +187,26 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       if (docSnap.exists()) {
         const data = docSnap.data();
         setStudentForm({
+          ...emptyStudentForm,
           dni: String(data.dni || searchDni),
           apellido: data.apellido || '',
           nombre: data.nombre || '',
           email: data.email || '',
+          telPart: data.telPart || '',
+          fechaNac: data.fechaNac || '',
+          edad: String(data.edad || ''),
+          nivelEstudio: data.nivelEstudio || 'Sin dato',
+          titulo: data.titulo || '',
           unidadAcademica: data.unidadAcademica || 'Sin dato',
-          cargoFuncion: data.cargoFuncion || ''
+          direccionOficina: data.direccionOficina || (data as any).direccion || '',
+          area: data.area || '',
+          cargoFuncion: data.cargoFuncion || '',
+          personas: String(data.personas ?? '0'),
+          telLab: data.telLab || '',
+          interno: data.interno || ''
         });
       } else {
-        setStudentForm({ dni: '', apellido: '', nombre: '', email: '', unidadAcademica: '', cargoFuncion: '' });
+        setStudentForm({ ...emptyStudentForm });
         setNotFound(true);
         setShowAltaForm(true);
       }
@@ -162,8 +218,32 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
   const handleAltaYInscribir = async () => {
     if (!searchDni || !selectedCurso || !selectedFecha) return;
+    if (!studentForm.apellido || !studentForm.nombre) {
+      await alert({ title: 'Campos incompletos', message: 'Apellido y Nombre son campos requeridos.', variant: 'warning' });
+      return;
+    }
     try {
-      // No se crea registro en 'alumnos' — solo inscripción para control de aprobados
+      // 1. Alta en el padrón 'alumnos' con la ficha completa (igual que en Alumnos)
+      const studentData = {
+        dni: Number(searchDni),
+        apellido: toTitleCase(studentForm.apellido),
+        nombre: toTitleCase(studentForm.nombre),
+        fechaNac: studentForm.fechaNac,
+        edad: Number(studentForm.edad) || 0,
+        telPart: studentForm.telPart,
+        nivelEstudio: studentForm.nivelEstudio,
+        titulo: studentForm.titulo,
+        unidadAcademica: studentForm.unidadAcademica || 'Sin dato',
+        direccionOficina: studentForm.direccionOficina,
+        area: studentForm.area,
+        cargoFuncion: studentForm.cargoFuncion,
+        personas: Number(studentForm.personas) || 0,
+        email: (studentForm.email || '').toLowerCase(),
+        telLab: studentForm.telLab,
+        interno: studentForm.interno
+      };
+      await setDoc(doc(db, 'alumnos', searchDni), studentData);
+      // 2. Inscripción al curso
       const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
       const enrollmentData = {
         dni: Number(searchDni),
@@ -179,9 +259,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         idCurso: courseObj ? courseObj.idCurso : ''
       };
       await addDoc(collection(db, 'inscripciones'), enrollmentData);
-      await logAudit('Inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} — ${selectedCurso} (${selectedFecha})`);
+      await logAudit('Alta e inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} (DNI ${searchDni}) — ${selectedCurso} (${selectedFecha})`);
 
-      await alert({ title: 'Inscripción exitosa', message: 'Inscripto registrado con éxito (sin crear ficha de alumno).', variant: 'success' });
+      await alert({ title: 'Inscripción exitosa', message: 'Alumno registrado en el padrón e inscripto con éxito.', variant: 'success' });
       resetAll();
     } catch (err) {
       console.error(err);
@@ -211,7 +291,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await logAudit('Inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} — ${selectedCurso} (${selectedFecha})`);
       await alert({ title: 'Inscripción exitosa', message: 'Inscripción registrada con éxito.', variant: 'success' });
 
-      setStudentForm({ dni: '', apellido: '', nombre: '', email: '', unidadAcademica: '', cargoFuncion: '' });
+      setStudentForm({ ...emptyStudentForm });
       setSearchDni('');
       setSelectedCurso('');
       setSelectedFecha('');
@@ -281,6 +361,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     setImportLoteProgress({ current: 0, total: parsedLoteData.length, status: 'Iniciando inscripción por lotes...' });
 
     let count = 0;
+    const stats = { created: 0, updated: 0, dupsRemoved: 0 };
+    let skipped = 0;
+    const skippedExamples: string[] = [];
     // Cachés para cursos/fechas creados en este lote (evita duplicados)
     const newCursosMap = new Map<string, any>();
     const newFechasMap = new Map<string, any>();
@@ -339,7 +422,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
         const rawDni = getVal(['dni', 'documento', 'nro doc', 'nro de documento', 'cedula', 'identificacion', 'doc']);
         const dniVal = Number(String(rawDni || '').replace(/\D/g, ''));
-        if (!dniVal) continue;
+        if (!dniVal) { skipped++; if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: sin DNI válido`); continue; }
 
         // Resolver curso/fecha por fila (si el Excel trae Programa/Curso/Fecha se auto-crean)
         const cursoFilaRaw = getVal(['curso', 'nombre del curso', 'nombre curso', 'materia', 'capacitacion']);
@@ -351,7 +434,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const programaFila = programaFilaRaw ? String(programaFilaRaw).trim() : '';
         const fechaInicioFila = parseFechaInicio(fechaFilaRaw) || selectedFecha;
         const cursoEfectivo = cursoNombreFila || selectedCurso;
-        if (!cursoEfectivo || !fechaInicioFila) continue;
+        if (!cursoEfectivo || !fechaInicioFila) { skipped++; if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: DNI ${dniVal} sin curso o fecha de inicio`); continue; }
         const programaEfectivo = programaFila || fallbackCourseObj?.programa || 'Calidad de vida laboral';
         let cursoObjFila: any = null;
         if (programaFila) {
@@ -373,6 +456,22 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           if (!cursoObjFila) {
             for (const v of newCursosMap.values()) {
               if ((v.nombreCompleto || v.curso) === cursoEfectivo && v.programa === programaEfectivo) { cursoObjFila = v; break; }
+            }
+          }
+          if (!cursoObjFila) {
+            // Último intento tolerante: ignora mayúsculas, tildes y espacios para no
+            // duplicar cursos que ya existen con nombre apenas distinto
+            const norm = (s: any) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const targetName = norm(cursoEfectivo);
+            const targetProg = norm(programaFila || programaEfectivo);
+            cursoObjFila = cursos.find((c: any) =>
+              norm(c.nombreCompleto || c.curso) === targetName &&
+              (!programaFila || norm(c.programa) === targetProg || norm(c.programa) === norm('Otros') || !norm(c.programa))
+            ) || null;
+            if (!cursoObjFila) {
+              for (const v of newCursosMap.values()) {
+                if (norm(v.nombreCompleto || v.curso) === targetName) { cursoObjFila = v; break; }
+              }
             }
           }
           if (!cursoObjFila) {
@@ -401,8 +500,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const idCursoValFila = cursoObjFila.idCurso;
         const cursoParaInscripcion = cursoEfectivo;
         const fechaParaInscripcion = fechaInicioFila;
-        // Buscar o crear fecha para ese curso
-        let fechaObjFila: any = fechas.find((f: any) => String(f.idCurso) === String(idCursoValFila) && f.inicio === fechaInicioFila);
+        // Buscar o crear fecha para ese curso (por ID o por nombre, para no duplicar)
+        let fechaObjFila: any = fechas.find((f: any) => (String(f.idCurso) === String(idCursoValFila) || (f.curso || '') === cursoEfectivo) && f.inicio === fechaInicioFila);
         if (!fechaObjFila) {
           const keyFecha = `${idCursoValFila}||${fechaInicioFila}`;
           fechaObjFila = newFechasMap.get(keyFecha) || null;
@@ -496,29 +595,46 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         };
 
         const courseObjForQuery = cursoObjFila;
+        // Buscar TODAS las coincidencias (nombre largo y corto) para pisarlas y
+        // eliminar duplicados: misma persona inscripta 2+ veces al mismo curso+fecha.
+        // El merge conserva campos no incluidos en el Excel (ej. asistencias).
+        const seenIds = new Set<string>();
+        const matchedDocs: any[] = [];
+        const collectSnap = (s: any) => {
+          s.docs.forEach((d: any) => {
+            if (!seenIds.has(d.id)) {
+              seenIds.add(d.id);
+              matchedDocs.push(d);
+            }
+          });
+        };
         const q = query(
           collection(db, 'inscripciones'),
           where('dni', '==', dniVal),
           where('curso', '==', cursoParaInscripcion),
           where('fechaInicio', '==', fechaParaInscripcion)
         );
-        let snap = await getDocs(q);
-        if (snap.empty && courseObjForQuery && courseObjForQuery.curso && courseObjForQuery.curso !== cursoParaInscripcion) {
+        collectSnap(await getDocs(q));
+        if (courseObjForQuery && courseObjForQuery.curso && courseObjForQuery.curso !== cursoParaInscripcion) {
           const qAlt = query(
             collection(db, 'inscripciones'),
             where('dni', '==', dniVal),
             where('curso', '==', courseObjForQuery.curso),
             where('fechaInicio', '==', fechaParaInscripcion)
           );
-          const snapAlt = await getDocs(qAlt);
-          if (!snapAlt.empty) snap = snapAlt;
+          collectSnap(await getDocs(qAlt));
         }
 
-        if (!snap.empty) {
-          const docId = snap.docs[0].id;
-          await setDoc(doc(db, 'inscripciones', docId), enrollmentData, { merge: true });
+        if (matchedDocs.length > 0) {
+          await setDoc(doc(db, 'inscripciones', matchedDocs[0].id), enrollmentData, { merge: true });
+          stats.updated++;
+          for (const extra of matchedDocs.slice(1)) {
+            await deleteDoc(extra.ref);
+            stats.dupsRemoved++;
+          }
         } else {
           await addDoc(collection(db, 'inscripciones'), enrollmentData);
+          stats.created++;
         }
 
         setImportLoteProgress({
@@ -530,8 +646,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
       const creadosCursosMsg = newCursosMap.size ? ` Se crearon ${newCursosMap.size} curso(s) nuevo(s).` : '';
       const creadasFechasMsg = newFechasMap.size ? ` Se crearon ${newFechasMap.size} fecha(s) nueva(s).` : '';
-      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito. Se inscribieron y/o actualizaron ${count} alumnos.${creadosCursosMsg}${creadasFechasMsg}`, variant: 'success' });
-      await logAudit('Inscripción por lotes', `${count} alumnos${creadosCursosMsg}${creadasFechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
+      const statsMsg = `Se procesaron ${count} filas: ${stats.created} altas, ${stats.updated} actualizadas (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados${skipped > 0 ? `, ${skipped} omitidas (sin DNI, curso o fecha válidos${skippedExamples.length > 0 ? ` — ej.: ${skippedExamples.join('; ')}` : ''})` : ''}.`;
+      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${creadosCursosMsg}${creadasFechasMsg}`, variant: 'success' });
+      await logAudit('Inscripción por lotes', `${statsMsg}${creadosCursosMsg}${creadasFechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
       setParsedLoteData([]);
       setWorkbook(null);
       setSheetNames([]);
@@ -544,6 +661,67 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await alert({ title: 'Error en la inscripción', message: `Error durante la inscripción por lotes en la fila ${count}: ${message}`, variant: 'danger' });
     } finally {
       setIsImportingLote(false);
+    }
+  };
+
+  // Exporta TODOS los inscriptos a Excel para revisión/limpieza.
+  // Las columnas coinciden con los alias de importación, por lo que el archivo
+  // puede re-subirse por Lotes: las coincidencias DNI + Curso + Fecha se pisan
+  // (merge: se conservan asistencias y datos no incluidos) y los duplicados se eliminan.
+  const handleExportInscriptos = async () => {
+    setExportingInscriptos(true);
+    try {
+      const snap = await getDocs(collection(db, 'inscripciones'));
+      if (snap.empty) {
+        await alert({ title: 'Sin inscriptos', message: 'No hay inscripciones registradas para exportar.', variant: 'info' });
+        return;
+      }
+      const cursoById = new Map<string, any>();
+      const cursoByName = new Map<string, any>();
+      cursos.forEach((c: any) => {
+        cursoById.set(String(c.idCurso), c);
+        const n = c.nombreCompleto || c.curso;
+        if (n && !cursoByName.has(n)) cursoByName.set(n, c);
+      });
+      const rows = snap.docs.map(d => {
+        const r: any = d.data();
+        const cObj = (r.idCurso !== undefined && r.idCurso !== null && r.idCurso !== '' && cursoById.get(String(r.idCurso)))
+          || cursoByName.get(r.curso)
+          || null;
+        return {
+          dni: r.dni ?? '',
+          apellido: r.apellido || '',
+          nombre: r.nombre || '',
+          programa: cObj?.programa || '',
+          curso: r.curso || '',
+          fechaInicio: r.fechaInicio || '',
+          resultado: r.resultado || 'Cursando',
+          email: r.email || '',
+          unidadAcademica: r.unidadAcademica || '',
+          cargoFuncion: r.cargoFuncion || '',
+          area: r.area || ''
+        };
+      });
+      rows.sort((a, b) =>
+        String(a.curso).localeCompare(String(b.curso)) ||
+        String(a.fechaInicio).localeCompare(String(b.fechaInicio)) ||
+        String(a.apellido).localeCompare(String(b.apellido)) ||
+        String(a.nombre).localeCompare(String(b.nombre))
+      );
+      const today = new Date().toISOString().split('T')[0];
+      downloadExcel(
+        rows,
+        ['DNI', 'Apellido', 'Nombre', 'Programa', 'Curso', 'Fecha de inicio', 'Condición', 'Email', 'Unidad Académica / Dependencia', 'Cargo / Función', 'Área'],
+        ['dni', 'apellido', 'nombre', 'programa', 'curso', 'fechaInicio', 'resultado', 'email', 'unidadAcademica', 'cargoFuncion', 'area'],
+        `inscriptos_todos_${today}.xlsx`
+      );
+      await logAudit('Exportación de inscriptos', `Se exportaron ${rows.length} inscripciones a Excel para revisión/limpieza.`);
+      await alert({ title: 'Exportación completada', message: `Se exportaron ${rows.length} inscripciones.\n\nPuede limpiar el Excel y volver a subirlo por Lotes: las filas que coincidan en DNI + Curso + Fecha de inicio se pisan (se conservan las asistencias ya cargadas) y los registros duplicados se eliminan. No elimine ni renombre columnas.`, variant: 'success' });
+    } catch (err) {
+      console.error('Error exportando inscriptos:', err);
+      await alert({ title: 'Error', message: 'No se pudieron exportar las inscripciones. Intente nuevamente.', variant: 'danger' });
+    } finally {
+      setExportingInscriptos(false);
     }
   };
 
@@ -614,7 +792,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             gap: '6px'
           }}
         >
-          <UserPlus size={16} /> Inscripción Individual
+          <UserPlus size={16} /> Individual
         </button>
         <button
           type="button"
@@ -633,7 +811,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             gap: '6px'
           }}
         >
-          <Upload size={16} /> Inscripción por Lotes
+          <Download size={16} /> Lote x Curso
         </button>
         <button
           type="button"
@@ -653,8 +831,31 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           }}
           title="Para carga masiva de datos antiguos con Programa/Curso/Fecha por fila"
         >
-          <Database size={16} /> Lotes históricos
+          <Database size={16} /> Lote Histórico
         </button>
+        <div style={{ marginLeft: 'auto' }}>
+          <button
+            type="button"
+            className="enroll-mode-btn"
+            onClick={handleExportInscriptos}
+            disabled={isImportingLote || exportingInscriptos}
+            style={{
+              padding: '8px 16px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              color: 'var(--text-secondary)',
+              cursor: (isImportingLote || exportingInscriptos) ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Descargar TODOS los inscriptos a Excel para revisar/limpiar. Al re-subirlo por Lotes, las coincidencias DNI + Curso + Fecha se pisan sin perder asistencias."
+          >
+            <Upload size={16} /> {exportingInscriptos ? 'Exportando...' : 'Exportar inscriptos'}
+          </button>
+        </div>
       </div>
 
       {enrollMode === 'individual' ? (
@@ -676,76 +877,117 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
             {notFound && (
               <div style={{ padding: '12px', marginBottom: '15px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', fontSize: '0.85rem' }}>
-                <strong>DNI no registrado en el padrón.</strong> Podés inscribir igual — no se creará ficha en Alumnos (solo en Inscriptos).
+                <strong>DNI no encontrado.</strong>
               </div>
             )}
 
             {showAltaForm ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div className="form-row">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>DNI</label>
-                    <input type="number" className="form-control" value={searchDni} disabled />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Apellido</label>
-                    <input type="text" className="form-control" value={studentForm.apellido} onChange={e => setStudentForm({ ...studentForm, apellido: e.target.value })} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Nombre</label>
-                    <input type="text" className="form-control" value={studentForm.nombre} onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value })} />
-                  </div>
+                  <FormField
+                    label="DNI"
+                    type="number"
+                    disabled
+                    value={searchDni}
+                  />
+                  <FormField
+                    label="Apellido"
+                    value={studentForm.apellido}
+                    onChange={e => setStudentForm({ ...studentForm, apellido: e.target.value })}
+                  />
+                  <FormField
+                    label="Nombre"
+                    value={studentForm.nombre}
+                    onChange={e => setStudentForm({ ...studentForm, nombre: e.target.value })}
+                  />
+                  <FormField
+                    label="E-mail"
+                    type="email"
+                    value={studentForm.email}
+                    onChange={e => setStudentForm({ ...studentForm, email: e.target.value })}
+                  />
                 </div>
                 <div className="form-row">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Fecha de Nacimiento</label>
-                    <input type="date" className="form-control" value={altaForm.fechaNac} onChange={e => setAltaForm({ ...altaForm, fechaNac: e.target.value })} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Celular</label>
-                    <input type="text" className="form-control" value={altaForm.telPart} onChange={e => setAltaForm({ ...altaForm, telPart: e.target.value })} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Correo Electrónico</label>
-                    <input type="email" className="form-control" value={studentForm.email} onChange={e => setStudentForm({ ...studentForm, email: e.target.value })} />
-                  </div>
+                  <FormField
+                    label="Celular"
+                    value={studentForm.telPart}
+                    onChange={e => setStudentForm({ ...studentForm, telPart: e.target.value })}
+                  />
+                  <FormField
+                    label="Fecha de nacimiento"
+                    type="date"
+                    value={studentForm.fechaNac}
+                    onChange={e => setStudentForm({ ...studentForm, fechaNac: e.target.value })}
+                  />
+                  <FormField
+                    label="Edad"
+                    disabled
+                    value={studentForm.edad}
+                  />
+                  <FormField
+                    label="Estudios"
+                    value={studentForm.nivelEstudio}
+                    onChange={e => setStudentForm({ ...studentForm, nivelEstudio: e.target.value })}
+                    options={[
+                      { value: 'Sin dato', label: '--Seleccionar--' },
+                      { value: 'Primario incompleto', label: 'Primario incompleto' },
+                      { value: 'Primario completo', label: 'Primario completo' },
+                      { value: 'Secundario incompleto', label: 'Secundario incompleto' },
+                      { value: 'Secundario completo', label: 'Secundario completo' },
+                      { value: 'Terciario incompleto', label: 'Terciario incompleto' },
+                      { value: 'Terciario completo', label: 'Terciario completo' },
+                      { value: 'Universitario incompleto', label: 'Universitario incompleto' },
+                      { value: 'Universitario completo', label: 'Universitario completo' },
+                    ]}
+                  />
                 </div>
                 <div className="form-row">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Nivel de Estudio</label>
-                    <select className="form-control" value={altaForm.nivelEstudio} onChange={e => setAltaForm({ ...altaForm, nivelEstudio: e.target.value })}>
-                      <option value="Sin dato">Sin dato</option>
-                      <option value="Primario completo">Primario completo</option>
-                      <option value="Secundario completo">Secundario completo</option>
-                      <option value="Terciario completo">Terciario completo</option>
-                      <option value="Universitario incompleto">Universitario incompleto</option>
-                      <option value="Universitario completo">Universitario completo</option>
-                    </select>
-                  </div>
+                  <FormField
+                    label="Título obtenido"
+                    value={studentForm.titulo}
+                    onChange={e => setStudentForm({ ...studentForm, titulo: e.target.value })}
+                  />
                   <FormField
                     label="Sec. Rectorado/UA"
                     value={studentForm.unidadAcademica}
                     onChange={e => setStudentForm({ ...studentForm, unidadAcademica: e.target.value })}
                     options={secOptions}
                   />
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Cargo / Función</label>
-                    <input type="text" className="form-control" value={studentForm.cargoFuncion} onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })} />
-                  </div>
+                  <FormField
+                    label="Dirección u Oficina"
+                    value={studentForm.direccionOficina}
+                    onChange={e => setStudentForm({ ...studentForm, direccionOficina: e.target.value })}
+                    placeholder="Ej: Centro de Capacitación"
+                  />
+                  <FormField
+                    label="Área de trabajo"
+                    value={studentForm.area}
+                    onChange={e => setStudentForm({ ...studentForm, area: e.target.value })}
+                  />
                 </div>
                 <div className="form-row">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Área de Trabajo</label>
-                    <input type="text" className="form-control" value={altaForm.area} onChange={e => setAltaForm({ ...altaForm, area: e.target.value })} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Personas a Cargo</label>
-                    <input type="number" className="form-control" value={altaForm.personas} onChange={e => setAltaForm({ ...altaForm, personas: e.target.value })} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Teléfono Laboral</label>
-                    <input type="text" className="form-control" value={altaForm.telLab} onChange={e => setAltaForm({ ...altaForm, telLab: e.target.value })} />
-                  </div>
+                  <FormField
+                    label="Cargo o Función"
+                    value={studentForm.cargoFuncion}
+                    onChange={e => setStudentForm({ ...studentForm, cargoFuncion: e.target.value })}
+                    options={cargoOptions}
+                  />
+                  <FormField
+                    label="Personal a cargo"
+                    type="number"
+                    value={studentForm.personas}
+                    onChange={e => setStudentForm({ ...studentForm, personas: e.target.value })}
+                  />
+                  <FormField
+                    label="Teléfono laboral"
+                    value={studentForm.telLab}
+                    onChange={e => setStudentForm({ ...studentForm, telLab: e.target.value })}
+                  />
+                  <FormField
+                    label="Interno"
+                    value={studentForm.interno}
+                    onChange={e => setStudentForm({ ...studentForm, interno: e.target.value })}
+                  />
                 </div>
               </div>
             ) : studentForm.dni ? (
@@ -799,7 +1041,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
               >
                 <option value="">-- Seleccione Fecha --</option>
                 {fechasFiltradas.map((f, i) => (
-                  <option key={i} value={f.inicio}>{f.inicio}</option>
+                  <option key={i} value={f.inicio}>{formatDateAR(f.inicio)}</option>
                 ))}
               </select>
             </div>
@@ -812,7 +1054,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                 onClick={handleAltaYInscribir}
                 disabled={!searchDni || !studentForm.apellido || !studentForm.nombre || !selectedCurso || !selectedFecha}
               >
-                <UserPlus size={16} /> Inscribir (sin alta en padrón)
+                <UserPlus size={16} /> Guardar datos e inscribir
               </button>
             ) : (
               <button

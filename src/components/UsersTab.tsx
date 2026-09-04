@@ -5,6 +5,7 @@ import { db, auth } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { UserPlus, UserCog, ShieldCheck, ShieldOff, RefreshCw, History, Pencil, X, Save, Key, Trash2 } from 'lucide-react';
 import { useModal } from './ModalProvider';
+import { formatDateTimeAR } from '../utils/dateAR';
 
 interface UsuarioDoc {
   id: string;
@@ -190,12 +191,7 @@ export const UsersTab: React.FC = () => {
     }
   };
 
-  const formatFecha = (f: any) => {
-    if (!f) return '—';
-    if (typeof f === 'string') return new Date(f).toLocaleString('es-AR');
-    if (f.toDate) return f.toDate().toLocaleString('es-AR');
-    return '—';
-  };
+  const formatFecha = (f: any) => formatDateTimeAR(f);
 
   return (
     <div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { Settings, Trash2, Upload, Database, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Settings, Trash2, Download, Database, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ImportModal } from './ImportModal';
 import { useModal } from './ModalProvider';
 
@@ -130,7 +130,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
         {/* Bloque 1: Carga e Importación Individual */}
         <div className="details-box" style={{ background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--border-card)', padding: '24px' }}>
           <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.15rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Upload size={20} color="var(--primary)" /> Importar / Cargar Tablas (Excel / CSV)
+            <Download size={20} color="var(--primary)" /> Importar / Cargar Tablas (Excel / CSV)
           </h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
             Selecciona la tabla que deseas cargar o actualizar individualmente mediante un archivo Excel (.xlsx) o CSV.
@@ -142,7 +142,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
               style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', height: '46px', margin: 0 }}
               onClick={() => openImport('alumnos')}
             >
-              <Upload size={16} color="var(--primary)" /> Cargar Alumnos
+              <Download size={16} color="var(--primary)" /> Cargar Alumnos
             </button>
 
             <button
@@ -150,7 +150,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
               style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', height: '46px', margin: 0 }}
               onClick={() => openImport('inscripciones')}
             >
-              <Upload size={16} color="var(--success)" /> Cargar Inscritos
+              <Download size={16} color="var(--success)" /> Cargar Inscritos
             </button>
 
             <button
@@ -158,7 +158,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
               style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', height: '46px', margin: 0 }}
               onClick={() => openImport('cursos')}
             >
-              <Upload size={16} color="#06B6D4" /> Cargar Cursos
+              <Download size={16} color="#06B6D4" /> Cargar Cursos
             </button>
 
             <button
@@ -166,7 +166,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ currentUserEmail, onRefres
               style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', height: '46px', margin: 0 }}
               onClick={() => openImport('fechas')}
             >
-              <Upload size={16} color="#F59E0B" /> Cargar Fechas
+              <Download size={16} color="#F59E0B" /> Cargar Fechas
             </button>
           </div>
         </div>

@@ -6,12 +6,11 @@ import { logAudit } from '../utils/audit';
 import { downloadCSV } from '../utils/csv';
 import { downloadExcel } from '../utils/excel';
 import { formatDateAR } from '../utils/dateAR';
-import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2, HelpCircle, Check, FileCheck } from 'lucide-react';
+import { Download, Search, FileSpreadsheet, Calendar, UserCheck, ArrowUpDown, Trash2, FileText, Printer, Upload, Eye, X, MessageSquare, AlertCircle, CheckCircle2, Check } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
 import { useModal } from './ModalProvider';
-import { generateConstanciaAsistenciaPDF } from '../utils/constanciaPDF';
 
 interface AttendanceTabProps {
   cursos: any[];
@@ -119,7 +118,19 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
     if (asistenciaCurso) {
       const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === asistenciaCurso);
       if (courseObj) {
-        const filtered = fechas.filter(f => String(f.idCurso) === String(courseObj.idCurso));
+        // Incluye fechas cuyo idCurso coincida o cuyo nombre de curso coincida
+        // (cubre fechas creadas por lote histórico bajo un ID duplicado)
+        const courseName = courseObj.nombreCompleto || courseObj.curso;
+        const seen = new Set<string>();
+        const filtered = fechas.filter(f => {
+          if (String(f.idCurso) === String(courseObj.idCurso) || (f.curso || '') === courseName) {
+            const key = f.id || `${f.idCurso}||${f.curso}||${f.inicio}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }
+          return false;
+        });
         setAsistenciaFechasFiltradas(filtered);
         if (filtered.length > 0) {
           setAsistenciaFecha(filtered[0].inicio || '');
@@ -767,9 +778,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
               <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                 <Calendar size={18} /> Fechas de Clases Dictadas ({totalClases} clases)
               </h4>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Asigná la fecha en la que se dictó cada clase
-              </span>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table className="listbox-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
@@ -859,12 +867,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
                   {(certificadoFecha || currentFechaObj?.certificado) ? (
                     <span>Certificado: <span style={{ color: 'light-dark(#003876, #E8BC00)', fontWeight: 600 }}>{formatDateAR(certificadoFecha || currentFechaObj.certificado)}</span></span>
                   ) : null}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button onClick={() => alert({ title: 'Fechas de clases', message: 'Registrá la fecha de cada clase en la tabla superior para indicar cuándo fue dictada. Las clases con fecha registrada se consideran dictadas y se cuentan para las inasistencias.', variant: 'info' })} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="Ayuda sobre fechas de clases">
-                    <HelpCircle size={16} color="#E8BC00" />
-                  </button>
                 </div>
               </div>
             </div>
@@ -1036,28 +1038,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas }) 
 
                       <td data-label="Acciones" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => {
-                              generateConstanciaAsistenciaPDF({
-                                alumno: {
-                                  nombre: item.nombre,
-                                  apellido: item.apellido,
-                                  dni: item.dni
-                                },
-                                curso: asistenciaCurso,
-                                fechaInicio: asistenciaFecha,
-                                cantidadClases: totalClases,
-                                fechasClases: fechasClases,
-                                asistencias: item.asistencias || {}
-                              });
-                            }}
-                            style={{ padding: 0, margin: 0, width: '30px', height: '30px', minHeight: '30px', minWidth: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
-                            title={`Emitir Constancia de Asistencia para ${item.nombre} ${item.apellido}`}
-                          >
-                            <FileCheck size={14} />
-                          </button>
                           <button
                             type="button"
                             className="btn-danger"

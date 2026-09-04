@@ -42,9 +42,6 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
         const snapStud = await getDoc(doc(db, 'alumnos', searchVal.trim()));
         if (snapStud.exists()) studentObj = snapStud.data();
       }
-      if (studentObj) {
-        setAlumnoSelected(studentObj);
-      }
 
       const qInsc = query(collection(db, 'inscripciones'), where('dni', '==', Number(searchVal)));
       const snapInsc = await getDocs(qInsc);
@@ -85,6 +82,28 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
       });
 
       setHistorialAlumno(fullHistory);
+
+      // Fallback: si no hay ficha en 'alumnos' (inscripción sin padrón),
+      // derivar los datos del encabezado desde la primera inscripción
+      const firstInsc: any = listInsc[0];
+      if (!studentObj && firstInsc) {
+        studentObj = {
+          apellido: firstInsc.apellido || '',
+          nombre: firstInsc.nombre || '',
+          dni: firstInsc.dni ?? String(searchVal).trim(),
+          email: firstInsc.email || '',
+          unidadAcademica: firstInsc.unidadAcademica || '',
+        };
+      } else if (studentObj && firstInsc) {
+        if (!studentObj.email && firstInsc.email) studentObj = { ...studentObj, email: firstInsc.email };
+        if (!studentObj.unidadAcademica && firstInsc.unidadAcademica) studentObj = { ...studentObj, unidadAcademica: firstInsc.unidadAcademica };
+        if (!studentObj.apellido && firstInsc.apellido) studentObj = { ...studentObj, apellido: firstInsc.apellido };
+        if (!studentObj.nombre && firstInsc.nombre) studentObj = { ...studentObj, nombre: firstInsc.nombre };
+        if (!studentObj.dni && firstInsc.dni) studentObj = { ...studentObj, dni: firstInsc.dni };
+      }
+      if (studentObj) {
+        setAlumnoSelected(studentObj);
+      }
     } catch (err) {
       console.error(err);
       await alert({ title: 'Error', message: 'No se pudo consultar el historial del alumno. Intente nuevamente.', variant: 'danger' });
@@ -101,8 +120,8 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
     const estado = (item.resultado || 'Cursando').trim().toLowerCase();
     if (!estado.includes('aprob')) {
       await alert({
-        title: 'Certificado no disponible',
-        message: 'No se puede emitir Certificado: la condición del alumno es Cursando. El certificado solo se emite para alumnos Aprobados.',
+        title: 'Constancia no disponible',
+        message: 'No se puede emitir la constancia: la condición del alumno es Cursando. La constancia de aprobación solo se emite para alumnos Aprobados.',
         variant: 'warning'
       });
       return;
@@ -112,19 +131,8 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
       ? `${alumnoSelected.apellido}, ${alumnoSelected.nombre}`
       : 'el alumno';
     await alert({
-      title: 'Emitir Certificado',
-      message: `Emisión de Certificado de Aprobación para ${studentName} en el curso "${item.curso}".\n\n(A la espera del modelo oficial de certificado).`,
-      variant: 'info'
-    });
-  };
-
-  const handleEmitirConstancia = async (item: any) => {
-    const studentName = alumnoSelected
-      ? `${alumnoSelected.apellido}, ${alumnoSelected.nombre}`
-      : 'el alumno';
-    await alert({
       title: 'Constancia de Aprobación',
-      message: `Emisión de Constancia de Aprobación para ${studentName} en el curso "${item.curso}".\n\n(A la espera del modelo oficial de constancia).`,
+      message: `Emitir de Constancia de Aprobación para ${studentName} en el curso "${item.curso}".\n\n.`,
       variant: 'info'
     });
   };
@@ -199,7 +207,7 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
 
       {alumnoSelected && (
         <div className="details-box" style={{ marginBottom: '20px', background: 'rgba(255, 255, 255, 0.02)' }}>
-          <h3>Alumno: {alumnoSelected.apellido}, {alumnoSelected.nombre}</h3>
+          <h3>{alumnoSelected.apellido}, {alumnoSelected.nombre}</h3>
           <p style={{ margin: '5px 0', color: 'var(--text-secondary)' }}>
             <strong>DNI:</strong> {alumnoSelected.dni} | <strong>Email:</strong> {alumnoSelected.email || '—'} | <strong>Sec. Rectorado/UA:</strong> {alumnoSelected.unidadAcademica || '—'}
           </p>
@@ -226,86 +234,86 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
                 const isCursando = estado.includes('cursan');
 
                 return (
-                <tr key={item.id || idx}>
-                  <td data-label="Curso">{cursoNombre}</td>
-                  <td data-label="Fecha Inicio">{formatDateAR(item.fechaInicio)}</td>
-                  <td data-label="Certificado">{formatDateAR(item.certificado)}</td>
-                  <td data-label="Estado">
-                    <span className={`badge badge-${(item.resultado || 'cursando').toLowerCase().replace('ó', 'o')}`}>
-                      {item.resultado || 'Cursando'}
-                    </span>
-                  </td>
-                  <td data-label="Acciones" style={{ textAlign: 'center' }}>
-                    {isAprobado && (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            padding: 0,
-                            margin: 0,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '6px'
-                          }}
-                          onClick={() => handleEmitirCertificado(item)}
-                          title="Emitir Certificado de Aprobación"
-                          aria-label="Emitir Certificado de Aprobación"
-                        >
-                          <Award size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            padding: 0,
-                            margin: 0,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '6px'
-                          }}
-                          onClick={() => handleEmitirConstancia(item)}
-                          title="Emitir Constancia de Aprobación"
-                          aria-label="Emitir Constancia de Aprobación"
-                        >
-                          <FileCheck size={17} />
-                        </button>
-                      </div>
-                    )}
-                    {isCursando && (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            padding: 0,
-                            margin: 0,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '6px'
-                          }}
-                          onClick={() => handlePlanillaAsistencia(item)}
-                          title="Emitir Constancia de Asistencia (No emite certificado por estar Cursando)"
-                          aria-label="Emitir Constancia de Asistencia con fechas asistidas"
-                        >
-                          <FileCheck size={17} />
-                        </button>
-                      </div>
-                    )}
-                    {!isAprobado && !isCursando && (
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>—</span>
-                    )}
-                  </td>
-                </tr>
+                  <tr key={item.id || idx}>
+                    <td data-label="Curso">{cursoNombre}</td>
+                    <td data-label="Fecha Inicio">{formatDateAR(item.fechaInicio)}</td>
+                    <td data-label="Certificado">{formatDateAR(item.certificado)}</td>
+                    <td data-label="Estado">
+                      <span className={`badge badge-${(item.resultado || 'cursando').toLowerCase().replace('ó', 'o')}`}>
+                        {item.resultado || 'Cursando'}
+                      </span>
+                    </td>
+                    <td data-label="Acciones" style={{ textAlign: 'center' }}>
+                      {isAprobado && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              padding: 0,
+                              margin: 0,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '6px'
+                            }}
+                            onClick={() => handleEmitirCertificado(item)}
+                            title="Emitir Constancia de Aprobación"
+                            aria-label="Emitir Constancia de Aprobación"
+                          >
+                            <Award size={17} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              padding: 0,
+                              margin: 0,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '6px'
+                            }}
+                            onClick={() => handlePlanillaAsistencia(item)}
+                            title="Emitir Constancia de Asistencia"
+                            aria-label="Emitir Constancia de Asistencia con fechas asistidas"
+                          >
+                            <FileCheck size={17} />
+                          </button>
+                        </div>
+                      )}
+                      {isCursando && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              padding: 0,
+                              margin: 0,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '6px'
+                            }}
+                            onClick={() => handlePlanillaAsistencia(item)}
+                            title="Emitir Constancia de Asistencia"
+                            aria-label="Emitir Constancia de Asistencia con fechas asistidas"
+                          >
+                            <FileCheck size={17} />
+                          </button>
+                        </div>
+                      )}
+                      {!isAprobado && !isCursando && (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>—</span>
+                      )}
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>

@@ -382,7 +382,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                   <GraduationCap size={22} color="currentColor" /> Gestión de Alumnos             </>
               ) : (
                 <>
-                  <Search size={22} color="currentColor" /> Cursos por Alumno
+                  <Search size={22} color="currentColor" /> Historial de capacitaciones por alumno
                 </>
               )}
             </h2>
@@ -479,7 +479,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     <Plus size={15} /> Nuevo Alumno
                   </button>
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => setShowImportModal(true)}>
-                    <Upload size={15} /> Importar
+                    <Download size={15} /> Importar
                   </button>
                   <button className="btn-secondary" style={{ margin: 0, padding: '7px 11px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.825rem', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto' }} onClick={() => {
                     downloadExcel(
@@ -489,7 +489,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                       `alumnos_export_${new Date().toISOString().slice(0, 10)}.xlsx`
                     );
                   }}>
-                    <Download size={15} /> Exportar ({alumnos.length})
+                    <Upload size={15} /> Exportar ({alumnos.length})
                   </button>
                 </div>
 
@@ -758,7 +758,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 </div>
 
                 <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
-                  Consulta e historial de cursos por alumno
+                  Consulta e Historial de capacitaciones por alumno
                 </p>
               </div>
 

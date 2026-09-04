@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { Save, Megaphone, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Save, Megaphone, Download, X, Image as ImageIcon } from 'lucide-react';
 import { useModal } from './ModalProvider';
 
 export const NewsTab: React.FC = () => {
@@ -146,7 +146,7 @@ export const NewsTab: React.FC = () => {
                   ) : (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', marginBottom: '6px' }}>
                       <label className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0, padding: '6px 12px', fontSize: '0.8rem' }}>
-                        <Upload size={14} /> Subir Imagen
+                        <Download size={14} /> Subir Imagen
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleImageFileChange(idx, e)} />
                       </label>
                     </div>

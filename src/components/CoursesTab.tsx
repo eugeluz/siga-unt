@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { FormField } from './FormField';
 import { logAudit } from '../utils/audit';
 import { formatDateAR } from '../utils/dateAR';
-import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, Upload, FileText, X, Download, Pencil, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Plus, Save, Trash2, BookOpen, Calendar, Eye, EyeOff, FileText, X, Download, Pencil, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
 
@@ -235,18 +235,34 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
     }
   };
 
-  const loadDatesForCourse = async (idCurso: number) => {
-    const q = query(collection(db, 'fechas'), where('idCurso', '==', idCurso));
-    const snap = await getDocs(q);
-    const dates = snap.docs
-      .map(d => ({ id: d.id, ...(d.data() as any) }))
+  const loadDatesForCourse = (course: any) => {
+    if (!course) {
+      setCourseDates([]);
+      return;
+    }
+    // Filtra en memoria (tolera idCurso numérico o texto) e incluye fechas cuyo
+    // nombre de curso coincida (cubre fechas de lote histórico bajo un ID duplicado)
+    const idStr = String(course.idCurso);
+    const name = course.nombreCompleto || course.curso;
+    const seen = new Set<string>();
+    const dates = fechas
+      .filter((f: any) => {
+        if (String(f.idCurso) === idStr || (f.curso || '') === name) {
+          const key = f.id || `${f.idCurso}||${f.curso}||${f.inicio}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }
+        return false;
+      })
+      .map((d: any) => ({ ...d }))
       .sort((a: any, b: any) => (a.inicio || '').localeCompare(b.inicio || ''));
     setCourseDates(dates);
   };
 
   const openDatesModal = async (course: any) => {
     setSelectedCourseForDates(course);
-    await loadDatesForCourse(course.idCurso);
+    loadDatesForCourse(course);
     setDateForm({ inicio: '', certificado: '' });
     setShowDatesModal(true);
   };
@@ -254,14 +270,16 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
   const handleAddDate = async () => {
     if (!dateForm.inicio || !selectedCourseForDates) return;
     try {
-      await addDoc(collection(db, 'fechas'), {
+      const ref = await addDoc(collection(db, 'fechas'), {
         idCurso: selectedCourseForDates.idCurso,
         curso: selectedCourseForDates.curso,
         inicio: dateForm.inicio,
         certificado: dateForm.certificado || ''
       });
       setDateForm({ inicio: '', certificado: '' });
-      await loadDatesForCourse(selectedCourseForDates.idCurso);
+      // Actualización local inmediata (la suscripción sincronizará el resto)
+      const added = { id: ref.id, idCurso: selectedCourseForDates.idCurso, curso: selectedCourseForDates.curso, inicio: dateForm.inicio, certificado: dateForm.certificado || '' };
+      setCourseDates(prev => [...prev, added].sort((a: any, b: any) => (a.inicio || '').localeCompare(b.inicio || '')));
       await alert({ title: 'Fecha agregada', message: 'Fecha agregada con éxito.', variant: 'success' });
     } catch (err) {
       console.error(err);
@@ -451,7 +469,7 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    <Upload size={16} color="var(--accent)" />
+                    <Download size={16} color="var(--accent)" />
                     {form.plan ? 'Cambiar PDF' : 'Subir PDF'}
                     <input
                       type="file"
