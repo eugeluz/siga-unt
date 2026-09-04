@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { FormField } from './FormField';
 import { ImportModal } from './ImportModal';
-import { Download, Plus, Upload, Save, UserPlus, Search, GraduationCap, FileText, ChevronRight, Trash2 } from 'lucide-react';
+import { Download, Plus, Upload, Save, UserPlus, User, Search, FileText, ChevronRight, Trash2 } from 'lucide-react';
 import { downloadExcel } from '../utils/excel';
 import { StudentHistoryTab } from './StudentHistoryTab';
 import { useModal } from './ModalProvider';
@@ -362,6 +362,10 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
     <div className="alumnos-institucional">
       {currentSubTab !== 'inicio' ? (
         <div style={{ marginBottom: '24px' }}>
+          {currentSubTab === 'historial' ? (
+            <StudentHistoryTab alumnos={alumnos} cursos={cursos} fechas={fechas} defaultDni={studentForm.dni} />
+          ) : (
+            <>
           {/* Cabecera — mismo color que la pantalla principal (caja-titulo-principal) */}
           <div
             className="caja-titulo-principal"
@@ -377,20 +381,11 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
             }}
           >
             <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {currentSubTab === 'alta' ? (
-                <>
-                  <GraduationCap size={22} color="currentColor" /> Gestión de Alumnos             </>
-              ) : (
-                <>
-                  <Search size={22} color="currentColor" /> Historial de capacitaciones por alumno
-                </>
-              )}
+              <>
+                <User size={22} color="currentColor" /> Gestión de Alumnos             </>
             </h2>
           </div>
 
-          {currentSubTab === 'historial' ? (
-            <StudentHistoryTab alumnos={alumnos} cursos={cursos} fechas={fechas} defaultDni={studentForm.dni} />
-          ) : (
             <div>
 
               <div className="details-box">
@@ -622,13 +617,14 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                 </div>
               </div>
             </div>
+            </>
           )}
         </div>
       ) : (
         /* Vista de inicio con 2 cajitas — caja institucional (gris claro en light, azul en dark) */
         <div className="caja-titulo-principal">
           <h2 className="section-title" style={{ marginBottom: '16px' }}>
-            <GraduationCap size={24} color="currentColor" /> Gestión de Alumnos
+            <User size={24} color="currentColor" /> Gestión de Alumnos
           </h2>
           <div
             style={{
@@ -683,7 +679,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ facultades
                     border: '1px solid #cbd5e1'
                   }}
                 >
-                  <GraduationCap size={36} color="#003876" />
+                  <User size={36} color="#003876" />
                 </div>
 
                 <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>

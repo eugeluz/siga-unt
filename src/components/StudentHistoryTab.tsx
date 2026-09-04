@@ -169,36 +169,37 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
 
   return (
     <div>
-      <div className="details-box" style={{ marginBottom: '25px', padding: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', gap: '16px', maxWidth: '650px', width: '100%' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <input
-              type="number"
-              className="form-control"
-              placeholder="Ingresar el DNI del alumno..."
-              value={consultaDni}
-              onChange={e => setConsultaDni(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSearchClick(); }}
-              style={{ width: '100%', height: '44px', fontSize: '0.95rem' }}
-            />
-          </div>
+      <div className="caja-titulo-principal" style={{ marginBottom: '20px', padding: '14px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 auto' }}>
+          <Search size={22} color="currentColor" /> Historial de capacitaciones por alumno
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 1 340px', minWidth: '220px' }}>
+          <input
+            type="number"
+            className="form-control"
+            placeholder="Ingresar el DNI del alumno..."
+            value={consultaDni}
+            onChange={e => setConsultaDni(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSearchClick(); }}
+            style={{ flex: 1, minWidth: 0, height: '42px', fontSize: '0.95rem', margin: 0 }}
+          />
           <button
             className="btn-primary"
             style={{
               margin: 0,
-              height: '44px',
+              height: '42px',
+              width: '42px',
+              minWidth: '42px',
+              padding: 0,
               display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              whiteSpace: 'nowrap',
-              padding: '0 24px',
-              fontSize: '0.95rem',
-              fontWeight: 600
+              justifyContent: 'center'
             }}
             onClick={handleSearchClick}
+            title="Buscar"
+            aria-label="Buscar"
           >
-            <Search size={18} /> Consultar Historial
+            <Search size={18} />
           </button>
         </div>
       </div>
@@ -207,7 +208,7 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
 
       {alumnoSelected && (
         <div className="details-box" style={{ marginBottom: '20px', background: 'rgba(255, 255, 255, 0.02)' }}>
-          <h3>{alumnoSelected.apellido}, {alumnoSelected.nombre}</h3>
+          <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 400 }}>{alumnoSelected.apellido}, {alumnoSelected.nombre}</h3>
           <p style={{ margin: '5px 0', color: 'var(--text-secondary)' }}>
             <strong>DNI:</strong> {alumnoSelected.dni} | <strong>Email:</strong> {alumnoSelected.email || '—'} | <strong>Sec. Rectorado/UA:</strong> {alumnoSelected.unidadAcademica || '—'}
           </p>
