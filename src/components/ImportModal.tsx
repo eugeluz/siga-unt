@@ -112,8 +112,47 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     setImportProgress({ current: 0, total: parsedData.length, status: 'Iniciando importación...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0 };
     try {
+      // Cargar cursos existentes para verificar coincidencias, evitar duplicados y sincronizar resoluciones
+      const cursosSnap = await getDocs(collection(db, 'cursos'));
+      const cachedCursos: Array<{
+        id: string; // docId
+        idCurso: number;
+        curso: string;
+        nombreCompleto?: string;
+        resolucion?: string;
+        [key: string]: any;
+      }> = cursosSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+
+      const matchCurso = (nameOrId: { idCurso?: number; nombre?: string }) => {
+        if (nameOrId.idCurso) {
+          const byId = cachedCursos.find(c => Number(c.idCurso) === Number(nameOrId.idCurso));
+          if (byId) return byId;
+        }
+        if (nameOrId.nombre) {
+          const raw = nameOrId.nombre.trim();
+          const norm = normalizeKey(raw);
+          if (!norm) return undefined;
+
+          // 1. Coincidencia exacta insensible a mayúsculas
+          const exact = cachedCursos.find(c =>
+            (c.curso && c.curso.trim().toLowerCase() === raw.toLowerCase()) ||
+            (c.nombreCompleto && c.nombreCompleto.trim().toLowerCase() === raw.toLowerCase())
+          );
+          if (exact) return exact;
+
+          // 2. Coincidencia normalizada sin tildes ni símbolos
+          const normMatch = cachedCursos.find(c => {
+            const cNorm = normalizeKey(c.curso || '');
+            const ncNorm = normalizeKey(c.nombreCompleto || '');
+            return (cNorm && cNorm === norm) || (ncNorm && ncNorm === norm);
+          });
+          if (normMatch) return normMatch;
+        }
+        return undefined;
+      };
+
       for (const row of parsedData) {
         count++;
         const getVal = (aliases: string[]) => getRowVal(row, aliases);
@@ -188,11 +227,50 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
 
           await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
         } else if (importType === 'inscripciones') {
-          const insData = {
+          const rawCurso = String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim();
+          const rawRes = String(getVal([
+            'resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución',
+            'numero resolucion', 'resolucion nro', 'resolucion n', 'resolucion del curso',
+            'resolución del curso', 'res.', 'res. nro', 'expediente', 'expdte'
+          ]) || '').trim();
+          const rawIdCurso = getVal(['idcurso', 'id_curso', 'id curso', 'id']);
+          const idCursoVal = rawIdCurso ? Number(rawIdCurso) : undefined;
+
+          // Sincronización con tabla Cursos:
+          // Si el curso ya existe, NO crear uno nuevo: ponerle la resolución que figura en este lote.
+          let matchedCurso = matchCurso({ idCurso: idCursoVal, nombre: rawCurso });
+          if (rawCurso) {
+            if (matchedCurso) {
+              if (rawRes && matchedCurso.resolucion !== rawRes) {
+                await setDoc(doc(db, 'cursos', matchedCurso.id), { resolucion: rawRes }, { merge: true });
+                matchedCurso.resolucion = rawRes;
+                stats.cursosUpdated++;
+              }
+            } else if (rawRes) {
+              // Si el curso no existía previamente, se crea uno solo con la resolución del lote
+              const maxId = cachedCursos.length > 0 ? Math.max(...cachedCursos.map(c => Number(c.idCurso) || 0), 0) : 0;
+              const newId = idCursoVal || (maxId + 1);
+              const newCursoObj = {
+                idCurso: newId,
+                curso: rawCurso,
+                nombreCompleto: rawCurso,
+                programa: '',
+                cargaHoraria: '',
+                resolucion: rawRes,
+                showOnLanding: true
+              };
+              await setDoc(doc(db, 'cursos', String(newId)), newCursoObj);
+              matchedCurso = { id: String(newId), ...newCursoObj };
+              cachedCursos.push(matchedCurso);
+              stats.cursosCreated++;
+            }
+          }
+
+          const insData: any = {
             dni: dniVal,
             apellido: toTitleCase(String(getVal(['apellido', 'apellidos', 'surname', 'last name']) || '').trim()),
             nombre: toTitleCase(String(getVal(['nombre', 'nombres', 'name', 'first name']) || '').trim()),
-            curso: String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim(),
+            curso: rawCurso,
             fechaInicio: excelDateToJSDate(getVal(['fecha inicio', 'fecha', 'inicio', 'fechainicio', 'fecha de inicio']) || ''),
             resultado: String(getVal(['resultado', 'estado', 'condicion', 'situacion']) || 'Cursando').trim(),
             email: String(getVal(['email', 'correo', 'mail', 'e-mail', 'correo electronico', 'e mail']) || '').toLowerCase().trim(),
@@ -206,6 +284,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             ]) || ''),
             ua: String(getVal(['ua', 'idcurso']) || '')
           };
+
+          if (matchedCurso) {
+            insData.idCurso = matchedCurso.idCurso;
+          }
+          if (rawRes) {
+            insData.resolucion = rawRes;
+          }
 
           if (insData.dni && insData.curso && insData.fechaInicio) {
             const q = query(
@@ -233,18 +318,53 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             stats.created++;
           }
         } else if (importType === 'cursos') {
-          const idCursoVal = Number(getVal(['idcurso', 'id', 'id_curso']) || count);
-          const cursoData: any = {
-            idCurso: idCursoVal,
-            curso: String(getVal(['curso', 'nombre', 'nombre curso', 'nombre corto']) || '').trim(),
-            nombreCompleto: String(getVal(['nombre completo', 'nombrecompleto', 'nombre largo', 'titulo completo', 'nombre curso completo']) || '').trim(),
-            programa: String(getVal(['programa', 'area']) || '').trim(),
-            cargaHoraria: String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs', 'cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'clases', 'numero de clases', 'nro clases']) || '').trim(),
-            resolucion: String(getVal(['resolucion', 'resolución', 'res']) || '').trim(),
-            showOnLanding: true
-          };
-          if (cursoData.curso) {
-            await setDoc(doc(db, 'cursos', String(idCursoVal)), cursoData, { merge: true });
+          const rawIdCurso = getVal(['idcurso', 'id', 'id_curso', 'id curso']);
+          const idCursoVal = rawIdCurso ? Number(rawIdCurso) : undefined;
+          const cursoNombre = String(getVal(['curso', 'nombre', 'nombre curso', 'nombre corto']) || '').trim();
+          const nombreCompleto = String(getVal(['nombre completo', 'nombrecompleto', 'nombre largo', 'titulo completo', 'nombre curso completo']) || cursoNombre).trim();
+          const resolucionVal = String(getVal([
+            'resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución',
+            'numero resolucion', 'resolucion nro', 'resolucion n', 'resolucion del curso',
+            'resolución del curso', 'res.', 'res. nro', 'expediente', 'expdte'
+          ]) || '').trim();
+
+          const targetName = cursoNombre || nombreCompleto;
+          if (targetName) {
+            const existing = matchCurso({ idCurso: idCursoVal, nombre: targetName });
+            if (existing) {
+              // Si el curso ya existe: NO CREAR UNO NUEVO, actualizar la resolución y datos del lote
+              const updateData: any = {};
+              if (resolucionVal) updateData.resolucion = resolucionVal;
+              const prog = String(getVal(['programa', 'area']) || '').trim();
+              if (prog) updateData.programa = prog;
+              const carga = String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs', 'cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'clases', 'numero de clases', 'nro clases']) || '').trim();
+              if (carga) updateData.cargaHoraria = carga;
+              if (nombreCompleto && nombreCompleto !== existing.nombreCompleto) {
+                updateData.nombreCompleto = nombreCompleto;
+              }
+
+              if (Object.keys(updateData).length > 0) {
+                await setDoc(doc(db, 'cursos', existing.id), updateData, { merge: true });
+                if (resolucionVal) existing.resolucion = resolucionVal;
+                stats.cursosUpdated++;
+              }
+            } else {
+              // Si el curso no existe, crearlo asignando nuevo ID único
+              const maxId = cachedCursos.length > 0 ? Math.max(...cachedCursos.map(c => Number(c.idCurso) || 0), 0) : 0;
+              const newId = idCursoVal || (maxId + 1);
+              const cursoData: any = {
+                idCurso: newId,
+                curso: cursoNombre || nombreCompleto,
+                nombreCompleto: nombreCompleto || cursoNombre,
+                programa: String(getVal(['programa', 'area']) || '').trim(),
+                cargaHoraria: String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs', 'cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'clases', 'numero de clases', 'nro clases']) || '').trim(),
+                resolucion: resolucionVal,
+                showOnLanding: true
+              };
+              await setDoc(doc(db, 'cursos', String(newId)), cursoData, { merge: true });
+              cachedCursos.push({ id: String(newId), ...cursoData });
+              stats.cursosCreated++;
+            }
           }
         } else if (importType === 'fechas') {
           const idCursoVal = Number(getVal(['idcurso', 'id', 'id_curso']) || 0);
@@ -266,9 +386,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         });
       }
 
-      const doneMsg = importType === 'inscripciones'
-        ? `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados.`
-        : `Importación completada con éxito. Se procesaron ${count} registros.`;
+      let doneMsg = `Importación completada con éxito. Se procesaron ${count} registros.`;
+      if (importType === 'inscripciones') {
+        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados.`;
+        if (stats.cursosUpdated > 0 || stats.cursosCreated > 0) {
+          doneMsg += `\n\nCursos: ${stats.cursosUpdated} actualizados con resolución${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} nuevos dados de alta` : ''}.`;
+        }
+      } else if (importType === 'cursos') {
+        doneMsg = `Importación de cursos completada con éxito: ${stats.cursosUpdated} cursos existentes actualizados con resolución (sin duplicar)${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} cursos nuevos creados` : ''}.`;
+      }
       await alert({ title: 'Importación completada', message: doneMsg, variant: 'success' });
       onImportComplete();
     } catch (err: unknown) {

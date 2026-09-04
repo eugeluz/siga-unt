@@ -151,12 +151,46 @@ const rawAxC26 = XLSX.utils.sheet_to_json(sheetAxC26);
 
 const inscripcionesMap = new Map();
 
+function syncCursoResolucion(row, cursoNombre) {
+    const rawRes = row['Resolucion'] || row['Resolución'] || row['Res'] || row['Resolucion del curso'] || row['Resolución del curso'];
+    if (!rawRes || !cursoNombre) return;
+    const resVal = String(rawRes).trim();
+    if (!resVal) return;
+
+    const rowIdCurso = row['Id-Curso'] || row['Id_Curso'] || row['IdCurso'];
+    let foundCurso = cursos.find(c =>
+        (rowIdCurso && Number(c.idCurso) === Number(rowIdCurso)) ||
+        (c.curso && c.curso.trim().toLowerCase() === cursoNombre.trim().toLowerCase())
+    );
+
+    if (foundCurso) {
+        foundCurso.resolucion = resVal;
+    } else {
+        const maxId = cursos.length > 0 ? Math.max(...cursos.map(c => Number(c.idCurso) || 0), 0) : 0;
+        const newId = (rowIdCurso && Number(rowIdCurso)) || (maxId + 1);
+        cursos.push({
+            idCurso: newId,
+            curso: cursoNombre,
+            programa: '',
+            cargaHoraria: '',
+            plan: '',
+            idDocente: null,
+            expediente: '',
+            fechaPresentacion: null,
+            resolucion: resVal,
+            fechaNotificacion: null
+        });
+    }
+}
+
 // Load AxC registrations
 rawAxC.forEach(row => {
     const dni = row['DNI'] ? Number(row['DNI']) : null;
     const curso = row['Curso'] ? String(row['Curso']).trim() : '';
     const fechaInicio = excelDateToJSDate(row['Fecha inicio']);
     if (!dni || !curso || !fechaInicio) return;
+
+    syncCursoResolucion(row, curso);
 
     const key = `${dni}_${curso}_${fechaInicio}`;
     inscripcionesMap.set(key, {
@@ -177,6 +211,8 @@ rawAxC26.forEach(row => {
     const curso = row['Curso'] ? String(row['Curso']).trim() : '';
     const fechaInicio = excelDateToJSDate(row['Fecha inicio']);
     if (!dni || !curso || !fechaInicio) return;
+
+    syncCursoResolucion(row, curso);
 
     const key = `${dni}_${curso}_${fechaInicio}`;
     inscripcionesMap.set(key, {

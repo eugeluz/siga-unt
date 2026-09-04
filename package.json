@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "deploy": "pnpm build && firebase deploy",
+    "subir": "powershell -ExecutionPolicy Bypass -File ./subir.ps1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

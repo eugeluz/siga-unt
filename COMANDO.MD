@@ -1,16 +1,28 @@
-Comando para subir a la pagina los cambios:
+# Comandos de Despliegue y Git
 
- pnpm build; 
- firebase deploy;
+### 🚀 Subir todo automáticamente (Git + Firebase)
+En una sola línea hace: `git add` + `git commit` + `git push` + `pnpm build` + `firebase deploy`:
 
- Ahi ya queda subido.      
+```bash
+pnpm subir
+```
+*Opcional con mensaje personalizado:*
+```powershell
+.\subir.ps1 "feat: descripcion del cambio"
+```
 
+---
 
- Subir los cambios a git hub: cadafila es un comando aparte
+### Solo desplegar a Firebase:
+```bash
+pnpm deploy
+```
 
- git add .
- git commit -m "feat: actualizacion y configuracion del proyecto"
- git push -u origin main
+---
 
- El git add, va con el " . " punto, tal cual como esta escrito.
- 
+### Solo subir a GitHub:
+```bash
+git add .
+git commit -m "feat: descripcion del cambio"
+git push origin main
+```

@@ -73,7 +73,7 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
           ...insc,
           id: insc.id,
           curso: cursoObj?.nombreCompleto || insc.curso,
-          resolucion: cursoObj?.resolucion || 'Sin dato',
+          resolucion: cursoObj?.resolucion || (insc as any).resolucion || 'Sin dato',
           certificado: fechaObj?.certificado || '—',
           cantidadClases: fechaObj?.cantidadClases || 4,
           fechasClases: fechaObj?.fechasClases || {},
@@ -236,7 +236,14 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
 
                 return (
                   <tr key={item.id || idx}>
-                    <td data-label="Curso">{cursoNombre}</td>
+                    <td data-label="Curso">
+                      <div><strong>{cursoNombre}</strong></div>
+                      {item.resolucion && item.resolucion !== 'Sin dato' && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          Res: {item.resolucion}
+                        </div>
+                      )}
+                    </td>
                     <td data-label="Fecha Inicio">{formatDateAR(item.fechaInicio)}</td>
                     <td data-label="Certificado">{formatDateAR(item.certificado)}</td>
                     <td data-label="Estado">
