@@ -364,7 +364,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           if (!matchedCurso) continue;
 
           // Resolver (o crear) el documento de `fechas` para obtener su docId.
+          // Vía rápida por ID Fecha del roundtrip (solo si es del mismo curso).
           let fechaIdVal: string | undefined;
+          const rawFechaId = getVal(['idfecha', 'fechaid', 'id fecha', 'id_fecha']);
+          if (rawFechaId) {
+            const cand = cachedFechas.find(f => String(f.id) === String(rawFechaId).trim());
+            if (cand && String(cand.idCurso) === String(matchedCurso.idCurso)) {
+              fechaIdVal = cand.id;
+            }
+          }
           if (fechaInicioVal) {
             const foundFecha = cachedFechas.find(f =>
               String(f.idCurso) === String(matchedCurso.idCurso) && String(f.inicio || '') === String(fechaInicioVal)

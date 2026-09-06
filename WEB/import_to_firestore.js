@@ -16,37 +16,35 @@ if (!fs.existsSync(excelPath)) {
 
 const workbook = XLSX.readFile(excelPath);
 
-// Helper function to convert Excel date serial to Date object
+// Helper: normaliza fechas de Excel a YYYY-MM-DD (serial, serial-texto, ISO, latino)
 function excelDateToJSDate(serial) {
-    if (!serial) return null;
-    // Excel serial dates: 1 is Jan 1, 1900. 25569 is Jan 1, 1970
-    if (typeof serial !== 'number') return serial;
-    try {
-        const utc_days  = Math.floor(serial - 25569);
-        const utc_value = utc_days * 86400;
-        const date_info = new Date(utc_value * 1000);
-        
-        // Add fractional day for time
-        const fractional_day = serial - Math.floor(serial) + 0.0000001;
-        let total_seconds = Math.floor(86400 * fractional_day);
-        const seconds = total_seconds % 60;
-        total_seconds -= seconds;
-        const hours = Math.floor(total_seconds / 3600);
-        const minutes = Math.floor(total_seconds / 60) % 60;
-        
-        // Return UTC offset corrected local date
-        const localDate = new Date(
-            date_info.getUTCFullYear(),
-            date_info.getUTCMonth(),
-            date_info.getUTCDate(),
-            hours,
-            minutes,
-            seconds
-        );
-        return localDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-    } catch (e) {
+    if (serial === undefined || serial === null) return null;
+    const pad2 = (n) => String(n).padStart(2, '0');
+    if (typeof serial === 'number') {
+        try {
+            const days = Math.floor(serial - 25569);
+            const d = new Date(days * 86400000);
+            return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+        } catch (e) {
+            return null;
+        }
+    }
+    const s = String(serial).trim();
+    if (!s) return null;
+    if (/^\d{5}(\.\d+)?$/.test(s)) {
+        const n = Number(s);
+        if (n >= 20000 && n <= 80000) return excelDateToJSDate(n);
         return null;
     }
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/);
+    if (m) return `${m[1]}-${pad2(Number(m[2]))}-${pad2(Number(m[3]))}`;
+    m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:[T ].*)?$/);
+    if (m) {
+        let yyyy = m[3];
+        if (yyyy.length === 2) yyyy = '20' + yyyy;
+        return `${yyyy}-${pad2(Number(m[2]))}-${pad2(Number(m[1]))}`;
+    }
+    return null;
 }
 
 // 1. Parse Alumnos

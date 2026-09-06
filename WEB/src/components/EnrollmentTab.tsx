@@ -383,26 +383,13 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     const fallbackIdCurso = fallbackCourseObj ? fallbackCourseObj.idCurso : '';
     const parseFechaInicio = (raw: any): string | undefined => {
       if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
-      if (typeof raw === 'number') {
-        const d = excelDateToJSDate(raw);
-        return d || undefined;
-      }
-      const s = String(raw).trim();
-      // Intentar YYYY-MM-DD
-      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(s)) {
-        const parts = s.split(/[-/]/);
-        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-      }
-      // DD/MM/YYYY o DD-MM-YYYY -> YYYY-MM-DD
-      const dm = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-      if (dm) {
-        let [, dd, mm, yyyy] = dm;
-        if (yyyy.length === 2) yyyy = '20' + yyyy;
-        return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-      }
-      const d2 = excelDateToJSDate(s);
-      if (d2) return d2;
-      return s;
+      // Delega en el normalizador canónico (serial, serial como texto, ISO, latino).
+      // Si no se reconoce el formato, undefined: la fila se omite en vez de
+      // crear fechas basura que rompen los listados.
+      const normalized = typeof raw === 'number'
+        ? raw
+        : String(raw).trim().replace(/\//g, '-');
+      return excelDateToJSDate(normalized) || undefined;
     };
     try {
 
@@ -443,6 +430,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const cargaFilaRaw = getVal(['carga horaria', 'carga horaria hs', 'horas', 'carga']);
         const resolucionFilaRaw = getVal(['resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución', 'numero resolucion', 'número resolucion', 'numero de resolucion', 'resolucion nro', 'resolucion del curso', 'resolución del curso', 'res.', 'res. nro', 'expediente', 'expdte']);
         const resolucionFila = resolucionFilaRaw ? String(resolucionFilaRaw).trim() : '';
+        // IDs de roundtrip (los escribe la exportación; si vienen, mandan)
+        const idCursoFilaRaw = getVal(['idcurso', 'id_curso', 'id curso', 'id']);
+        const idCursoFila = idCursoFilaRaw !== undefined ? String(idCursoFilaRaw).trim() : '';
+        const fechaIdFilaRaw = getVal(['idfecha', 'fechaid', 'id fecha', 'id_fecha']);
+        const idFechaCol = fechaIdFilaRaw !== undefined ? String(fechaIdFilaRaw).trim() : '';
         const cursoNombreFila = cursoFilaRaw ? String(cursoFilaRaw).trim() : '';
         const programaFila = programaFilaRaw ? String(programaFilaRaw).trim() : '';
         const fechaInicioFila = parseFechaInicio(fechaFilaRaw) || selectedFecha;
@@ -450,12 +442,22 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         if (!cursoEfectivo || !fechaInicioFila) { skipped++; if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: DNI ${dniVal} sin curso o fecha de inicio`); continue; }
         const programaEfectivo = programaFila || fallbackCourseObj?.programa || 'Calidad de vida laboral';
         let cursoObjFila: any = null;
-        if (programaFila) {
+        // Vía rápida por ID (roundtrip de la exportación): si el ID existe, manda.
+        // Si el ID no existe (tabla vaciada), se ignora y se resuelve por nombre.
+        if (idCursoFila) {
+          cursoObjFila = cursos.find((c: any) => String(c.idCurso) === idCursoFila) || null;
+          if (!cursoObjFila) {
+            for (const v of newCursosMap.values()) {
+              if (String(v.idCurso) === idCursoFila) { cursoObjFila = v; break; }
+            }
+          }
+        }
+        if (!cursoObjFila && programaFila) {
           cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo && (c.programa?.trim() || '') === programaFila.trim()) || null;
           if (!cursoObjFila) {
             cursoObjFila = newCursosMap.get(`${cursoEfectivo}||${programaEfectivo}`) || null;
           }
-        } else {
+        } else if (!cursoObjFila) {
           cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo) || null;
           if (!cursoObjFila) {
             for (const v of newCursosMap.values()) {
@@ -528,8 +530,17 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const idCursoValFila = cursoObjFila.idCurso;
         const cursoParaInscripcion = cursoEfectivo;
         const fechaParaInscripcion = fechaInicioFila;
-        // Buscar o crear fecha para ese curso (por ID o por nombre, para no duplicar)
-        let fechaObjFila: any = fechas.find((f: any) => (String(f.idCurso) === String(idCursoValFila) || (f.curso || '') === cursoEfectivo) && f.inicio === fechaInicioFila);
+        // Buscar o crear fecha para ese curso. Vía rápida por ID Fecha del
+        // roundtrip (solo vale si es del mismo curso); si no, por inicio.
+        let fechaObjFila: any = null;
+        if (idFechaCol) {
+          const cand = fechas.find((f: any) => String(f.id) === idFechaCol)
+            || [...newFechasMap.values()].find((f: any) => String(f.id) === idFechaCol);
+          if (cand && String(cand.idCurso) === String(idCursoValFila)) fechaObjFila = cand;
+        }
+        if (!fechaObjFila) {
+          fechaObjFila = fechas.find((f: any) => (String(f.idCurso) === String(idCursoValFila) || (f.curso || '') === cursoEfectivo) && f.inicio === fechaInicioFila) || null;
+        }
         if (!fechaObjFila) {
           const keyFecha = `${idCursoValFila}||${fechaInicioFila}`;
           fechaObjFila = newFechasMap.get(keyFecha) || null;
@@ -553,7 +564,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           }
         }
 
-        // 1. Datos solo para inscripción — NO se crea/actualiza en 'alumnos' (control de aprobados)
+        // Datos de la fila para el alta en el padrón (si el DNI no existe)
         const studentData: any = {
           dni: dniVal
         };
@@ -733,7 +744,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           fechaInicio: v.fechaInicio,
           cargaHoraria: v.cargaHoraria,
           resolucion: v.resolucion,
-          resultado: v.resultado
+          resultado: v.resultado,
+          // IDs de roundtrip: al re-subir mandan sobre nombres/fechas
+          // (inmunes a que Excel reformatee las fechas).
+          idCurso: v.idCurso ?? '',
+          fechaId: v.fechaId || ''
         };
       });
       rows.sort((a, b) =>
@@ -745,8 +760,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       const today = new Date().toISOString().split('T')[0];
       downloadExcel(
         rows,
-        ['DNI', 'Apellido', 'Nombre', 'Programa', 'Curso', 'Fecha de inicio', 'Carga horaria', 'Resolución', 'Condición'],
-        ['dni', 'apellido', 'nombre', 'programa', 'curso', 'fechaInicio', 'cargaHoraria', 'resolucion', 'resultado'],
+        ['DNI', 'Apellido', 'Nombre', 'Programa', 'Curso', 'Fecha de inicio', 'Carga horaria', 'Resolución', 'Condición', 'ID Curso', 'ID Fecha'],
+        ['dni', 'apellido', 'nombre', 'programa', 'curso', 'fechaInicio', 'cargaHoraria', 'resolucion', 'resultado', 'idCurso', 'fechaId'],
         `inscriptos_todos_${today}.xlsx`
       );
       await logAudit('Exportación de inscriptos', `Se exportaron ${rows.length} inscripciones a Excel para revisión/limpieza.`);
@@ -1297,7 +1312,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel histórico
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Estructura requerida (10 columnas):\n\nDNI | Apellido | Nombre | Programa | Curso | Resolución | Fecha de inicio | Condición | Cantidad clases | Carga horaria\n\nSeparación automática por tabla:\n• DNI/Apellido/Nombre → padrón Alumnos (si el DNI no existe, se da de alta con esos datos).\n• Programa/Curso/Carga horaria/Resolución → Cursos (se crea o actualiza).\n• Fecha de inicio (+ Cantidad clases) → Fechas.\n• Inscriptos guarda solo DNI + curso + fecha + Condición (Cursando, Aprobado, Desaprobado, Abandonó).', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Columnas: DNI | Apellido | Nombre | Programa | Curso | Resolución | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ ID Curso e ID Fecha opcionales, los trae la exportación).\n\nSeparación automática por tabla:\n• DNI/Apellido/Nombre → padrón Alumnos (si el DNI no existe, se da de alta con esos datos).\n• Programa/Curso/Carga horaria/Resolución → Cursos (se crea o actualiza).\n• Fecha de inicio (+ Cantidad clases) → Fechas. Acepta fechas como texto (2024-03-01, 01/03/2024) o serial de Excel.\n• Si el archivo trae ID Curso / ID Fecha (exportación), mandan sobre nombres y fechas: el roundtrip es exacto aunque Excel reformatee las fechas.\n• Inscriptos guarda solo DNI + curso + fecha + Condición (Cursando, Aprobado, Desaprobado, Abandonó).', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">

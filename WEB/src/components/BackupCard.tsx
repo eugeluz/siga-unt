@@ -108,7 +108,9 @@ export const BackupCard: React.FC<BackupCardProps> = ({
         fechaInicio: v.fechaInicio,
         cargaHoraria: v.cargaHoraria,
         resolucion: v.resolucion,
-        resultado: v.resultado
+        resultado: v.resultado,
+        idCurso: v.idCurso ?? '',
+        fechaId: v.fechaId || ''
       })).sort((a, b) =>
         String(a.curso).localeCompare(String(b.curso)) ||
         String(a.fechaInicio).localeCompare(String(b.fechaInicio)) ||
@@ -117,8 +119,8 @@ export const BackupCard: React.FC<BackupCardProps> = ({
       );
       zip.file('02_inscriptos.xlsx', sheetToXlsxBuffer(
         inscriptosRows,
-        ['DNI', 'Apellido', 'Nombre', 'Programa', 'Curso', 'Fecha de inicio', 'Carga horaria', 'Resolución', 'Condición'],
-        ['dni', 'apellido', 'nombre', 'programa', 'curso', 'fechaInicio', 'cargaHoraria', 'resolucion', 'resultado']
+        ['DNI', 'Apellido', 'Nombre', 'Programa', 'Curso', 'Fecha de inicio', 'Carga horaria', 'Resolución', 'Condición', 'ID Curso', 'ID Fecha'],
+        ['dni', 'apellido', 'nombre', 'programa', 'curso', 'fechaInicio', 'cargaHoraria', 'resolucion', 'resultado', 'idCurso', 'fechaId']
       ));
 
       // 3. Cursos (catálogo)
