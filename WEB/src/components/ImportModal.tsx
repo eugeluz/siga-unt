@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { setDoc, doc, collection, addDoc, query, where, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { setDoc, doc, collection, addDoc, query, where, getDocs, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Download, Database, AlertTriangle } from 'lucide-react';
 
@@ -20,11 +20,13 @@ interface ImportModalProps {
  * and loading them into Firestore in batch operations.
  */
 export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportComplete, defaultType = 'alumnos' }) => {
-  const { alert } = useModal();
+  const { alert, confirm } = useModal();
   const [importType, setImportType] = useState<'alumnos' | 'inscripciones' | 'cursos' | 'fechas'>(defaultType);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
   const [isImporting, setIsImporting] = useState(false);
+  // Reemplazar tabla: al terminar, elimina los registros que no vinieron en el archivo
+  const [replaceAll, setReplaceAll] = useState(false);
 
   // Sheet names and workbook state
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -118,11 +120,23 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
 
   const executeImport = async () => {
     if (parsedData.length === 0) return;
+    if (replaceAll) {
+      const ok = await confirm({
+        title: 'Reemplazar tabla completa',
+        message: `Al finalizar, se ELIMINARÁN todos los registros de ${importType} que no estén en este archivo.\n\nEsta acción no se puede deshacer. ¿Continuar?`,
+        variant: 'danger',
+        confirmText: 'Sí, reemplazar',
+        cancelText: 'Cancelar',
+      });
+      if (!ok) return;
+    }
     setIsImporting(true);
     setImportProgress({ current: 0, total: parsedData.length, status: 'Iniciando importación...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0, deleted: 0 };
+    // IDs tocados por el archivo (para el modo reemplazo)
+    const touchedIds = new Set<string>();
     // Cache de existencia en el padrón para no releer DNIs repetidos del lote
     const padronCache = new Map<string, boolean>();
     try {
@@ -304,6 +318,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           setIfPresent(['interno', 'int', 'nro interno', 'numero interno'], 'interno', (v) => String(v).trim());
 
           await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
+          touchedIds.add(String(dniVal));
         } else if (importType === 'inscripciones') {
           if (!dniVal) continue;
           const rawCurso = String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim();
@@ -423,13 +438,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
               insData.asistencias = prevData.asistencias;
             }
             await setDoc(doc(db, 'inscripciones', matches[0].id), insData);
+            touchedIds.add(matches[0].id);
             stats.updated++;
             for (const extra of matches.slice(1)) {
               await deleteDoc(extra.ref);
               stats.dupsRemoved++;
             }
           } else {
-            await addDoc(collection(db, 'inscripciones'), insData);
+            const newRef = await addDoc(collection(db, 'inscripciones'), insData);
+            touchedIds.add(newRef.id);
             stats.created++;
           }
         } else if (importType === 'cursos') {
@@ -476,6 +493,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
                 if (resolucionVal) existing.resolucion = resolucionVal;
                 stats.cursosUpdated++;
               }
+              touchedIds.add(existing.id);
             } else {
               // Si el curso no existe, crearlo asignando nuevo ID único
               const maxId = cachedCursos.length > 0 ? Math.max(...cachedCursos.map(c => Number(c.idCurso) || 0), 0) : 0;
@@ -492,6 +510,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
                 showOnLanding: visibleVal !== undefined ? visibleVal : true
               };
               await setDoc(doc(db, 'cursos', String(newId)), cursoData, { merge: true });
+              touchedIds.add(String(newId));
               cachedCursos.push({ id: String(newId), ...cursoData });
               stats.cursosCreated++;
             }
@@ -526,13 +545,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             const snap = await getDocs(q);
             if (!snap.empty) {
               await setDoc(doc(db, 'fechas', snap.docs[0].id), fechaData, { merge: true });
+              touchedIds.add(snap.docs[0].id);
               stats.updated++;
             } else {
-              await addDoc(collection(db, 'fechas'), {
+              const newFechaRef = await addDoc(collection(db, 'fechas'), {
                 cantidadClases: 4,
                 showOnLanding: true,
                 ...fechaData
               });
+              touchedIds.add(newFechaRef.id);
               stats.created++;
             }
           }
@@ -545,6 +566,31 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         });
       }
 
+      // Modo reemplazo: eliminar los registros que no vinieron en el archivo.
+      // Seguridad: si ninguna fila tocó la tabla (archivo vacío o todo omitido),
+      // no se borra nada.
+      if (replaceAll && touchedIds.size > 0) {
+        setImportProgress({ current: count, total: count, status: 'Eliminando registros que no están en el archivo...' });
+        const collName = importType === 'alumnos' ? 'alumnos'
+          : importType === 'inscripciones' ? 'inscripciones'
+          : importType === 'cursos' ? 'cursos' : 'fechas';
+        const allSnap = await getDocs(collection(db, collName));
+        let batch = writeBatch(db);
+        let ops = 0;
+        for (const d of allSnap.docs) {
+          if (!touchedIds.has(d.id)) {
+            batch.delete(d.ref);
+            ops++;
+            stats.deleted++;
+            if (ops % 400 === 0) {
+              await batch.commit();
+              batch = writeBatch(db);
+            }
+          }
+        }
+        await batch.commit();
+      }
+
       let doneMsg = `Importación completada con éxito. Se procesaron ${count} registros.`;
       if (importType === 'inscripciones') {
         doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados, ${stats.alumnosCreados} alumnos dados de alta en el padrón.`;
@@ -555,6 +601,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
         doneMsg = `Importación de cursos completada con éxito: ${stats.cursosUpdated} cursos existentes actualizados con resolución (sin duplicar)${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} cursos nuevos creados` : ''}.`;
       } else if (importType === 'fechas') {
         doneMsg = `Importación de fechas completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia Curso + Fecha de inicio, sin duplicar).`;
+      }
+      if (replaceAll) {
+        doneMsg += `\n\nModo reemplazo: se eliminaron ${stats.deleted} registros que no estaban en el archivo.`;
       }
       await alert({ title: 'Importación completada', message: doneMsg, variant: 'success' });
       onImportComplete();
@@ -672,13 +721,24 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             </div>
 
             {!isImporting ? (
-              <button 
-                className="btn-primary" 
-                style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} 
-                onClick={executeImport}
-              >
-                <Database size={16} /> Iniciar Importación a Firestore
-              </button>
+              <>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.35)', background: 'rgba(239, 68, 68, 0.06)', fontSize: '0.82rem', cursor: 'pointer', lineHeight: 1.4 }}>
+                  <input
+                    type="checkbox"
+                    checked={replaceAll}
+                    onChange={e => setReplaceAll(e.target.checked)}
+                    style={{ width: '16px', height: '16px', accentColor: '#dc2626', flexShrink: 0 }}
+                  />
+                  <span><strong>Reemplazar tabla completa:</strong> eliminar los registros de {importType} que no estén en este archivo.</span>
+                </label>
+                <button
+                  className="btn-primary"
+                  style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  onClick={executeImport}
+                >
+                  <Database size={16} /> Iniciar Importación a Firestore
+                </button>
+              </>
             ) : (
               <div style={{ marginTop: '20px' }}>
                 <p style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}>
