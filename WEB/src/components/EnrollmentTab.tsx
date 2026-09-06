@@ -10,7 +10,7 @@ import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
 import { FormField } from './FormField';
-import { matchCurso, matchFecha, displayInscripcion, normalizeResultado, RESOLUCION_ALIASES, rankResultado, unionAsistencias } from '../utils/inscripciones';
+import { matchCurso, matchFecha, displayInscripcion, normalizeResultado, RESOLUCION_ALIASES, rankResultado, unionAsistencias, normalizeKey } from '../utils/inscripciones';
 
 interface EnrollmentTabProps {
   cursos: any[];
@@ -839,9 +839,95 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         getDocs(collection(db, 'cursos')),
         getDocs(collection(db, 'fechas'))
       ]);
-      const cursosArr = cursosSnap.docs.map(d => d.data());
-      const fechasArr = fechasSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      let cursosArr: any[] = cursosSnap.docs.map(d => ({ ref: d.ref, docId: d.id, ...(d.data() as any) }));
+      let fechasArr: any[] = fechasSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
       const padron = new Map((alumnos || []).map((a: any) => [String(a?.dni), a]));
+
+      let batch = writeBatch(db);
+      let ops = 0;
+      const flush = async () => {
+        if (ops > 0) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      };
+      let fechasNormalizadas = 0;
+      let cursosFusionados = 0;
+      let inscRevinculadas = 0;
+
+      // A) Normalizar el formato de inicio en las fechas (serial/latino → ISO).
+      // Sin esto, "2024-03-01" y "01/03/2024" parecen fechas distintas y duplican.
+      for (const f of fechasArr) {
+        const canon = excelDateToJSDate(f.inicio);
+        if (canon && canon !== String(f.inicio || '')) {
+          batch.update(doc(db, 'fechas', String(f.id)), { inicio: canon });
+          ops++;
+          f.inicio = canon;
+          fechasNormalizadas++;
+          if (ops >= 400) await flush();
+        }
+      }
+
+      // B) Fusionar cursos duplicados (mismo nombre + programa): sobrevive el
+      // idCurso menor; sus inscripciones y fechas se reconectan al sobreviviente.
+      const normTxt = (s: any) => normalizeKey(String(s || ''));
+      const cursosPorClave = new Map<string, any[]>();
+      cursosArr.forEach(c => {
+        const k = `${normTxt(c.nombreCompleto || c.curso)}|${normTxt(c.programa || '')}`;
+        if (!cursosPorClave.has(k)) cursosPorClave.set(k, []);
+        cursosPorClave.get(k)!.push(c);
+      });
+      const idsEliminados = new Set<string>();
+      for (const [clave, lista] of cursosPorClave) {
+        if (lista.length < 2 || clave.split('|')[0] === '') continue;
+        const orden = [...lista].sort((a, b) => (Number(a.idCurso) || Infinity) - (Number(b.idCurso) || Infinity));
+        const sobrev = orden[0];
+        // Completar huecos del sobreviviente con datos de los duplicados (sin pisar)
+        const relleno: any = {};
+        if (!sobrev.resolucion || String(sobrev.resolucion).trim() === '') {
+          const conRes = orden.slice(1).find(c => c.resolucion && String(c.resolucion).trim() !== '');
+          if (conRes) relleno.resolucion = conRes.resolucion;
+        }
+        if (!sobrev.programa || String(sobrev.programa).trim() === '') {
+          const conProg = orden.slice(1).find(c => c.programa && String(c.programa).trim() !== '');
+          if (conProg) relleno.programa = conProg.programa;
+        }
+        const cargaSob = sobrev.cargaHorariaHs || sobrev.cargaHoraria || '';
+        if (!cargaSob) {
+          const conCarga = orden.slice(1).find(c => (c.cargaHorariaHs || c.cargaHoraria || ''));
+          if (conCarga) relleno.cargaHorariaHs = conCarga.cargaHorariaHs || conCarga.cargaHoraria;
+        }
+        if (Object.keys(relleno).length > 0) {
+          batch.update(sobrev.ref, relleno);
+          ops++;
+          Object.assign(sobrev, relleno);
+        }
+        for (const dup of orden.slice(1)) {
+          const dupId = String(dup.idCurso);
+          for (const sd of inscSnap.docs) {
+            const rd: any = sd.data();
+            if (String(rd.idCurso ?? '') === dupId) {
+              batch.update(sd.ref, { idCurso: sobrev.idCurso });
+              ops++;
+              inscRevinculadas++;
+              if (ops >= 400) await flush();
+            }
+          }
+          for (const f of fechasArr) {
+            if (String(f.idCurso) === dupId) {
+              batch.update(doc(db, 'fechas', String(f.id)), { idCurso: sobrev.idCurso });
+              ops++;
+              f.idCurso = sobrev.idCurso;
+              if (ops >= 400) await flush();
+            }
+          }
+          batch.delete(dup.ref);
+          ops++;
+          idsEliminados.add(dupId);
+          cursosFusionados++;
+          if (ops >= 400) await flush();
+        }
+      }
+      if (cursosFusionados > 0) {
+        cursosArr = cursosArr.filter(c => !idsEliminados.has(String(c.idCurso)));
+      }
 
       type Grupo = {
         keepRef: any; dni: number; idCurso: number; fechaId: string; inicio: string;
@@ -859,17 +945,18 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const dniNum = Number(r.dni);
         if (!dniNum) continue;
         const cursoObj = matchCurso(cursosArr, { idCurso: r.idCurso, nombre: r.curso });
+        const inicioLeg = r.fechaInicio ? (excelDateToJSDate(String(r.fechaInicio).replace(/\//g, '-')) || String(r.fechaInicio)) : '';
         let fechaObj: any;
         const cand = r.fechaId ? fechasArr.find(f => String(f.id) === String(r.fechaId)) : undefined;
         if (cand && cursoObj && String(cand.idCurso) === String(cursoObj.idCurso)) {
           fechaObj = cand;
-        } else if (cand && !cursoObj && r.fechaInicio && String(cand.inicio || '') === String(r.fechaInicio)) {
+        } else if (cand && !cursoObj && inicioLeg && String(cand.inicio || '') === inicioLeg) {
           fechaObj = cand;
         }
-        if (!fechaObj && cursoObj && r.fechaInicio) {
+        if (!fechaObj && cursoObj && inicioLeg) {
           const nombreCurso = cursoObj.nombreCompleto || cursoObj.curso;
-          fechaObj = fechasArr.find(f => String(f.idCurso) === String(cursoObj.idCurso) && String(f.inicio || '') === String(r.fechaInicio))
-            || fechasArr.find(f => String(f.curso || '') === String(nombreCurso || '') && String(f.inicio || '') === String(r.fechaInicio));
+          fechaObj = fechasArr.find(f => String(f.idCurso) === String(cursoObj.idCurso) && String(f.inicio || '') === inicioLeg)
+            || fechasArr.find(f => String(f.curso || '') === String(nombreCurso || '') && String(f.inicio || '') === inicioLeg);
         }
         if (!cursoObj && !r.curso) {
           huerf.push({ id: d.id, dni: dniNum, resultado: r.resultado || 'Cursando' });
@@ -904,13 +991,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       }
 
       // Escritura: solo grupos que cambian (revinculan o fusionan)
-      let batch = writeBatch(db);
-      let ops = 0;
       let curados = 0;
       let fusionados = 0;
-      const flush = async () => {
-        if (ops > 0) { await batch.commit(); batch = writeBatch(db); ops = 0; }
-      };
       for (const g of grupos.values()) {
         const s: any = g.stored;
         const cambia = g.dupRefs.length > 0
@@ -956,7 +1038,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await flush();
 
       setHuerfanas(huerf);
-      const msg = `Reparación completada: ${curados} inscripción(es) revinculadas, ${fusionados} duplicados fusionados, ${fechasBorradas} fecha(s) duplicadas sin uso eliminadas${pendientes.length > 0 ? `, ${pendientes.length} pendiente(s) (falta curso/fecha en catálogo, no se tocaron)` : ''}${huerf.length > 0 ? `, ${huerf.length} huérfana(s) sin curso identificable (revise abajo)` : ''}.`;
+      const msg = `Reparación completada: ${fechasNormalizadas} fecha(s) normalizadas, ${cursosFusionados} curso(s) duplicados fusionados (${inscRevinculadas} inscripción(es) reconectadas), ${curados} inscripción(es) revinculadas, ${fusionados} duplicados fusionados, ${fechasBorradas} fecha(s) duplicadas sin uso eliminadas${pendientes.length > 0 ? `, ${pendientes.length} pendiente(s) (falta curso/fecha en catálogo, no se tocaron)` : ''}${huerf.length > 0 ? `, ${huerf.length} huérfana(s) sin curso identificable (revise abajo)` : ''}.`;
       await logAudit('Reparación de inscriptos', msg);
       await alert({ title: 'Reparación completada', message: msg, variant: 'success' });
     } catch (err) {
