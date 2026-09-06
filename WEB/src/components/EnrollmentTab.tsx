@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getDoc, doc, setDoc, collection, addDoc, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
-import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2, HelpCircle, Download } from 'lucide-react';
+import { Search, CheckSquare, UserPlus, FileSpreadsheet, Upload, Database, AlertTriangle, Trash2, HelpCircle, Download, Wrench } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatDateAR } from '../utils/dateAR';
 import { downloadExcel } from '../utils/excel';
@@ -10,7 +10,7 @@ import { excelDateToJSDate } from '../utils/date';
 import { useModal } from './ModalProvider';
 import { toTitleCase } from '../utils/text';
 import { FormField } from './FormField';
-import { matchFecha, displayInscripcion, normalizeResultado } from '../utils/inscripciones';
+import { matchCurso, matchFecha, displayInscripcion, normalizeResultado, RESOLUCION_ALIASES, rankResultado, unionAsistencias } from '../utils/inscripciones';
 
 interface EnrollmentTabProps {
   cursos: any[];
@@ -372,7 +372,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     setImportLoteProgress({ current: 0, total: parsedLoteData.length, status: 'Iniciando inscripción por lotes...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosResolucion: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, fechasUpdated: 0, alumnosCreados: 0, alumnosActualizados: 0 };
     let skipped = 0;
     const skippedExamples: string[] = [];
     // Cachés para cursos/fechas creados en este lote (evita duplicados)
@@ -428,7 +428,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const fechaFilaRaw = getVal(['fecha de inicio', 'fecha inicio', 'inicio', 'fecha', 'fechainicio']);
         const cantidadFilaRaw = getVal(['cantidad clases', 'cant clases', 'cantidad de clases', 'clases', 'cant. clases']);
         const cargaFilaRaw = getVal(['carga horaria', 'carga horaria hs', 'horas', 'carga']);
-        const resolucionFilaRaw = getVal(['resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución', 'numero resolucion', 'número resolucion', 'numero de resolucion', 'resolucion nro', 'resolucion del curso', 'resolución del curso', 'res.', 'res. nro', 'expediente', 'expdte']);
+        const resolucionFilaRaw = getVal(RESOLUCION_ALIASES);
         const resolucionFila = resolucionFilaRaw ? String(resolucionFilaRaw).trim() : '';
         // IDs de roundtrip (los escribe la exportación; si vienen, mandan)
         const idCursoFilaRaw = getVal(['idcurso', 'id_curso', 'id curso', 'id']);
@@ -508,23 +508,28 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             try { await setDoc(doc(db, 'cursos', String(nuevoId)), nuevoCurso); } catch (e) { console.error('Error creando curso auto:', e); }
             cursoObjFila = nuevoCurso;
             newCursosMap.set(keyCurso, cursoObjFila);
-            if (resolucionFila) stats.cursosResolucion++;
           }
         }
-        // Sincronizar datos del lote al curso (existente en Firestore o creado en este lote)
+        // Pisar datos del lote en el curso: programa, carga horaria y resolución
+        // (solo si la fila trae valor y difiere; merge, no toca docente/plan).
         if (cursoObjFila) {
-          if (cargaFilaRaw && !cursoObjFila.cargaHorariaHs) {
-            try {
-              await setDoc(doc(db, 'cursos', String(cursoObjFila.idCurso)), { cargaHorariaHs: String(cargaFilaRaw).trim() }, { merge: true });
-              cursoObjFila.cargaHorariaHs = String(cargaFilaRaw).trim();
-            } catch {}
+          const cursoUpdates: any = {};
+          if (programaFila && (cursoObjFila.programa || '') !== programaFila) {
+            cursoUpdates.programa = programaFila;
           }
-          if (resolucionFila && cursoObjFila.resolucion !== resolucionFila) {
+          const cargaTrim = cargaFilaRaw ? String(cargaFilaRaw).trim() : '';
+          if (cargaTrim && (cursoObjFila.cargaHorariaHs || '') !== cargaTrim) {
+            cursoUpdates.cargaHorariaHs = cargaTrim;
+          }
+          if (resolucionFila && (cursoObjFila.resolucion || '') !== resolucionFila) {
+            cursoUpdates.resolucion = resolucionFila;
+          }
+          if (Object.keys(cursoUpdates).length > 0) {
             try {
-              await setDoc(doc(db, 'cursos', String(cursoObjFila.idCurso)), { resolucion: resolucionFila }, { merge: true });
-              cursoObjFila.resolucion = resolucionFila;
-              stats.cursosResolucion++;
-            } catch (e) { console.error('Error actualizando resolución:', e); }
+              await setDoc(doc(db, 'cursos', String(cursoObjFila.idCurso)), cursoUpdates, { merge: true });
+              Object.assign(cursoObjFila, cursoUpdates);
+              stats.cursosUpdated++;
+            } catch (e) { console.error('Error actualizando curso:', e); }
           }
         }
         const idCursoValFila = cursoObjFila.idCurso;
@@ -616,6 +621,17 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
         const fechaIdFila = (fechaObjFila as any)?.id || '';
         if (!fechaIdFila) { skipped++; if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: DNI ${dniVal} sin fecha válida`); continue; }
+        // Pisar cantidad de clases de la fecha si la fila trae valor distinto
+        if (cantidadFilaRaw) {
+          const cantNum = Number(String(cantidadFilaRaw).replace(/\D/g, ''));
+          if (cantNum > 0 && Number((fechaObjFila as any).cantidadClases || 0) !== cantNum) {
+            try {
+              await setDoc(doc(db, 'fechas', fechaIdFila), { cantidadClases: cantNum }, { merge: true });
+              (fechaObjFila as any).cantidadClases = cantNum;
+              stats.fechasUpdated++;
+            } catch (e) { console.error('Error actualizando fecha:', e); }
+          }
+        }
 
         const enrollmentData: any = {
           dni: dniVal,
@@ -623,21 +639,38 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           fechaId: fechaIdFila,
           resultado: resultadoVal
         };
-        // Alta en Alumnos si el dni no está en el padrón (solo datos de la fila)
+        // Padrón: alta si falta; si existe, los nombres del archivo pisan
+        // (merge: solo dni/apellido/nombre, el resto de la ficha no se toca).
+        // Solo se escribe si hay cambios (evita escrituras masivas al re-subir).
         let alumnoEnPadron = alumnosMap.has(String(dniVal));
+        const alta: any = { dni: dniVal };
+        if (studentData.apellido) alta.apellido = studentData.apellido;
+        if (studentData.nombre) alta.nombre = studentData.nombre;
         if (!alumnoEnPadron) {
-          const alta: any = { dni: dniVal };
-          if (studentData.apellido) alta.apellido = studentData.apellido;
-          if (studentData.nombre) alta.nombre = studentData.nombre;
           try {
             await setDoc(doc(db, 'alumnos', String(dniVal)), alta, { merge: true });
-            alumnosMap.set(String(dniVal), alta);
+            alumnosMap.set(String(dniVal), { ...(alumnosMap.get(String(dniVal)) || {}), ...alta });
+            stats.alumnosCreados++;
             alumnoEnPadron = true;
           } catch (e) {
             console.error('Error dando de alta alumno:', e);
             // Respaldo en la inscripción para no perder los nombres
             if (studentData.apellido) enrollmentData.apellido = studentData.apellido;
             if (studentData.nombre) enrollmentData.nombre = studentData.nombre;
+          }
+        } else {
+          const prev = alumnosMap.get(String(dniVal)) || {};
+          const cambios: any = { dni: dniVal };
+          if (alta.apellido && prev.apellido !== alta.apellido) cambios.apellido = alta.apellido;
+          if (alta.nombre && prev.nombre !== alta.nombre) cambios.nombre = alta.nombre;
+          if (cambios.apellido || cambios.nombre) {
+            try {
+              await setDoc(doc(db, 'alumnos', String(dniVal)), cambios, { merge: true });
+              alumnosMap.set(String(dniVal), { ...prev, ...cambios });
+              stats.alumnosActualizados++;
+            } catch (e) {
+              console.error('Error actualizando alumno:', e);
+            }
           }
         }
 
@@ -701,10 +734,18 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
       const creadosCursosMsg = newCursosMap.size ? ` Se crearon ${newCursosMap.size} curso(s) nuevo(s).` : '';
       const creadasFechasMsg = newFechasMap.size ? ` Se crearon ${newFechasMap.size} fecha(s) nueva(s).` : '';
-      const resolucionMsg = stats.cursosResolucion ? ` Se cargó/actualizó la resolución en ${stats.cursosResolucion} curso(s).` : '';
+      const alumnosMsg = (stats.alumnosCreados > 0 || stats.alumnosActualizados > 0)
+        ? ` Padrón: ${stats.alumnosCreados} alta(s), ${stats.alumnosActualizados} nombre(s) pisados.`
+        : '';
+      const cursosMsg = stats.cursosUpdated > 0
+        ? ` Se pisaron datos en ${stats.cursosUpdated} curso(s) (programa/carga/resolución).`
+        : '';
+      const fechasMsg = stats.fechasUpdated > 0
+        ? ` Se actualizó cantidad de clases en ${stats.fechasUpdated} fecha(s).`
+        : '';
       const statsMsg = `Se procesaron ${count} filas: ${stats.created} altas, ${stats.updated} actualizadas (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados${skipped > 0 ? `, ${skipped} omitidas (sin DNI, curso o fecha válidos${skippedExamples.length > 0 ? ` — ej.: ${skippedExamples.join('; ')}` : ''})` : ''}.`;
-      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${creadosCursosMsg}${creadasFechasMsg}${resolucionMsg}`, variant: 'success' });
-      await logAudit('Inscripción por lotes', `${statsMsg}${creadosCursosMsg}${creadasFechasMsg}${resolucionMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
+      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${creadosCursosMsg}${creadasFechasMsg}${alumnosMsg}${cursosMsg}${fechasMsg}`, variant: 'success' });
+      await logAudit('Inscripción por lotes', `${statsMsg}${creadosCursosMsg}${creadasFechasMsg}${alumnosMsg}${cursosMsg}${fechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
       setParsedLoteData([]);
       setWorkbook(null);
       setSheetNames([]);
@@ -771,6 +812,186 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await alert({ title: 'Error', message: 'No se pudieron exportar las inscripciones. Intente nuevamente.', variant: 'danger' });
     } finally {
       setExportingInscriptos(false);
+    }
+  };
+
+  const [reparando, setReparando] = useState(false);
+  const [huerfanas, setHuerfanas] = useState<any[]>([]);
+
+  // Repara vínculos rotos por limpiezas parciales (cursos/fechas borrados y
+  // recreados): revincula cada inscripción por ID y, si cambió, por
+  // nombre+fecha; fusiona duplicados de la misma persona+curso+fecha
+  // (conservando asistencias) y elimina fechas duplicadas exactas sin uso.
+  // No borra alumnos ni inscripciones válidas.
+  const handleRepararInscripciones = async () => {
+    const ok = await confirm({
+      title: 'Reparar vínculos de inscriptos',
+      message: 'Se revinculará cada inscripción con su curso y fecha actuales, se fusionarán los duplicados de la misma persona + curso + fecha (conservando asistencias y la mejor condición) y se eliminarán las fechas duplicadas exactas que nadie usa.\n\nNo se borra el padrón ni inscripciones válidas. ¿Continuar?',
+      variant: 'warning',
+      confirmText: 'Sí, reparar',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
+    setReparando(true);
+    try {
+      const [inscSnap, cursosSnap, fechasSnap] = await Promise.all([
+        getDocs(collection(db, 'inscripciones')),
+        getDocs(collection(db, 'cursos')),
+        getDocs(collection(db, 'fechas'))
+      ]);
+      const cursosArr = cursosSnap.docs.map(d => d.data());
+      const fechasArr = fechasSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const padron = new Map((alumnos || []).map((a: any) => [String(a?.dni), a]));
+
+      type Grupo = {
+        keepRef: any; dni: number; idCurso: number; fechaId: string; inicio: string;
+        resultado: string; apellido: string; nombre: string;
+        asistencias: Record<string, boolean>; dupRefs: any[]; stored: any;
+      };
+      const grupos = new Map<string, Grupo>();
+      const pendientes: string[] = [];
+      const huerf: any[] = [];
+      const refCount = new Map<string, number>();
+      fechasArr.forEach(f => refCount.set(String(f.id), 0));
+
+      for (const d of inscSnap.docs) {
+        const r: any = d.data();
+        const dniNum = Number(r.dni);
+        if (!dniNum) continue;
+        const cursoObj = matchCurso(cursosArr, { idCurso: r.idCurso, nombre: r.curso });
+        let fechaObj: any;
+        const cand = r.fechaId ? fechasArr.find(f => String(f.id) === String(r.fechaId)) : undefined;
+        if (cand && cursoObj && String(cand.idCurso) === String(cursoObj.idCurso)) {
+          fechaObj = cand;
+        } else if (cand && !cursoObj && r.fechaInicio && String(cand.inicio || '') === String(r.fechaInicio)) {
+          fechaObj = cand;
+        }
+        if (!fechaObj && cursoObj && r.fechaInicio) {
+          const nombreCurso = cursoObj.nombreCompleto || cursoObj.curso;
+          fechaObj = fechasArr.find(f => String(f.idCurso) === String(cursoObj.idCurso) && String(f.inicio || '') === String(r.fechaInicio))
+            || fechasArr.find(f => String(f.curso || '') === String(nombreCurso || '') && String(f.inicio || '') === String(r.fechaInicio));
+        }
+        if (!cursoObj && !r.curso) {
+          huerf.push({ id: d.id, dni: dniNum, resultado: r.resultado || 'Cursando' });
+          if (r.fechaId) refCount.set(String(r.fechaId), (refCount.get(String(r.fechaId)) || 0) + 1);
+          continue;
+        }
+        if (!cursoObj || !fechaObj) {
+          pendientes.push(`${dniNum} (${!cursoObj ? 'falta curso en catálogo' : 'falta fecha'})`);
+          if (r.fechaId) refCount.set(String(r.fechaId), (refCount.get(String(r.fechaId)) || 0) + 1);
+          continue;
+        }
+        const inicioRef = String(fechaObj.inicio || '');
+        const key = `${dniNum}|${cursoObj.idCurso}|${inicioRef}`;
+        let g = grupos.get(key);
+        if (!g) {
+          g = {
+            keepRef: d.ref, dni: dniNum, idCurso: Number(cursoObj.idCurso), fechaId: String(fechaObj.id),
+            inicio: inicioRef, resultado: r.resultado || 'Cursando', apellido: '', nombre: '',
+            asistencias: {}, dupRefs: [], stored: r
+          };
+          grupos.set(key, g);
+        } else {
+          g.dupRefs.push(d.ref);
+          if (rankResultado(r.resultado) > rankResultado(g.resultado)) g.resultado = r.resultado;
+        }
+        g.asistencias = unionAsistencias(g.asistencias, r.asistencias);
+        if (!padron.has(String(dniNum))) {
+          if (!g.apellido && r.apellido) g.apellido = r.apellido;
+          if (!g.nombre && r.nombre) g.nombre = r.nombre;
+        }
+        refCount.set(String(fechaObj.id), (refCount.get(String(fechaObj.id)) || 0) + 1);
+      }
+
+      // Escritura: solo grupos que cambian (revinculan o fusionan)
+      let batch = writeBatch(db);
+      let ops = 0;
+      let curados = 0;
+      let fusionados = 0;
+      const flush = async () => {
+        if (ops > 0) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      };
+      for (const g of grupos.values()) {
+        const s: any = g.stored;
+        const cambia = g.dupRefs.length > 0
+          || String(s.idCurso ?? '') !== String(g.idCurso)
+          || String(s.fechaId ?? '') !== String(g.fechaId);
+        if (!cambia) continue;
+        if (g.dupRefs.length > 0) {
+          const payload: any = { dni: g.dni, idCurso: g.idCurso, fechaId: g.fechaId, resultado: g.resultado || 'Cursando' };
+          if (g.apellido) payload.apellido = g.apellido;
+          if (g.nombre) payload.nombre = g.nombre;
+          if (Object.keys(g.asistencias).length > 0) payload.asistencias = g.asistencias;
+          batch.set(g.keepRef, payload);
+          ops++;
+          for (const dup of g.dupRefs) { batch.delete(dup); ops++; fusionados++; }
+        } else {
+          batch.update(g.keepRef, { idCurso: g.idCurso, fechaId: g.fechaId });
+          ops++;
+          curados++;
+        }
+        if (ops >= 400) await flush();
+      }
+
+      // Fechas duplicadas exactas (mismo idCurso + inicio) sin referencias: se borran
+      const porClave = new Map<string, any[]>();
+      fechasArr.forEach(f => {
+        const k = `${String(f.idCurso)}|${String(f.inicio || '')}`;
+        if (!porClave.has(k)) porClave.set(k, []);
+        porClave.get(k)!.push(f);
+      });
+      let fechasBorradas = 0;
+      for (const lista of porClave.values()) {
+        if (lista.length < 2) continue;
+        const orden = [...lista].sort((a, b) => (refCount.get(String(b.id)) || 0) - (refCount.get(String(a.id)) || 0));
+        for (const extra of orden.slice(1)) {
+          if ((refCount.get(String(extra.id)) || 0) === 0) {
+            batch.delete(doc(db, 'fechas', String(extra.id)));
+            ops++;
+            fechasBorradas++;
+            if (ops >= 400) await flush();
+          }
+        }
+      }
+      await flush();
+
+      setHuerfanas(huerf);
+      const msg = `Reparación completada: ${curados} inscripción(es) revinculadas, ${fusionados} duplicados fusionados, ${fechasBorradas} fecha(s) duplicadas sin uso eliminadas${pendientes.length > 0 ? `, ${pendientes.length} pendiente(s) (falta curso/fecha en catálogo, no se tocaron)` : ''}${huerf.length > 0 ? `, ${huerf.length} huérfana(s) sin curso identificable (revise abajo)` : ''}.`;
+      await logAudit('Reparación de inscriptos', msg);
+      await alert({ title: 'Reparación completada', message: msg, variant: 'success' });
+    } catch (err) {
+      console.error('Error reparando inscripciones:', err);
+      await alert({ title: 'Error', message: 'No se pudo reparar la tabla de inscriptos. Intente nuevamente.', variant: 'danger' });
+    } finally {
+      setReparando(false);
+    }
+  };
+
+  const handleEliminarHuerfanas = async () => {
+    if (huerfanas.length === 0) return;
+    const ok = await confirm({
+      title: 'Eliminar huérfanas',
+      message: `Se eliminarán ${huerfanas.length} inscripción(es) sin curso identificable (no se pueden revincular).\n\nEsta acción no se puede deshacer. ¿Continuar?`,
+      variant: 'danger',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
+    try {
+      let batch = writeBatch(db);
+      let ops = 0;
+      for (const h of huerfanas) {
+        batch.delete(doc(db, 'inscripciones', h.id));
+        ops++;
+        if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      }
+      await batch.commit();
+      await logAudit('Huérfanas eliminadas', `Se eliminaron ${huerfanas.length} inscripciones sin curso identificable.`);
+      await alert({ title: 'Operación completada', message: `Se eliminaron ${huerfanas.length} inscripción(es) huérfanas.`, variant: 'success' });
+      setHuerfanas([]);
+    } catch (err) {
+      console.error('Error eliminando huérfanas:', err);
+      await alert({ title: 'Error', message: 'No se pudieron eliminar las huérfanas. Intente nuevamente.', variant: 'danger' });
     }
   };
 
@@ -882,7 +1103,28 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         >
           <Database size={16} /> Lote Histórico
         </button>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="enroll-mode-btn"
+            onClick={handleRepararInscripciones}
+            disabled={isImportingLote || reparando || exportingInscriptos}
+            style={{
+              padding: '8px 16px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              color: 'var(--text-secondary)',
+              cursor: (isImportingLote || reparando || exportingInscriptos) ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Revincula inscripciones con su curso y fecha actuales, fusiona duplicados (conserva asistencias) y elimina fechas duplicadas sin uso. No borra el padrón."
+          >
+            <Wrench size={16} /> {reparando ? 'Reparando...' : 'Reparar vínculos'}
+          </button>
           <button
             type="button"
             className="enroll-mode-btn"
@@ -906,6 +1148,23 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           </button>
         </div>
       </div>
+
+      {huerfanas.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.06)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+            {huerfanas.length} inscripción(es) sin curso identificable (no se pudieron revincular):
+            {huerfanas.slice(0, 5).map(h => ` DNI ${h.dni}`).join(',')}{huerfanas.length > 5 ? '…' : ''}
+          </span>
+          <button
+            type="button"
+            className="btn-danger"
+            style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+            onClick={handleEliminarHuerfanas}
+          >
+            <Trash2 size={15} /> Eliminar huérfanas ({huerfanas.length})
+          </button>
+        </div>
+      )}
 
       {enrollMode === 'individual' ? (
         <div className="details-grid">
@@ -1174,7 +1433,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel / CSV
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel simple', message: 'Excel con 4 columnas:\n\nDNI | Apellido | Nombre | Condición\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl Programa/Curso/Fecha se toma del Paso 1 para todas las filas. Si un DNI no está en el padrón de Alumnos, se da de alta con apellido/nombre del Excel.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel simple', message: 'Excel con 4 columnas:\n\nDNI | Apellido | Nombre | Condición\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl Programa/Curso/Fecha se toma del Paso 1 para todas las filas. Los DNI ausentes se dan de alta y los nombres del archivo pisan los del padrón.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">
@@ -1312,7 +1571,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel histórico
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Columnas: DNI | Apellido | Nombre | Programa | Curso | Resolución | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ ID Curso e ID Fecha opcionales, los trae la exportación).\n\nSeparación automática por tabla:\n• DNI/Apellido/Nombre → padrón Alumnos (si el DNI no existe, se da de alta con esos datos).\n• Programa/Curso/Carga horaria/Resolución → Cursos (se crea o actualiza).\n• Fecha de inicio (+ Cantidad clases) → Fechas. Acepta fechas como texto (2024-03-01, 01/03/2024) o serial de Excel.\n• Si el archivo trae ID Curso / ID Fecha (exportación), mandan sobre nombres y fechas: el roundtrip es exacto aunque Excel reformatee las fechas.\n• Inscriptos guarda solo DNI + curso + fecha + Condición (Cursando, Aprobado, Desaprobado, Abandonó).', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Columnas: DNI | Apellido | Nombre | Programa | Curso | Resolución | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ ID Curso e ID Fecha opcionales, los trae la exportación).\n\nSeparación automática por tabla:\n• DNI/Apellido/Nombre → padrón Alumnos (alta si falta; los nombres del archivo pisan).\n• Programa/Curso/Carga horaria/Resolución → Cursos (los valores del archivo pisan).\n• Fecha de inicio (+ Cantidad clases) → Fechas (la cantidad pisa si difiere). Acepta fechas como texto (2024-03-01, 01/03/2024) o serial de Excel.\n• Si el archivo trae ID Curso / ID Fecha (exportación), mandan sobre nombres y fechas: el roundtrip es exacto aunque Excel reformatee las fechas.\n• Inscriptos guarda solo DNI + curso + fecha + Condición (Cursando, Aprobado, Desaprobado, Abandonó).', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">

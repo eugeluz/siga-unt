@@ -134,11 +134,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     setImportProgress({ current: 0, total: parsedData.length, status: 'Iniciando importación...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0, deleted: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0, alumnosActualizados: 0, deleted: 0 };
     // IDs tocados por el archivo (para el modo reemplazo)
     const touchedIds = new Set<string>();
-    // Cache de existencia en el padrón para no releer DNIs repetidos del lote
-    const padronCache = new Map<string, boolean>();
+    // Cache del padrón por lote: existencia + nombres (para pisar solo si difieren)
+    const padronCache = new Map<string, { existe: boolean; apellido?: string; nombre?: string }>();
     try {
       // Cargar cursos existentes para verificar coincidencias, evitar duplicados y sincronizar resoluciones
       const cursosSnap = await getDocs(collection(db, 'cursos'));
@@ -324,7 +324,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           const rawCurso = String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim();
           const rawRes = String(getVal([
             'resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución',
-            'numero resolucion', 'resolucion nro', 'resolucion n', 'resolucion del curso',
+            'numero resolucion', 'numero de resolucion', 'resolucion nro', 'resolucion n', 'resolucion del curso',
             'resolución del curso', 'res.', 'res. nro', 'expediente', 'expdte'
           ]) || '').trim();
           const rawIdCurso = getVal(['idcurso', 'id_curso', 'id curso', 'id']);
@@ -363,6 +363,22 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           }
           if (!matchedCurso) continue;
 
+          // Pisar programa/carga del curso si la fila trae valor distinto (merge)
+          const progRow = String(getVal(['programa', 'programa al que pertenece']) || '').trim();
+          const cargaRow = String(getVal(['carga horaria', 'carga horaria hs', 'horas', 'carga']) || '').trim();
+          if (progRow || cargaRow) {
+            const cursoUpdates: any = {};
+            if (progRow && (matchedCurso.programa || '') !== progRow) cursoUpdates.programa = progRow;
+            if (cargaRow && (matchedCurso.cargaHorariaHs || matchedCurso.cargaHoraria || '') !== cargaRow) {
+              cursoUpdates.cargaHorariaHs = cargaRow;
+            }
+            if (Object.keys(cursoUpdates).length > 0) {
+              await setDoc(doc(db, 'cursos', matchedCurso.id), cursoUpdates, { merge: true });
+              Object.assign(matchedCurso, cursoUpdates);
+              stats.cursosUpdated++;
+            }
+          }
+
           // Resolver (o crear) el documento de `fechas` para obtener su docId.
           // Vía rápida por ID Fecha del roundtrip (solo si es del mismo curso).
           let fechaIdVal: string | undefined;
@@ -394,25 +410,41 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           if (!fechaIdVal) continue;
 
           // Inscripción normalizada: solo referencias + condición.
-          // Alta en el padrón si el DNI no existe (merge, sin pisar datos).
+          // Padrón: alta si falta; nombres del archivo pisan si difieren.
           // Solo si el alta falla, apellido/nombre quedan como respaldo aquí.
           const apellidoRow = toTitleCase(String(getVal(['apellido', 'apellidos', 'surname', 'last name']) || '').trim());
           const nombreRow = toTitleCase(String(getVal(['nombre', 'nombres', 'name', 'first name']) || '').trim());
           let altaOk = true;
           try {
-            let existe = padronCache.get(String(dniVal));
-            if (existe === undefined) {
+            let cached = padronCache.get(String(dniVal));
+            if (!cached) {
               const aSnap = await getDoc(doc(db, 'alumnos', String(dniVal)));
-              existe = aSnap.exists();
-              padronCache.set(String(dniVal), existe);
+              cached = aSnap.exists()
+                ? { existe: true, apellido: (aSnap.data() as any)?.apellido || '', nombre: (aSnap.data() as any)?.nombre || '' }
+                : { existe: false };
+              padronCache.set(String(dniVal), cached);
             }
-            if (!existe) {
-              const alta: any = { dni: dniVal };
-              if (apellidoRow) alta.apellido = apellidoRow;
-              if (nombreRow) alta.nombre = nombreRow;
+            const alta: any = { dni: dniVal };
+            if (apellidoRow) alta.apellido = apellidoRow;
+            if (nombreRow) alta.nombre = nombreRow;
+            if (!cached.existe) {
               await setDoc(doc(db, 'alumnos', String(dniVal)), alta, { merge: true });
-              padronCache.set(String(dniVal), true);
+              padronCache.set(String(dniVal), { existe: true, apellido: apellidoRow, nombre: nombreRow });
               stats.alumnosCreados++;
+            } else {
+              // Pisar nombres con los del archivo solo si difieren
+              const cambios: any = { dni: dniVal };
+              if (apellidoRow && cached.apellido !== apellidoRow) cambios.apellido = apellidoRow;
+              if (nombreRow && cached.nombre !== nombreRow) cambios.nombre = nombreRow;
+              if (cambios.apellido || cambios.nombre) {
+                await setDoc(doc(db, 'alumnos', String(dniVal)), cambios, { merge: true });
+                padronCache.set(String(dniVal), {
+                  existe: true,
+                  apellido: apellidoRow || cached.apellido,
+                  nombre: nombreRow || cached.nombre
+                });
+                stats.alumnosActualizados++;
+              }
             }
           } catch {
             altaOk = false;
@@ -464,7 +496,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           const nombreCompleto = String(getVal(['nombre completo', 'nombrecompleto', 'nombre largo', 'titulo completo', 'nombre curso completo']) || cursoNombre).trim();
           const resolucionVal = String(getVal([
             'resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución',
-            'numero resolucion', 'resolucion nro', 'resolucion n', 'resolucion del curso',
+            'numero resolucion', 'numero de resolucion', 'resolucion nro', 'resolucion n', 'resolucion del curso',
             'resolución del curso', 'res.', 'res. nro', 'expediente', 'expdte'
           ]) || '').trim();
           const rawIdDoc = getVal(['id docente', 'iddocente', 'id_docente']);
@@ -601,9 +633,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
 
       let doneMsg = `Importación completada con éxito. Se procesaron ${count} registros.`;
       if (importType === 'inscripciones') {
-        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados, ${stats.alumnosCreados} alumnos dados de alta en el padrón.`;
+        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados, padrón: ${stats.alumnosCreados} altas y ${stats.alumnosActualizados} nombres pisados.`;
         if (stats.cursosUpdated > 0 || stats.cursosCreated > 0) {
-          doneMsg += `\n\nCursos: ${stats.cursosUpdated} actualizados con resolución${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} nuevos dados de alta` : ''}.`;
+          doneMsg += `\n\nCursos: ${stats.cursosUpdated} actualizados con datos del lote${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} nuevos dados de alta` : ''}.`;
         }
       } else if (importType === 'cursos') {
         doneMsg = `Importación de cursos completada con éxito: ${stats.cursosUpdated} cursos existentes actualizados con resolución (sin duplicar)${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} cursos nuevos creados` : ''}.`;

@@ -55,7 +55,7 @@ export const pickAlias = (rowNorm: Record<string, any>, aliases: string[]): any 
 export const RESOLUCION_ALIASES = [
   'resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución',
   'numero resolucion', 'número resolucion', 'numero de resolucion',
-  'resolucion nro', 'resolucion del curso', 'resolución del curso',
+  'resolucion nro', 'resolucion n', 'resolucion del curso', 'resolución del curso',
   'res.', 'res. nro', 'expediente', 'expdte'
 ];
 
@@ -196,6 +196,28 @@ export const displayInscripcion = (
     resultado: ins?.resultado || 'Cursando',
     asistencias: ins?.asistencias || {},
   };
+};
+
+/** Prioridad para fusionar condiciones duplicadas (gana la más avanzada). */
+export const rankResultado = (r: unknown): number => {
+  const n = String(r || '').toLowerCase();
+  if (n.includes('aprob')) return 4;
+  if (n.includes('desaprob')) return 3;
+  if (n.includes('abandon')) return 2;
+  if (n.includes('cursan')) return 1;
+  return 0;
+};
+
+/** Une mapas de asistencias (true gana) sin mutar los originales. */
+export const unionAsistencias = (
+  ...maps: Array<Record<string, boolean> | undefined>
+): Record<string, boolean> => {
+  const out: Record<string, boolean> = {};
+  maps.forEach(m => Object.keys(m || {}).forEach(k => {
+    if ((m as any)[k]) out[k] = true;
+    else if (!(k in out)) out[k] = false;
+  }));
+  return out;
 };
 
 /** Clave de deduplicación normalizada: dni + idCurso + fechaId. */
