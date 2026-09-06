@@ -1,0 +1,289 @@
+import React, { useState } from 'react';
+import { CoursesTab } from './CoursesTab';
+import { DatesTab } from './DatesTab';
+import { ImportModal } from './ImportModal';
+import { BookOpen, Calendar, ChevronRight, Plus, Pencil, Download } from 'lucide-react';
+
+interface CoursesAndDatesTabProps {
+  cursos: any[];
+  docentes: any[];
+  fechas: any[];
+}
+
+export const CoursesAndDatesTab: React.FC<CoursesAndDatesTabProps> = ({ cursos, docentes, fechas }) => {
+  const [subTab, setSubTab] = useState<'inicio' | 'cursos' | 'fechas'>('inicio');
+  const [modoCurso, setModoCurso] = useState<'nuevo' | 'modificar'>('nuevo');
+  const [showImport, setShowImport] = useState(false);
+
+  const btnBaseStyle: React.CSSProperties = {
+    margin: 0,
+    height: '36px',
+    padding: '0 14px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    fontSize: '0.82rem',
+    whiteSpace: 'nowrap',
+    width: 'auto',
+  };
+
+  // Línea de abajo, a la derecha: los 3 botones con el mismo tamaño
+  const btnEqualStyle: React.CSSProperties = {
+    ...btnBaseStyle,
+    flex: '1 1 0',
+    minWidth: 0,
+  };
+
+  return (
+    <div className="alumnos-institucional">
+      {/* Visualización tras seleccionar una opción */}
+      {subTab !== 'inicio' ? (
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            className="caja-titulo-principal"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              marginBottom: '20px',
+              padding: '14px 20px',
+              borderRadius: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {subTab === 'cursos' ? (
+                  <>
+                    <BookOpen size={22} color="currentColor" /> Gestión de Cursos de Capacitación
+                  </>
+                ) : (
+                  <>
+                    <Calendar size={22} color="currentColor" /> Fechas de Inicio de Cursos
+                  </>
+                )}
+              </h2>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end', width: '100%', maxWidth: '480px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+              {subTab === 'cursos' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setModoCurso('nuevo')}
+                    className={modoCurso === 'nuevo' ? 'btn-primary' : 'btn-secondary'}
+                    style={{ ...btnEqualStyle, background: modoCurso === 'nuevo' ? undefined : '#ffffff', color: modoCurso === 'nuevo' ? undefined : '#00A1DE', borderColor: modoCurso === 'nuevo' ? undefined : '#00A1DE', borderWidth: modoCurso === 'nuevo' ? undefined : '1.5px' }}
+                  >
+                    <Plus size={14} /> Nuevo curso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModoCurso('modificar')}
+                    className={modoCurso === 'modificar' ? 'btn-primary' : 'btn-secondary'}
+                    style={{ ...btnEqualStyle, background: modoCurso === 'modificar' ? undefined : '#ffffff', color: modoCurso === 'modificar' ? undefined : '#00A1DE', borderColor: modoCurso === 'modificar' ? undefined : '#00A1DE', borderWidth: modoCurso === 'modificar' ? undefined : '1.5px' }}
+                  >
+                    <Pencil size={14} /> Modificar curso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowImport(true)}
+                    className="btn-secondary"
+                    style={btnEqualStyle}
+                    title="Subir el Excel de cursos limpio (actualiza existentes sin duplicar)"
+                  >
+                    <Download size={14} /> Importar
+                  </button>
+                </>
+              )}
+              {subTab === 'fechas' && (
+                <button
+                  type="button"
+                  onClick={() => setShowImport(true)}
+                  className="btn-secondary"
+                  style={btnBaseStyle}
+                  title="Subir el Excel de fechas limpio"
+                >
+                  <Download size={14} /> Importar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Renderizado del componente correspondiente */}
+          {subTab === 'cursos' ? (
+            <CoursesTab cursos={cursos} docentes={docentes} fechas={fechas} modoCurso={modoCurso} onModoChange={setModoCurso} />
+          ) : (
+            <DatesTab cursos={cursos} fechas={fechas} />
+          )}
+
+          {/* Importar Excel limpio (cursos o fechas, según la vista actual) */}
+          {showImport && (
+            <ImportModal
+              key={subTab}
+              defaultType={subTab === 'cursos' ? 'cursos' : 'fechas'}
+              onClose={() => setShowImport(false)}
+              onImportComplete={() => setShowImport(false)}
+            />
+          )}
+        </div>
+      ) : (
+        /* Vista de inicio — caja igual que Alumnos (azul en modo oscuro) */
+        <div className="caja-titulo-principal">
+          <h2 className="section-title" style={{ marginBottom: '16px' }}>
+            <BookOpen size={24} color="currentColor" /> Cursos y Fechas
+          </h2>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px',
+              maxWidth: '900px',
+              margin: '0 auto'
+            }}
+          >
+            {/* Cajita 1: Cursos */}
+            <div
+              className="details-box"
+              onClick={() => setSubTab('cursos')}
+              style={{
+                cursor: 'pointer',
+                padding: '32px 24px',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                transition: 'all 0.25s ease',
+                border: '2px solid #cbd5e1',
+                background: '#ffffff',
+                height: '100%',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#003876';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '14px', textAlign: 'left' }}>
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '18px',
+                    background: '#f0f4f8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    border: '1px solid #cbd5e1'
+                  }}
+                >
+                  <BookOpen size={36} color="#003876" />
+                </div>
+
+                <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
+                  Agregar y/o modificar cursos
+                </p>
+              </div>
+
+              <button
+                className="btn-primary btn-ingresar"
+                style={{
+                  width: '100%',
+                  height: '46px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  margin: 0,
+                  marginTop: '36px'
+                }}
+              >
+                Ingresar a Cursos <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {/* Cajita 2: FECHAS */}
+            <div
+              className="details-box"
+              onClick={() => setSubTab('fechas')}
+              style={{
+                cursor: 'pointer',
+                padding: '32px 24px',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                transition: 'all 0.25s ease',
+                border: '2px solid #cbd5e1',
+                background: '#ffffff',
+                height: '100%',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#003876';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,56,118,0.12)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '14px', textAlign: 'left' }}>
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '18px',
+                    background: '#f0f4f8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    border: '1px solid #cbd5e1'
+                  }}
+                >
+                  <Calendar size={36} color="#003876" />
+                </div>
+
+                <p style={{ color: '#1e3350', fontSize: '0.95rem', margin: 0, lineHeight: '1.5', fontWeight: 200, textAlign: 'left', flex: 1 }}>
+                  Asignar fechas de los cursos
+                </p>
+              </div>
+
+              <button
+                className="btn-primary btn-ingresar"
+                style={{
+                  width: '100%',
+                  height: '46px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  margin: 0,
+                  marginTop: '36px'
+                }}
+              >
+                Ingresar a Fechas <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
