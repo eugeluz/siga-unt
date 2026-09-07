@@ -47,7 +47,14 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     }
   });
 
-  const alumnosAprobados = inscripciones.filter(ins => ins.resultado === 'Aprobado').length;
+  // "Alumnos Aprobados": personas distintas con al menos un Aprobado
+  // (no filas: alguien que aprobó 2 cursos cuenta una sola vez).
+  const dnisAprobados = new Set<string>();
+  inscripciones.forEach(ins => {
+    const r = (ins.resultado || '').trim().toLowerCase();
+    if (r === 'aprobado' || r === 'aprobada') dnisAprobados.add(String(ins.dni));
+  });
+  const alumnosAprobados = dnisAprobados.size;
   const totalInscripciones = inscripciones.length;
 
   // Donut SVG details
