@@ -146,19 +146,12 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     [alumnos]
   );
 
-  // Resuelve (o crea) el doc de `fechas` y devuelve su docId para usar como FK.
-  const resolveFechaId = async (cursoObj: any, cursoNombre: string, inicio: string): Promise<string> => {
+  // Resuelve el docId de `fechas` para usar como FK. No crea nada: si la
+  // fecha no existe, devuelve null y quien llama avisa al usuario.
+  const resolveFechaId = (cursoObj: any, cursoNombre: string, inicio: string): string | null => {
     const found = matchFecha(fechas, { idCurso: cursoObj?.idCurso, inicio })
       || fechas.find((f: any) => (f.curso || '') === cursoNombre && (f.inicio || '') === inicio);
-    if (found?.id) return found.id;
-    const ref = await addDoc(collection(db, 'fechas'), {
-      idCurso: cursoObj?.idCurso ?? '',
-      curso: cursoNombre,
-      inicio,
-      certificado: '',
-      cantidadClases: 4
-    });
-    return ref.id;
+    return found?.id || null;
   };
 
   useEffect(() => {
@@ -268,7 +261,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await setDoc(doc(db, 'alumnos', searchDni), studentData);
       // 2. Inscripción al curso (normalizada: solo referencias + condición)
       const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
-      const fechaId = await resolveFechaId(courseObj, selectedCurso, selectedFecha);
+      const fechaId = resolveFechaId(courseObj, selectedCurso, selectedFecha);
+      if (!courseObj || !fechaId) {
+        await alert({ title: 'Selección inválida', message: 'El curso o la fecha seleccionada ya no existe. Volvé a seleccionar.', variant: 'warning' });
+        return;
+      }
       const enrollmentData: any = {
         dni: Number(searchDni),
         idCurso: courseObj ? courseObj.idCurso : '',
@@ -290,7 +287,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     if (!studentForm.dni || !selectedCurso || !selectedFecha) return;
     try {
       const courseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
-      const fechaId = await resolveFechaId(courseObj, selectedCurso, selectedFecha);
+      const fechaId = resolveFechaId(courseObj, selectedCurso, selectedFecha);
+      if (!courseObj || !fechaId) {
+        await alert({ title: 'Selección inválida', message: 'El curso o la fecha seleccionada ya no existe. Volvé a seleccionar.', variant: 'warning' });
+        return;
+      }
       const enrollmentData: any = {
         dni: Number(studentForm.dni),
         idCurso: courseObj ? courseObj.idCurso : '',
@@ -374,13 +375,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     let count = 0;
     const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, fechasUpdated: 0, alumnosCreados: 0, alumnosActualizados: 0 };
     let skipped = 0;
+    let filtradas = 0;
     const skippedExamples: string[] = [];
-    // Cachés para cursos/fechas creados en este lote (evita duplicados)
-    const newCursosMap = new Map<string, any>();
-    const newFechasMap = new Map<string, any>();
-    let nextCursoId = cursos.length > 0 ? Math.max(...cursos.map((c: any) => Number(c.idCurso) || 0)) + 1 : 1;
-    const fallbackCourseObj = cursos.find(c => (c.nombreCompleto || c.curso) === selectedCurso);
-    const fallbackIdCurso = fallbackCourseObj ? fallbackCourseObj.idCurso : '';
     const parseFechaInicio = (raw: any): string | undefined => {
       if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
       // Delega en el normalizador canónico (serial, serial como texto, ISO, latino).
@@ -440,75 +436,48 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const fechaInicioFila = parseFechaInicio(fechaFilaRaw) || selectedFecha;
         const cursoEfectivo = cursoNombreFila || selectedCurso;
         if (!cursoEfectivo || !fechaInicioFila) { skipped++; if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: DNI ${dniVal} sin curso o fecha de inicio`); continue; }
-        const programaEfectivo = programaFila || fallbackCourseObj?.programa || 'Calidad de vida laboral';
-        let cursoObjFila: any = null;
-        // Vía rápida por ID (roundtrip de la exportación): si el ID existe, manda.
-        // Si el ID no existe (tabla vaciada), se ignora y se resuelve por nombre.
-        if (idCursoFila) {
-          cursoObjFila = cursos.find((c: any) => String(c.idCurso) === idCursoFila) || null;
-          if (!cursoObjFila) {
-            for (const v of newCursosMap.values()) {
-              if (String(v.idCurso) === idCursoFila) { cursoObjFila = v; break; }
+        // Filtro del Paso 1 (solo modo histórico): si se eligió curso y/o fecha,
+        // solo se procesan las filas que coincidan; las demás se omiten.
+        if (enrollMode === 'historico') {
+          if (selectedCurso && String(cursoEfectivo).trim().toLowerCase() !== String(selectedCurso).trim().toLowerCase()) {
+            filtradas++;
+            continue;
+          }
+          if (selectedFecha) {
+            const fechaSelCanon = parseFechaInicio(selectedFecha) || selectedFecha;
+            if (fechaInicioFila !== fechaSelCanon) {
+              filtradas++;
+              continue;
             }
           }
+        }
+        // El lote NO crea cursos ni fechas (se gestionan en Cursos y Fechas):
+        // si no hay coincidencia, la fila se omite con aviso.
+        const normTxt = (s: any) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        let cursoObjFila: any = null;
+        // Vía rápida por ID (roundtrip de la exportación)
+        if (idCursoFila) {
+          cursoObjFila = cursos.find((c: any) => String(c.idCurso) === idCursoFila) || null;
         }
         if (!cursoObjFila && programaFila) {
           cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo && (c.programa?.trim() || '') === programaFila.trim()) || null;
-          if (!cursoObjFila) {
-            cursoObjFila = newCursosMap.get(`${cursoEfectivo}||${programaEfectivo}`) || null;
-          }
-        } else if (!cursoObjFila) {
-          cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo) || null;
-          if (!cursoObjFila) {
-            for (const v of newCursosMap.values()) {
-              if ((v.nombreCompleto || v.curso) === cursoEfectivo) { cursoObjFila = v; break; }
-            }
-          }
         }
         if (!cursoObjFila) {
-          const keyCurso = `${cursoEfectivo}||${programaEfectivo}`;
-          cursoObjFila = newCursosMap.get(keyCurso) || null;
-          if (!cursoObjFila) {
-            for (const v of newCursosMap.values()) {
-              if ((v.nombreCompleto || v.curso) === cursoEfectivo && v.programa === programaEfectivo) { cursoObjFila = v; break; }
-            }
-          }
-          if (!cursoObjFila) {
-            // Último intento tolerante: ignora mayúsculas, tildes y espacios para no
-            // duplicar cursos que ya existen con nombre apenas distinto
-            const norm = (s: any) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            const targetName = norm(cursoEfectivo);
-            const targetProg = norm(programaFila || programaEfectivo);
-            cursoObjFila = cursos.find((c: any) =>
-              norm(c.nombreCompleto || c.curso) === targetName &&
-              (!programaFila || norm(c.programa) === targetProg || norm(c.programa) === norm('Otros') || !norm(c.programa))
-            ) || null;
-            if (!cursoObjFila) {
-              for (const v of newCursosMap.values()) {
-                if (norm(v.nombreCompleto || v.curso) === targetName) { cursoObjFila = v; break; }
-              }
-            }
-          }
-          if (!cursoObjFila) {
-            const nuevoId = nextCursoId++;
-            const nuevoCurso: any = {
-              idCurso: nuevoId,
-              curso: cursoEfectivo,
-              nombreCompleto: cursoEfectivo,
-              programa: programaEfectivo,
-              cargaHoraria: '',
-              cargaHorariaHs: cargaFilaRaw ? String(cargaFilaRaw).trim() : '',
-              plan: '',
-              planName: '',
-              idDocente: null,
-              docenteNombre: '',
-              resolucion: resolucionFila,
-              showOnLanding: true
-            };
-            try { await setDoc(doc(db, 'cursos', String(nuevoId)), nuevoCurso); } catch (e) { console.error('Error creando curso auto:', e); }
-            cursoObjFila = nuevoCurso;
-            newCursosMap.set(keyCurso, cursoObjFila);
-          }
+          cursoObjFila = cursos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo) || null;
+        }
+        if (!cursoObjFila) {
+          // Último intento tolerante: ignora mayúsculas, tildes y espacios
+          const targetName = normTxt(cursoEfectivo);
+          const targetProg = normTxt(programaFila);
+          cursoObjFila = cursos.find((c: any) =>
+            normTxt(c.nombreCompleto || c.curso) === targetName &&
+            (!programaFila || normTxt(c.programa) === targetProg || normTxt(c.programa) === 'otros' || !normTxt(c.programa))
+          ) || null;
+        }
+        if (!cursoObjFila) {
+          skipped++;
+          if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: DNI ${dniVal} curso inexistente (“${cursoEfectivo}”, crearlo en Cursos y Fechas)`);
+          continue;
         }
         // Pisar datos del lote en el curso: programa, carga horaria y resolución
         // (solo si la fila trae valor y difiere; merge, no toca docente/plan).
@@ -535,38 +504,29 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const idCursoValFila = cursoObjFila.idCurso;
         const cursoParaInscripcion = cursoEfectivo;
         const fechaParaInscripcion = fechaInicioFila;
-        // Buscar o crear fecha para ese curso. Vía rápida por ID Fecha del
-        // roundtrip (solo vale si es del mismo curso); si no, por inicio.
+        // La fecha debe existir (por ID Fecha del roundtrip o por inicio
+        // normalizado, tolerando formatos distintos). No se crea: se omite.
+        const mismoInicio = (a: any, b: any) => {
+          const ca = excelDateToJSDate(String(a || '').replace(/\//g, '-')) || String(a || '').trim();
+          const cb = excelDateToJSDate(String(b || '').replace(/\//g, '-')) || String(b || '').trim();
+          return ca !== '' && ca === cb;
+        };
         let fechaObjFila: any = null;
         if (idFechaCol) {
-          const cand = fechas.find((f: any) => String(f.id) === idFechaCol)
-            || [...newFechasMap.values()].find((f: any) => String(f.id) === idFechaCol);
+          const cand = fechas.find((f: any) => String(f.id) === idFechaCol);
           if (cand && String(cand.idCurso) === String(idCursoValFila)) fechaObjFila = cand;
         }
         if (!fechaObjFila) {
-          fechaObjFila = fechas.find((f: any) => (String(f.idCurso) === String(idCursoValFila) || (f.curso || '') === cursoEfectivo) && f.inicio === fechaInicioFila) || null;
+          const targetNom = normTxt(cursoObjFila.nombreCompleto || cursoObjFila.curso);
+          fechaObjFila = fechas.find((f: any) =>
+            (String(f.idCurso) === String(idCursoValFila) || normTxt(f.curso || '') === targetNom || (f.curso || '') === cursoEfectivo) &&
+            mismoInicio(f.inicio, fechaInicioFila)
+          ) || null;
         }
-        if (!fechaObjFila) {
-          const keyFecha = `${idCursoValFila}||${fechaInicioFila}`;
-          fechaObjFila = newFechasMap.get(keyFecha) || null;
-          if (!fechaObjFila) {
-            const cantidadVal = cantidadFilaRaw ? Number(String(cantidadFilaRaw).replace(/\D/g, '')) : 4;
-            const nuevaFecha: any = {
-              idCurso: idCursoValFila,
-              curso: cursoObjFila.nombreCompleto || cursoObjFila.curso,
-              inicio: fechaInicioFila,
-              certificado: '',
-              cantidadClases: cantidadVal || 4
-            };
-            try {
-              const ref = await addDoc(collection(db, 'fechas'), nuevaFecha);
-              fechaObjFila = { id: ref.id, ...nuevaFecha };
-            } catch (e) {
-              console.error('Error creando fecha auto:', e);
-              fechaObjFila = nuevaFecha;
-            }
-            newFechasMap.set(keyFecha, fechaObjFila);
-          }
+        if (!fechaObjFila || !(fechaObjFila as any).id) {
+          skipped++;
+          if (skippedExamples.length < 3) skippedExamples.push(`fila ${count}: DNI ${dniVal} fecha inexistente (“${cursoEfectivo}” ${fechaInicioFila}, crearla en Cursos y Fechas)`);
+          continue;
         }
 
         // Datos de la fila para el alta en el padrón (si el DNI no existe)
@@ -732,8 +692,6 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         });
       }
 
-      const creadosCursosMsg = newCursosMap.size ? ` Se crearon ${newCursosMap.size} curso(s) nuevo(s).` : '';
-      const creadasFechasMsg = newFechasMap.size ? ` Se crearon ${newFechasMap.size} fecha(s) nueva(s).` : '';
       const alumnosMsg = (stats.alumnosCreados > 0 || stats.alumnosActualizados > 0)
         ? ` Padrón: ${stats.alumnosCreados} alta(s), ${stats.alumnosActualizados} nombre(s) pisados.`
         : '';
@@ -743,9 +701,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       const fechasMsg = stats.fechasUpdated > 0
         ? ` Se actualizó cantidad de clases en ${stats.fechasUpdated} fecha(s).`
         : '';
-      const statsMsg = `Se procesaron ${count} filas: ${stats.created} altas, ${stats.updated} actualizadas (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados${skipped > 0 ? `, ${skipped} omitidas (sin DNI, curso o fecha válidos${skippedExamples.length > 0 ? ` — ej.: ${skippedExamples.join('; ')}` : ''})` : ''}.`;
-      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${creadosCursosMsg}${creadasFechasMsg}${alumnosMsg}${cursosMsg}${fechasMsg}`, variant: 'success' });
-      await logAudit('Inscripción por lotes', `${statsMsg}${creadosCursosMsg}${creadasFechasMsg}${alumnosMsg}${cursosMsg}${fechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
+      const statsMsg = `Se procesaron ${count} filas: ${stats.created} altas, ${stats.updated} actualizadas (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados${filtradas > 0 ? `, ${filtradas} filtradas por Paso 1` : ''}${skipped > 0 ? `, ${skipped} omitidas (sin DNI, curso/fecha válidos o inexistentes en el sistema${skippedExamples.length > 0 ? ` — ej.: ${skippedExamples.join('; ')}` : ''})` : ''}.`;
+      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${alumnosMsg}${cursosMsg}${fechasMsg}`, variant: 'success' });
+      await logAudit('Inscripción por lotes', `${statsMsg}${alumnosMsg}${cursosMsg}${fechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
       setParsedLoteData([]);
       setWorkbook(null);
       setSheetNames([]);
@@ -817,6 +775,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
 
   const [reparando, setReparando] = useState(false);
   const [huerfanas, setHuerfanas] = useState<any[]>([]);
+  const [pendientesInfo, setPendientesInfo] = useState<string[]>([]);
+  const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [revinculando, setRevinculando] = useState(false);
 
   // Repara vínculos rotos por limpiezas parciales (cursos/fechas borrados y
   // recreados): revincula cada inscripción por ID y, si cambió, por
@@ -1049,6 +1010,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       await flush();
 
       setHuerfanas(huerf);
+      setPendientesInfo(pendientes.slice(0, 50));
       const msg = `Reparación completada: ${fechasNormalizadas} fecha(s) normalizadas, ${cursosFusionados} curso(s) duplicados fusionados (${inscRevinculadas} inscripción(es) reconectadas), ${curados} inscripción(es) revinculadas, ${fusionados} duplicados fusionados, ${fechasBorradas} fecha(s) duplicadas sin uso eliminadas${pendientes.length > 0 ? `, ${pendientes.length} pendiente(s) (falta curso/fecha en catálogo, no se tocaron)` : ''}${huerf.length > 0 ? `, ${huerf.length} huérfana(s) sin curso identificable (revise abajo)` : ''}.`;
       await logAudit('Reparación de inscriptos', msg);
       await alert({ title: 'Reparación completada', message: msg, variant: 'success' });
@@ -1085,6 +1047,80 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     } catch (err) {
       console.error('Error eliminando huérfanas:', err);
       await alert({ title: 'Error', message: 'No se pudieron eliminar las huérfanas. Intente nuevamente.', variant: 'danger' });
+    }
+  };
+
+  // Revincula con el 02_inscriptos.xlsx del backup como mapa exacto
+  // (fechaId vieja → fecha de inicio): rescata huérfanas/pendientes cuyas
+  // fechas se borraron y ya no se pueden adivinar. No borra nada.
+  const handleRevincularConBackup = async () => {
+    if (!backupFile) {
+      await alert({ title: 'Falta archivo', message: 'Elegí primero el archivo 02_inscriptos.xlsx del backup.', variant: 'warning' });
+      return;
+    }
+    setRevinculando(true);
+    try {
+      const buf = await backupFile.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const mapa = new Map<string, { inicio: string; idCurso: string }>();
+      rows.forEach(r => {
+        const nk: Record<string, any> = {};
+        Object.keys(r || {}).forEach(k => { nk[normalizeKey(k)] = r[k]; });
+        const fid = nk['idfecha'] !== undefined ? String(nk['idfecha']).trim() : '';
+        const ini = nk['fechadeinicio'] !== undefined ? String(nk['fechadeinicio']).trim() : '';
+        const idc = nk['idcurso'] !== undefined ? String(nk['idcurso']).trim() : '';
+        if (fid && ini) mapa.set(fid, { inicio: ini, idCurso: idc });
+      });
+      if (mapa.size === 0) {
+        await alert({ title: 'Archivo sin IDs', message: 'El archivo no trae columnas ID Fecha / Fecha de inicio. Usá el 02_inscriptos.xlsx del backup.', variant: 'warning' });
+        return;
+      }
+      const [inscSnap, cursosSnap, fechasSnap] = await Promise.all([
+        getDocs(collection(db, 'inscripciones')),
+        getDocs(collection(db, 'cursos')),
+        getDocs(collection(db, 'fechas'))
+      ]);
+      const cursosArr = cursosSnap.docs.map(d => d.data());
+      const fechasArr = fechasSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      let batch = writeBatch(db);
+      let ops = 0;
+      const flush = async () => {
+        if (ops > 0) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      };
+      let revinculadas = 0;
+      let sinMapa = 0;
+      for (const d of inscSnap.docs) {
+        const r: any = d.data();
+        const fid = r.fechaId ? String(r.fechaId) : '';
+        if (!fid) continue;
+        if (fechasArr.some(f => String(f.id) === fid)) continue;
+        const m = mapa.get(fid);
+        if (!m) { sinMapa++; continue; }
+        const cursoObj = matchCurso(cursosArr, { idCurso: r.idCurso, nombre: r.curso })
+          || (m.idCurso ? matchCurso(cursosArr, { idCurso: m.idCurso }) : undefined);
+        if (!cursoObj) { sinMapa++; continue; }
+        const inicioCanon = excelDateToJSDate(m.inicio.replace(/\//g, '-')) || m.inicio;
+        const nombreCurso = cursoObj.nombreCompleto || cursoObj.curso;
+        const fechaObj = fechasArr.find(f => String(f.idCurso) === String(cursoObj.idCurso) && String(f.inicio || '') === inicioCanon)
+          || fechasArr.find(f => String(f.curso || '') === String(nombreCurso || '') && String(f.inicio || '') === inicioCanon);
+        if (!fechaObj) { sinMapa++; continue; }
+        batch.update(d.ref, { idCurso: cursoObj.idCurso, fechaId: String((fechaObj as any).id) });
+        ops++;
+        revinculadas++;
+        if (ops >= 400) await flush();
+      }
+      await flush();
+      const msg = `Revinculación con backup: ${revinculadas} inscripción(es) revinculadas${sinMapa > 0 ? `, ${sinMapa} sin correspondencia en el archivo` : ''}. Ahora corré Reparar vínculos para fusionar.`;
+      await logAudit('Revinculación con backup', msg);
+      await alert({ title: 'Revinculación completada', message: msg, variant: 'success' });
+      setBackupFile(null);
+    } catch (err) {
+      console.error('Error revinculando con backup:', err);
+      await alert({ title: 'Error', message: 'No se pudo leer el archivo o revincular. Verificá que sea el 02_inscriptos.xlsx del backup.', variant: 'danger' });
+    } finally {
+      setRevinculando(false);
     }
   };
 
@@ -1242,20 +1278,45 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         </div>
       </div>
 
-      {huerfanas.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.06)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-            {huerfanas.length} inscripción(es) sin curso identificable (no se pudieron revincular):
-            {huerfanas.slice(0, 5).map(h => ` DNI ${h.dni}`).join(',')}{huerfanas.length > 5 ? '…' : ''}
-          </span>
-          <button
-            type="button"
-            className="btn-danger"
-            style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
-            onClick={handleEliminarHuerfanas}
-          >
-            <Trash2 size={15} /> Eliminar huérfanas ({huerfanas.length})
-          </button>
+      {(huerfanas.length > 0 || pendientesInfo.length > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.06)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+          {huerfanas.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                {huerfanas.length} inscripción(es) sin curso identificable:
+                {huerfanas.slice(0, 5).map(h => ` DNI ${h.dni}`).join(',')}{huerfanas.length > 5 ? '…' : ''}
+              </span>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                onClick={handleEliminarHuerfanas}
+              >
+                <Trash2 size={15} /> Eliminar huérfanas ({huerfanas.length})
+              </button>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+              ¿Quedaron sin revincular? Subí el 02_inscriptos.xlsx del backup como mapa exacto:
+            </span>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={e => setBackupFile(e.target.files?.[0] || null)}
+              disabled={revinculando}
+              style={{ fontSize: '0.8rem', maxWidth: '220px' }}
+            />
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              onClick={handleRevincularConBackup}
+              disabled={!backupFile || revinculando}
+            >
+              <Database size={15} /> {revinculando ? 'Revinculando...' : 'Revincular con backup'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -1615,7 +1676,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box" style={{ height: 'fit-content' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 1: Destinatario <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--text-muted)' }}>(opcional)</span>
-              <button type="button" onClick={() => alert({ title: 'Paso 1 — Histórico (opcional)', message: 'Opcional. Si el Excel ya trae columnas Programa / Curso / Fecha de inicio por fila (ej. Informática — Excel / Word / Power Point o Calidad de vida laboral), puede dejar este paso vacío.\n\nSi no trae esas columnas, seleccione aquí un Programa → Curso → Fecha que se aplicará a todas las filas.\n\nLos cursos y fechas que no existan se crearán automáticamente con Resolución, Cantidad clases y Carga horaria de la fila.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 1 — Histórico (opcional)', message: 'Opcional. Si el Excel ya trae columnas Programa / Curso / Fecha de inicio por fila (ej. Informática — Excel / Word / Power Point o Calidad de vida laboral), puede dejar este paso vacío.\n\nSi elige curso y/o fecha aquí, SOLO se procesan las filas que coincidan (filtro); las demás se omiten.\n\nSi no trae esas columnas, seleccione aquí un Programa → Curso → Fecha que se aplicará a todas las filas.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             <div className="form-group">
               <label>Programa (filtro)</label>
@@ -1664,7 +1725,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel histórico
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Columnas: DNI | Apellido | Nombre | Programa | Curso | Resolución | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ ID Curso e ID Fecha opcionales, los trae la exportación).\n\nSeparación automática por tabla:\n• DNI/Apellido/Nombre → padrón Alumnos (alta si falta; los nombres del archivo pisan).\n• Programa/Curso/Carga horaria/Resolución → Cursos (los valores del archivo pisan).\n• Fecha de inicio (+ Cantidad clases) → Fechas (la cantidad pisa si difiere). Acepta fechas como texto (2024-03-01, 01/03/2024) o serial de Excel.\n• Si el archivo trae ID Curso / ID Fecha (exportación), mandan sobre nombres y fechas: el roundtrip es exacto aunque Excel reformatee las fechas.\n• Inscriptos guarda solo DNI + curso + fecha + Condición (Cursando, Aprobado, Desaprobado, Abandonó).', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel histórico', message: 'Columnas: DNI | Apellido | Nombre | Programa | Curso | Resolución | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ ID Curso e ID Fecha opcionales, los trae la exportación).\n\nSeparación automática por tabla:\n• DNI/Apellido/Nombre → padrón Alumnos (alta si falta; los nombres del archivo pisan).\n• Programa/Curso/Carga horaria/Resolución → Cursos (los valores del archivo pisan; el curso debe existir, no se crea).\n• Fecha de inicio (+ Cantidad clases) → debe existir en Fechas (no se crea; se compara tolerando formatos). Acepta fechas como texto (2024-03-01, 01/03/2024) o serial de Excel.\n• Si el archivo trae ID Curso / ID Fecha (exportación), mandan sobre nombres y fechas: el roundtrip es exacto aunque Excel reformatee las fechas.\n• Inscriptos guarda solo DNI + curso + fecha + Condición (Cursando, Aprobado, Desaprobado, Abandonó).', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">

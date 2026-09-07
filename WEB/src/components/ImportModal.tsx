@@ -134,7 +134,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     setImportProgress({ current: 0, total: parsedData.length, status: 'Iniciando importación...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0, alumnosActualizados: 0, deleted: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0, alumnosActualizados: 0, deleted: 0, omitidas: 0 };
     // IDs tocados por el archivo (para el modo reemplazo)
     const touchedIds = new Set<string>();
     // Cache del padrón por lote: existencia + nombres (para pisar solo si difieren)
@@ -320,7 +320,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           await setDoc(doc(db, 'alumnos', String(dniVal)), studentData, { merge: true });
           touchedIds.add(String(dniVal));
         } else if (importType === 'inscripciones') {
-          if (!dniVal) continue;
+          if (!dniVal) { stats.omitidas++; continue; }
           const rawCurso = String(getVal(['curso', 'nombre curso', 'capacitacion', 'taller', 'seminario']) || '').trim();
           const rawRes = String(getVal([
             'resolucion', 'resolución', 'res', 'nro resolucion', 'nro resolución',
@@ -332,36 +332,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           const fechaInicioVal = excelDateToJSDate(getVal(['fecha inicio', 'fecha', 'inicio', 'fechainicio', 'fecha de inicio']) || '');
 
           // Sincronización con tabla Cursos (normalizado: programa/nombre/carga/resolución
-          // viven en el curso, no en la inscripción).
-          // Si el curso ya existe, NO crear uno nuevo: actualizarle la resolución del lote.
+          // viven en el curso, no en la inscripción). El importador NO crea cursos:
+          // si no hay coincidencia, la fila se omite con aviso.
           let matchedCurso = matchCurso({ idCurso: idCursoVal, nombre: rawCurso });
-          if (rawCurso) {
-            if (matchedCurso) {
-              if (rawRes && matchedCurso.resolucion !== rawRes) {
-                await setDoc(doc(db, 'cursos', matchedCurso.id), { resolucion: rawRes }, { merge: true });
-                matchedCurso.resolucion = rawRes;
-                stats.cursosUpdated++;
-              }
-            } else {
-              // Si el curso no existía, se crea para no perder la referencia
-              const maxId = cachedCursos.length > 0 ? Math.max(...cachedCursos.map(c => Number(c.idCurso) || 0), 0) : 0;
-              const newId = idCursoVal || (maxId + 1);
-              const newCursoObj = {
-                idCurso: newId,
-                curso: rawCurso,
-                nombreCompleto: rawCurso,
-                programa: '',
-                cargaHoraria: '',
-                resolucion: rawRes,
-                showOnLanding: true
-              };
-              await setDoc(doc(db, 'cursos', String(newId)), newCursoObj);
-              matchedCurso = { id: String(newId), ...newCursoObj };
-              cachedCursos.push(matchedCurso);
-              stats.cursosCreated++;
-            }
+          if (!matchedCurso) { stats.omitidas++; continue; }
+          if (rawRes && matchedCurso.resolucion !== rawRes) {
+            await setDoc(doc(db, 'cursos', matchedCurso.id), { resolucion: rawRes }, { merge: true });
+            matchedCurso.resolucion = rawRes;
+            stats.cursosUpdated++;
           }
-          if (!matchedCurso) continue;
 
           // Pisar programa/carga del curso si la fila trae valor distinto (merge)
           const progRow = String(getVal(['programa', 'programa al que pertenece']) || '').trim();
@@ -379,8 +358,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             }
           }
 
-          // Resolver (o crear) el documento de `fechas` para obtener su docId.
-          // Vía rápida por ID Fecha del roundtrip (solo si es del mismo curso).
+          // Resolver el documento de `fechas` para obtener su docId (sin crear:
+          // si no existe, la fila se omite). Inicio tolerante a formatos.
           let fechaIdVal: string | undefined;
           const rawFechaId = getVal(['idfecha', 'fechaid', 'id fecha', 'id_fecha']);
           if (rawFechaId) {
@@ -389,25 +368,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
               fechaIdVal = cand.id;
             }
           }
-          if (fechaInicioVal) {
+          if (!fechaIdVal && fechaInicioVal) {
+            const mismoInicio = (a: any) => {
+              const ca = excelDateToJSDate(String(a || '').replace(/\//g, '-')) || String(a || '').trim();
+              return ca !== '' && ca === String(fechaInicioVal);
+            };
             const foundFecha = cachedFechas.find(f =>
-              String(f.idCurso) === String(matchedCurso.idCurso) && String(f.inicio || '') === String(fechaInicioVal)
+              String(f.idCurso) === String(matchedCurso.idCurso) && mismoInicio(f.inicio)
             );
-            if (foundFecha) {
-              fechaIdVal = foundFecha.id;
-            } else {
-              const ref = await addDoc(collection(db, 'fechas'), {
-                idCurso: matchedCurso.idCurso,
-                curso: matchedCurso.nombreCompleto || matchedCurso.curso,
-                inicio: fechaInicioVal,
-                certificado: '',
-                cantidadClases: 4
-              });
-              fechaIdVal = ref.id;
-              cachedFechas.push({ id: ref.id, idCurso: matchedCurso.idCurso, inicio: fechaInicioVal });
-            }
+            if (foundFecha) fechaIdVal = foundFecha.id;
           }
-          if (!fechaIdVal) continue;
+          if (!fechaIdVal) { stats.omitidas++; continue; }
 
           // Inscripción normalizada: solo referencias + condición.
           // Padrón: alta si falta; nombres del archivo pisan si difieren.
@@ -633,7 +604,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
 
       let doneMsg = `Importación completada con éxito. Se procesaron ${count} registros.`;
       if (importType === 'inscripciones') {
-        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados, padrón: ${stats.alumnosCreados} altas y ${stats.alumnosActualizados} nombres pisados.`;
+        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados, padrón: ${stats.alumnosCreados} altas y ${stats.alumnosActualizados} nombres pisados${stats.omitidas > 0 ? `, ${stats.omitidas} omitidas (curso o fecha inexistente)` : ''}.`;
         if (stats.cursosUpdated > 0 || stats.cursosCreated > 0) {
           doneMsg += `\n\nCursos: ${stats.cursosUpdated} actualizados con datos del lote${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} nuevos dados de alta` : ''}.`;
         }
