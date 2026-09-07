@@ -471,7 +471,12 @@ export default function App() {
               <span className="tab-icon"><Users color="currentColor" size={18} /></span>
               <span className="tab-label">Personal</span>
             </button>
-            {/* Menú Configuración oculto por pedido (antes exclusivo de eugenia.gonzalez@webmail.unt.edu.ar) */}
+            {(user?.email || '').toLowerCase() === 'eugenia.gonzalez@webmail.unt.edu.ar' && (
+              <button className={`tab-btn ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => handleNav('configuracion')}>
+                <span className="tab-icon"><Settings color="currentColor" size={18} /></span>
+                <span className="tab-label">Configuración</span>
+              </button>
+            )}
           </nav>
 
           {/* Content Area wrapper */}
