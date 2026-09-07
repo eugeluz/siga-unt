@@ -944,10 +944,15 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         const r: any = d.data();
         const dniNum = Number(r.dni);
         if (!dniNum) continue;
-        const cursoObj = matchCurso(cursosArr, { idCurso: r.idCurso, nombre: r.curso });
+        const cursoObj0 = matchCurso(cursosArr, { idCurso: r.idCurso, nombre: r.curso });
+        // Si el curso se borró pero la fecha sobrevive, la fecha dice a qué curso pertenece
+        const cand0 = r.fechaId ? fechasArr.find(f => String(f.id) === String(r.fechaId)) : undefined;
+        const cursoObj = (!cursoObj0 && !r.curso && cand0)
+          ? matchCurso(cursosArr, { idCurso: (cand0 as any).idCurso })
+          : cursoObj0;
         const inicioLeg = r.fechaInicio ? (excelDateToJSDate(String(r.fechaInicio).replace(/\//g, '-')) || String(r.fechaInicio)) : '';
         let fechaObj: any;
-        const cand = r.fechaId ? fechasArr.find(f => String(f.id) === String(r.fechaId)) : undefined;
+        const cand = cand0;
         if (cand && cursoObj && String(cand.idCurso) === String(cursoObj.idCurso)) {
           fechaObj = cand;
         } else if (cand && !cursoObj && inicioLeg && String(cand.inicio || '') === inicioLeg) {
@@ -957,6 +962,12 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           const nombreCurso = cursoObj.nombreCompleto || cursoObj.curso;
           fechaObj = fechasArr.find(f => String(f.idCurso) === String(cursoObj.idCurso) && String(f.inicio || '') === inicioLeg)
             || fechasArr.find(f => String(f.curso || '') === String(nombreCurso || '') && String(f.inicio || '') === inicioLeg);
+        }
+        if (!fechaObj && cursoObj && !inicioLeg) {
+          // La fecha fue borrada y esta inscripción no guarda el inicio:
+          // solo se revincula si al curso le queda UNA sola fecha (sin ambigüedad).
+          const candidatas = fechasArr.filter(f => String(f.idCurso) === String(cursoObj.idCurso));
+          if (candidatas.length === 1) fechaObj = candidatas[0];
         }
         if (!cursoObj && !r.curso) {
           huerf.push({ id: d.id, dni: dniNum, resultado: r.resultado || 'Cursando' });
