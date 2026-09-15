@@ -79,6 +79,7 @@ export const StudentHistoryTab: React.FC<StudentHistoryTabProps> = ({ alumnos, c
           ...insc,
           id: insc.id,
           curso: cursoObj?.nombreCompleto || insc.curso,
+          fechaInicio: fechaObj?.inicio || insc.fechaInicio || '',
           resolucion: cursoObj?.resolucion || (insc as any).resolucion || 'Sin dato',
           certificado: fechaObj?.certificado || '—',
           cantidadClases: fechaObj?.cantidadClases || 4,

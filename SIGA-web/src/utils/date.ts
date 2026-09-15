@@ -16,7 +16,7 @@ const serialToISODate = (serial: number): string | null => {
  * Normalizador canónico de fechas de Excel a YYYY-MM-DD.
  * Acepta: serial numérico, serial como texto ("45352", que Excel deja al
  * guardar una columna de fechas como texto), ISO ("2024-03-01", con o sin
- * hora) y latino ("01/03/2024" o "01-03-2024", año de 2 dígitos → 20xx).
+ * hora) y latino ("01/03/2024", "01-03-24" o "01.03.24", año de 2 dígitos → 20xx).
  * Devuelve null si no reconoce el formato: los importadores omiten la fila
  * en vez de crear fechas basura que rompen los listados.
  */
@@ -27,7 +27,7 @@ export function excelDateToJSDate(serial: unknown): string | null {
     if (isNaN(serial.getTime())) return null;
     return `${serial.getFullYear()}-${pad2(serial.getMonth() + 1)}-${pad2(serial.getDate())}`;
   }
-  const s = String(serial).trim();
+  const s = String(serial).trim().replace(/^["']+|["']+$/g, '');
   if (!s) return null;
   // Serial como texto: 5 dígitos en rango plausible (1954–2119).
   // Sin este caso, "45352" se guardaba literal y generaba fechas fantasma.
@@ -39,8 +39,8 @@ export function excelDateToJSDate(serial: unknown): string | null {
   // ISO con o sin hora ("2024-03-01", "2024-03-01T00:00", "2024-03-01 00:00")
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/);
   if (m) return `${m[1]}-${pad2(Number(m[2]))}-${pad2(Number(m[3]))}`;
-  // Latino DD/MM/YYYY o DD-MM-YYYY
-  m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:[T ].*)?$/);
+  // Latino DD/MM/AA(AA) con /, - o . ("01/03/2024", "01-03-24", "01.03.24")
+  m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:[T ].*)?$/);
   if (m) {
     let yyyy = m[3];
     if (yyyy.length === 2) yyyy = '20' + yyyy;

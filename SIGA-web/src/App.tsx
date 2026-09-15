@@ -32,7 +32,6 @@ const FacultiesTab = lazy(() => import('./components/FacultiesTab').then(m => ({
 const ReportsTab = lazy(() => import('./components/ReportsTab').then(m => ({ default: m.ReportsTab })));
 const CoursesTab = lazy(() => import('./components/CoursesTab').then(m => ({ default: m.CoursesTab })));
 const CoursesAndDatesTab = lazy(() => import('./components/CoursesAndDatesTab').then(m => ({ default: m.CoursesAndDatesTab })));
-const AttendanceAndEnrollmentTab = lazy(() => import('./components/AttendanceAndEnrollmentTab').then(m => ({ default: m.AttendanceAndEnrollmentTab })));
 const NewsTab = lazy(() => import('./components/NewsTab').then(m => ({ default: m.NewsTab })));
 const PersonalTab = lazy(() => import('./components/PersonalTab').then(m => ({ default: m.PersonalTab })));
 const PersonalAndUsersTab = lazy(() => import('./components/PersonalAndUsersTab').then(m => ({ default: m.PersonalAndUsersTab })));
@@ -97,9 +96,9 @@ export default function App() {
 
   // App Tabs Navigation State
   const [activeTab, setActiveTab] = useState<'inicio' | 'alumnos' | 'inscripciones' | 'asistencia' | 'consultas' | 'reportes' | 'facultades' | 'cursos' | 'fechas' | 'personal' | 'usuarios' | 'noticias' | 'configuracion'>('inicio');
-  const [tabKeys, setTabKeys] = useState<Record<string, number>>({ inicio: 0, alumnos: 0, asistencia: 0, cursos: 0, reportes: 0, noticias: 0, personal: 0, configuracion: 0 });
+  const [tabKeys, setTabKeys] = useState<Record<string, number>>({ inicio: 0, alumnos: 0, inscripciones: 0, asistencia: 0, cursos: 0, reportes: 0, noticias: 0, personal: 0, configuracion: 0 });
   const handleNav = (tab: typeof activeTab) => {
-    const groupMap: Record<string, string> = { asistencia: 'asistencia', inscripciones: 'asistencia', cursos: 'cursos', fechas: 'cursos', reportes: 'reportes', facultades: 'reportes', personal: 'personal', usuarios: 'personal' };
+    const groupMap: Record<string, string> = { asistencia: 'asistencia', inscripciones: 'inscripciones', cursos: 'cursos', fechas: 'cursos', reportes: 'reportes', facultades: 'reportes', personal: 'personal', usuarios: 'personal' };
     const group = groupMap[tab] || tab;
     setActiveTab(tab);
     setTabKeys(prev => ({ ...prev, [group]: (prev[group] || 0) + 1 }));
@@ -451,7 +450,11 @@ export default function App() {
               <span className="tab-icon"><Users color="currentColor" size={18} /></span>
               <span className="tab-label">Alumnos</span>
             </button>
-            <button className={`tab-btn ${(activeTab === 'asistencia' || activeTab === 'inscripciones') ? 'active' : ''}`} onClick={() => handleNav('asistencia')}>
+            <button className={`tab-btn ${activeTab === 'inscripciones' ? 'active' : ''}`} onClick={() => handleNav('inscripciones')}>
+              <span className="tab-icon"><UserPlus color="currentColor" size={18} /></span>
+              <span className="tab-label">Inscripciones</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'asistencia' ? 'active' : ''}`} onClick={() => handleNav('asistencia')}>
               <span className="tab-icon"><ClipboardCheck color="currentColor" size={18} /></span>
               <span className="tab-label">Asistencia</span>
             </button>
@@ -514,12 +517,20 @@ export default function App() {
                     fechas={fechas}
                   />
                 )}
-                {(activeTab === 'asistencia' || activeTab === 'inscripciones') && (
-                  <AttendanceAndEnrollmentTab
-                    key={`asistencia-${tabKeys['asistencia'] || 0}`}
+                {activeTab === 'inscripciones' && (
+                  <EnrollmentTab
+                    key={`inscripciones-${tabKeys['inscripciones'] || 0}`}
                     cursos={cursos}
                     fechas={fechas}
                     facultades={facultades}
+                    alumnos={alumnos}
+                  />
+                )}
+                {activeTab === 'asistencia' && (
+                  <AttendanceTab
+                    key={`asistencia-${tabKeys['asistencia'] || 0}`}
+                    cursos={cursos}
+                    fechas={fechas}
                     alumnos={alumnos}
                   />
                 )}

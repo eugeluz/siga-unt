@@ -60,7 +60,7 @@ export interface Inscripcion {
   /** docId en `fechas` */
   fechaId: string;
   resultado: string;
-  /** snapshot SOLO como respaldo si el alta en `alumnos` falla (los lotes dan de alta el DNI) */
+  /** snapshot con los nombres tal como vienen en el lote (los lotes jamás escriben en `alumnos`); la vista muestra el nombre del padrón por DNI cuando existe */
   apellido?: string;
   nombre?: string;
   asistencias?: Record<string, boolean>;

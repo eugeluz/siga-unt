@@ -131,6 +131,62 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     ];
   }, []);
 
+  // Conteo previo del filtro del Paso 1 para Lote x Curso + diagnóstico por
+  // fila (primeras 5): replica la misma resolución que executeLoteEnrollment
+  // (curso de la fila o Paso 1; fecha de la fila o Paso 1) para anticipar
+  // cuántas filas se procesarán y mostrar qué detecta en cada columna.
+  const loteFiltroInfo = useMemo(() => {
+    const total = parsedLoteData.length;
+    const vacio = { total, incluidas: total, excluidas: 0, hayFiltro: false, muestra: [] as Array<{ n: number; cursoRaw: string; cursoEfectivo: string; fechaRaw: string; fechaISO: string; condRaw: string; condNorm: string }> };
+    if (total === 0) return vacio;
+    const hayFiltro = !!(selectedCurso || selectedFecha);
+    const nk = (s: any) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+    const parseF = (raw: any): string | undefined => {
+      if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
+      const normalized = (typeof raw === 'number' || raw instanceof Date) ? raw : String(raw).trim().replace(/\//g, '-');
+      return excelDateToJSDate(normalized) || undefined;
+    };
+    const fechaSelCanon = parseF(selectedFecha) || selectedFecha;
+    const resolver = (row: any) => {
+      const keys: Record<string, any> = {};
+      Object.keys(row || {}).forEach(k => { keys[nk(k)] = (row as any)[k]; });
+      const pick = (aliases: string[]) => {
+        for (const a of aliases) {
+          const v = keys[nk(a)];
+          if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+        }
+        return undefined;
+      };
+      const cursoFila = pick(['curso', 'nombre del curso', 'nombre curso', 'materia', 'capacitacion']);
+      const fechaFila = pick(['fecha de inicio', 'fecha inicio', 'inicio', 'fecha', 'fechainicio']);
+      const condFila = pick(['condicion', 'condición', 'condicion final', 'resultado', 'estado', 'situacion', 'situación', 'cond']);
+      const cursoRaw = cursoFila !== undefined ? String(cursoFila) : '';
+      const fechaRaw = fechaFila !== undefined ? String(fechaFila) : '';
+      const condRaw = condFila !== undefined ? String(condFila) : '';
+      return {
+        cursoRaw,
+        cursoEfectivo: (cursoRaw.trim() || selectedCurso),
+        fechaRaw,
+        fechaISO: parseF(fechaFila) || '',
+        condRaw,
+        condNorm: normalizeResultado(condFila),
+      };
+    };
+    const muestra = parsedLoteData.slice(0, 5).map((row, idx) => ({ n: idx + 1, ...resolver(row) }));
+    if (!hayFiltro) return { total, incluidas: total, excluidas: 0, hayFiltro, muestra };
+    let incluidas = 0;
+    let excluidas = 0;
+    for (const row of parsedLoteData) {
+      const r = resolver(row);
+      const fechaEfectiva = r.fechaISO || selectedFecha;
+      if (!r.cursoEfectivo || !fechaEfectiva) continue; // se omitirá por falta de datos
+      if (selectedCurso && String(r.cursoEfectivo).trim().toLowerCase() !== String(selectedCurso).trim().toLowerCase()) { excluidas++; continue; }
+      if (selectedFecha && fechaEfectiva !== fechaSelCanon) { excluidas++; continue; }
+      incluidas++;
+    }
+    return { total, incluidas, excluidas, hayFiltro, muestra };
+  }, [parsedLoteData, selectedCurso, selectedFecha]);
+
   const secOptions = useMemo(() => {
     const base = facultadesOptions.map((n) => ({ value: n, label: n }));
     if (studentForm.unidadAcademica && !facultadesOptions.includes(studentForm.unidadAcademica)) {
@@ -139,12 +195,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     return base;
   }, [facultadesOptions, studentForm.unidadAcademica]);
 
-  // Padrón para decidir el snapshot: si el dni no está en alumnos,
-  // la inscripción guarda apellido/nombre de respaldo (y nada más).
-  const alumnosMap = useMemo(
-    () => new Map((alumnos || []).map((a: any) => [String(a?.dni), a])),
-    [alumnos]
-  );
+  // (El padrón se usa solo para lectura en la exportación; el lote jamás
+  // escribe en `alumnos`: esa tabla solo se pisa desde la opción Alumnos.)
 
   // Resuelve el docId de `fechas` para usar como FK. No crea nada: si la
   // fecha no existe, devuelve null y quien llama avisa al usuario.
@@ -373,7 +425,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     setImportLoteProgress({ current: 0, total: parsedLoteData.length, status: 'Iniciando inscripción por lotes...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, fechasUpdated: 0, alumnosCreados: 0, alumnosActualizados: 0, cursosCreados: 0, fechasCreadas: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, fechasUpdated: 0, cursosCreados: 0, fechasCreadas: 0 };
     let skipped = 0;
     let filtradas = 0;
     const skippedExamples: string[] = [];
@@ -386,7 +438,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       // Delega en el normalizador canónico (serial, serial como texto, ISO, latino).
       // Si no se reconoce el formato, undefined: la fila se omite en vez de
       // crear fechas basura que rompen los listados.
-      const normalized = typeof raw === 'number'
+      const normalized = (typeof raw === 'number' || raw instanceof Date)
         ? raw
         : String(raw).trim().replace(/\//g, '-');
       return excelDateToJSDate(normalized) || undefined;
@@ -596,10 +648,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           setIfPresent(['cargo', 'funcion', 'cargofuncion', 'cargo / funcion', 'cargo/funcion', 'cargo o funcion', 'puesto', 'puesto de trabajo'], 'cargoFuncion', (v) => String(v).trim());
           setIfPresent(['email', 'correo', 'e-mail', 'mail', 'correo electronico', 'e mail', 'direccion de correo', 'email personal', 'email laboral'], 'email', (v) => String(v).toLowerCase().trim());
 
-        // 2. Inscribe en 'inscripciones' (normalizado: referencias + condición).
-        // Alta en el padrón si el dni no existe (solo con los datos de la fila,
-        // merge para no pisar nunca datos existentes). Si el alta falla, los
-        // nombres quedan como respaldo en la inscripción para no perder datos.
+        // 2. Inscribe en 'inscripciones' (referencias + condición + snapshot
+        // propio con los nombres del lote). El padrón NUNCA se toca desde el
+        // lote (solo se escribe desde la opción Alumnos): la vista resuelve
+        // el nombre del padrón por DNI cuando existe y usa este snapshot
+        // en caso contrario.
         const rawCond = getVal(['condicion', 'condición', 'condicion final', 'resultado', 'estado', 'situacion', 'situación', 'cond']);
         const resultadoVal = normalizeResultado(rawCond);
 
@@ -644,40 +697,11 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           fechaId: fechaIdFila,
           resultado: resultadoVal
         };
-        // Padrón: alta si falta; si existe, los nombres del archivo pisan
-        // (merge: solo dni/apellido/nombre, el resto de la ficha no se toca).
-        // Solo se escribe si hay cambios (evita escrituras masivas al re-subir).
-        let alumnoEnPadron = alumnosMap.has(String(dniVal));
-        const alta: any = { dni: dniVal };
-        if (studentData.apellido) alta.apellido = studentData.apellido;
-        if (studentData.nombre) alta.nombre = studentData.nombre;
-        if (!alumnoEnPadron) {
-          try {
-            await setDoc(doc(db, 'alumnos', String(dniVal)), alta, { merge: true });
-            alumnosMap.set(String(dniVal), { ...(alumnosMap.get(String(dniVal)) || {}), ...alta });
-            stats.alumnosCreados++;
-            alumnoEnPadron = true;
-          } catch (e) {
-            console.error('Error dando de alta alumno:', e);
-            // Respaldo en la inscripción para no perder los nombres
-            if (studentData.apellido) enrollmentData.apellido = studentData.apellido;
-            if (studentData.nombre) enrollmentData.nombre = studentData.nombre;
-          }
-        } else {
-          const prev = alumnosMap.get(String(dniVal)) || {};
-          const cambios: any = { dni: dniVal };
-          if (alta.apellido && prev.apellido !== alta.apellido) cambios.apellido = alta.apellido;
-          if (alta.nombre && prev.nombre !== alta.nombre) cambios.nombre = alta.nombre;
-          if (cambios.apellido || cambios.nombre) {
-            try {
-              await setDoc(doc(db, 'alumnos', String(dniVal)), cambios, { merge: true });
-              alumnosMap.set(String(dniVal), { ...prev, ...cambios });
-              stats.alumnosActualizados++;
-            } catch (e) {
-              console.error('Error actualizando alumno:', e);
-            }
-          }
-        }
+        // Snapshot propio: la inscripción guarda los nombres tal como vienen
+        // en el lote (tal como deben figurar en el certificado). El padrón
+        // no se lee para escribir, solo para mostrar (join en la vista).
+        if (studentData.apellido) enrollmentData.apellido = studentData.apellido;
+        if (studentData.nombre) enrollmentData.nombre = studentData.nombre;
 
         const courseObjForQuery = cursoObjFila;
         // Buscar TODAS las coincidencias para pisarlas y eliminar duplicados.
@@ -714,7 +738,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             });
           });
           if (Object.keys(mergedAsist).length > 0) enrollmentData.asistencias = mergedAsist;
-          if (!alumnosMap.has(String(dniVal))) {
+          // Si la fila no trae nombres, se conserva el snapshot previo.
+          if (!enrollmentData.apellido || !enrollmentData.nombre) {
             const prev = (matchedDocs[0].data() as any) || {};
             if (!enrollmentData.apellido && prev.apellido) enrollmentData.apellido = prev.apellido;
             if (!enrollmentData.nombre && prev.nombre) enrollmentData.nombre = prev.nombre;
@@ -740,18 +765,15 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       const creadosMsg = (stats.cursosCreados > 0 || stats.fechasCreadas > 0)
         ? ` Se crearon ${stats.cursosCreados} curso(s) y ${stats.fechasCreadas} fecha(s) nuevos.`
         : '';
-      const alumnosMsg = (stats.alumnosCreados > 0 || stats.alumnosActualizados > 0)
-        ? ` Padrón: ${stats.alumnosCreados} alta(s), ${stats.alumnosActualizados} nombre(s) pisados.`
-        : '';
       const cursosMsg = stats.cursosUpdated > 0
         ? ` Se pisaron datos en ${stats.cursosUpdated} curso(s) (programa/carga/resolución).`
         : '';
       const fechasMsg = stats.fechasUpdated > 0
         ? ` Se actualizó cantidad de clases en ${stats.fechasUpdated} fecha(s).`
         : '';
-      const statsMsg = `Se procesaron ${count} filas: ${stats.created} altas, ${stats.updated} actualizadas (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados${filtradas > 0 ? `, ${filtradas} filtradas por Paso 1` : ''}${skipped > 0 ? `, ${skipped} omitidas (sin DNI o sin curso/fecha válidos${skippedExamples.length > 0 ? ` — ej.: ${skippedExamples.join('; ')}` : ''})` : ''}.`;
-      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${creadosMsg}${alumnosMsg}${cursosMsg}${fechasMsg}`, variant: 'success' });
-      await logAudit('Inscripción por lotes', `${statsMsg}${creadosMsg}${alumnosMsg}${cursosMsg}${fechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
+      const statsMsg = `Se procesaron ${count} filas: ${stats.created} altas, ${stats.updated} actualizadas (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados (el padrón no se modificó)${filtradas > 0 ? `, ${filtradas} filtradas por Paso 1` : ''}${skipped > 0 ? `, ${skipped} omitidas (sin DNI o sin curso/fecha válidos${skippedExamples.length > 0 ? ` — ej.: ${skippedExamples.join('; ')}` : ''})` : ''}.`;
+      await alert({ title: 'Inscripción completada', message: `Inscripción por lotes completada con éxito.\n\n${statsMsg}${creadosMsg}${cursosMsg}${fechasMsg}`, variant: 'success' });
+      await logAudit('Inscripción por lotes', `${statsMsg}${creadosMsg}${cursosMsg}${fechasMsg} — ${hasPerRowCurso ? 'por fila (Programa/Curso/Fecha del Excel)' : `${selectedCurso} (${selectedFecha})`}`);
       setParsedLoteData([]);
       setWorkbook(null);
       setSheetNames([]);
@@ -1615,7 +1637,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel / CSV
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel', message: 'Dos formatos válidos:\n\n1) Simple (4 columnas): DNI | Apellido | Nombre | Condición — requiere Paso 1 con curso y fecha (se aplican a todas las filas).\n\n2) Por fila (9 columnas): DNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ Resolución e ID Curso/ID Fecha opcionales) — el Paso 1 queda vacío o actúa como filtro.\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nLos DNI ausentes se dan de alta y los nombres del archivo pisan los del padrón.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel', message: 'Dos formatos válidos:\n\n1) Simple (4 columnas): DNI | Apellido | Nombre | Condición — requiere Paso 1 con curso y fecha (se aplican a todas las filas).\n\n2) Por fila (9 columnas): DNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ Resolución e ID Curso/ID Fecha opcionales) — el Paso 1 queda vacío o actúa como filtro.\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl padrón no se modifica: la inscripción guarda los nombres del archivo y la vista muestra el nombre del padrón por DNI cuando existe.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">
@@ -1648,8 +1670,13 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
             {parsedLoteData.length > 0 && (
               <div style={{ marginTop: '15px' }}>
                 <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>
-                  <strong>Vista Previa (Primeras 5 filas):</strong> {parsedLoteData.length} inscriptos cargados.
+                  <strong>Vista Previa (Primeras 5 filas):</strong> {loteFiltroInfo.total} inscriptos cargados.
                 </p>
+                {loteFiltroInfo.hayFiltro && (
+                  <p style={{ fontSize: '0.85rem', marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    Filtro del Paso 1{selectedCurso ? ` — ${selectedCurso}` : ''}{selectedFecha ? ` (${formatDateAR(selectedFecha)})` : ''}: se procesarán <strong>{loteFiltroInfo.incluidas}</strong> de {loteFiltroInfo.total} filas{ loteFiltroInfo.excluidas > 0 ? ` (${loteFiltroInfo.excluidas} no coinciden y se omitirán)` : ''}.
+                  </p>
+                )}
                 <div className="preview-table-wrapper" style={{ overflowX: 'auto', maxHeight: '180px' }}>
                   <table className="listbox-table" style={{ fontSize: '0.75rem' }}>
                     <thead>
@@ -1670,6 +1697,16 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                     </tbody>
                   </table>
                 </div>
+                {loteFiltroInfo.muestra.length > 0 && (
+                  <div style={{ marginTop: '10px', fontSize: '0.78rem', background: 'rgba(37, 154, 214, 0.07)', border: '1px solid rgba(37, 154, 214, 0.25)', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <strong>Qué detecta en cada columna (primeras 5 filas):</strong>
+                    {loteFiltroInfo.muestra.map(m => (
+                      <span key={m.n}>
+                        Fila {m.n}: fecha “{m.fechaRaw || '—'}” → {m.fechaISO ? <strong>{m.fechaISO}</strong> : <strong style={{ color: '#E8BC00' }}>NO RECONOCIDA</strong>} · curso “{m.cursoRaw || '—'}” → {m.cursoEfectivo ? <strong>{m.cursoEfectivo}</strong> : <strong style={{ color: '#E8BC00' }}>NO DETECTADO</strong>} · condición “{m.condRaw || '—'}” → <strong>{m.condNorm}</strong>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {!isImportingLote ? (
                   <button 
@@ -1677,9 +1714,9 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                     className="btn-primary" 
                     style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%' }} 
                     onClick={executeLoteEnrollment}
-                    disabled={parsedLoteData.length === 0 || isImportingLote}
+                    disabled={parsedLoteData.length === 0 || isImportingLote || (loteFiltroInfo.hayFiltro && loteFiltroInfo.incluidas === 0)}
                   >
-                    <Database size={16} /> Confirmar Inscripción Masiva ({parsedLoteData.length} alumnos)
+                    <Database size={16} /> Confirmar Inscripción Masiva ({loteFiltroInfo.hayFiltro ? loteFiltroInfo.incluidas : parsedLoteData.length} alumnos)
                   </button>
                 ) : (
                   <div style={{ marginTop: '20px' }}>

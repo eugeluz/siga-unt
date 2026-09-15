@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { setDoc, doc, collection, addDoc, query, where, getDocs, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { setDoc, doc, collection, addDoc, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Download, Database, AlertTriangle } from 'lucide-react';
 
@@ -134,11 +134,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
     setImportProgress({ current: 0, total: parsedData.length, status: 'Iniciando importación...' });
 
     let count = 0;
-    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, alumnosCreados: 0, alumnosActualizados: 0, deleted: 0, omitidas: 0 };
+    const stats = { created: 0, updated: 0, dupsRemoved: 0, cursosUpdated: 0, cursosCreated: 0, deleted: 0, omitidas: 0 };
     // IDs tocados por el archivo (para el modo reemplazo)
     const touchedIds = new Set<string>();
-    // Cache del padrón por lote: existencia + nombres (para pisar solo si difieren)
-    const padronCache = new Map<string, { existe: boolean; apellido?: string; nombre?: string }>();
     try {
       // Cargar cursos existentes para verificar coincidencias, evitar duplicados y sincronizar resoluciones
       const cursosSnap = await getDocs(collection(db, 'cursos'));
@@ -380,56 +378,19 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
           }
           if (!fechaIdVal) { stats.omitidas++; continue; }
 
-          // Inscripción normalizada: solo referencias + condición.
-          // Padrón: alta si falta; nombres del archivo pisan si difieren.
-          // Solo si el alta falla, apellido/nombre quedan como respaldo aquí.
+          // Inscripción normalizada: solo referencias + condición + snapshot
+          // propio con los nombres del archivo. El padrón nunca se toca desde
+          // este importador (solo se escribe desde la opción Alumnos).
           const apellidoRow = toTitleCase(String(getVal(['apellido', 'apellidos', 'surname', 'last name']) || '').trim());
           const nombreRow = toTitleCase(String(getVal(['nombre', 'nombres', 'name', 'first name']) || '').trim());
-          let altaOk = true;
-          try {
-            let cached = padronCache.get(String(dniVal));
-            if (!cached) {
-              const aSnap = await getDoc(doc(db, 'alumnos', String(dniVal)));
-              cached = aSnap.exists()
-                ? { existe: true, apellido: (aSnap.data() as any)?.apellido || '', nombre: (aSnap.data() as any)?.nombre || '' }
-                : { existe: false };
-              padronCache.set(String(dniVal), cached);
-            }
-            const alta: any = { dni: dniVal };
-            if (apellidoRow) alta.apellido = apellidoRow;
-            if (nombreRow) alta.nombre = nombreRow;
-            if (!cached.existe) {
-              await setDoc(doc(db, 'alumnos', String(dniVal)), alta, { merge: true });
-              padronCache.set(String(dniVal), { existe: true, apellido: apellidoRow, nombre: nombreRow });
-              stats.alumnosCreados++;
-            } else {
-              // Pisar nombres con los del archivo solo si difieren
-              const cambios: any = { dni: dniVal };
-              if (apellidoRow && cached.apellido !== apellidoRow) cambios.apellido = apellidoRow;
-              if (nombreRow && cached.nombre !== nombreRow) cambios.nombre = nombreRow;
-              if (cambios.apellido || cambios.nombre) {
-                await setDoc(doc(db, 'alumnos', String(dniVal)), cambios, { merge: true });
-                padronCache.set(String(dniVal), {
-                  existe: true,
-                  apellido: apellidoRow || cached.apellido,
-                  nombre: nombreRow || cached.nombre
-                });
-                stats.alumnosActualizados++;
-              }
-            }
-          } catch {
-            altaOk = false;
-          }
           const insData: any = {
             dni: dniVal,
             idCurso: matchedCurso.idCurso,
             fechaId: fechaIdVal,
             resultado: normalizeResultado(getVal(['resultado', 'estado', 'condicion', 'situacion', 'condición', 'situación']))
           };
-          if (!altaOk) {
-            if (apellidoRow) insData.apellido = apellidoRow;
-            if (nombreRow) insData.nombre = nombreRow;
-          }
+          if (apellidoRow) insData.apellido = apellidoRow;
+          if (nombreRow) insData.nombre = nombreRow;
 
           // Dedupe por DNI (sin índice compuesto): filtrar en memoria por clave
           // normalizada (idCurso + fechaId) con fallback legacy (curso + fechaInicio).
@@ -604,7 +565,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
 
       let doneMsg = `Importación completada con éxito. Se procesaron ${count} registros.`;
       if (importType === 'inscripciones') {
-        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados, padrón: ${stats.alumnosCreados} altas y ${stats.alumnosActualizados} nombres pisados${stats.omitidas > 0 ? `, ${stats.omitidas} omitidas (curso o fecha inexistente)` : ''}.`;
+        doneMsg = `Importación completada con éxito. Se procesaron ${count} registros: ${stats.created} altas, ${stats.updated} actualizados (coincidencia DNI + Curso + Fecha), ${stats.dupsRemoved} duplicados eliminados (el padrón no se modificó)${stats.omitidas > 0 ? `, ${stats.omitidas} omitidas (curso o fecha inexistente)` : ''}.`;
         if (stats.cursosUpdated > 0 || stats.cursosCreated > 0) {
           doneMsg += `\n\nCursos: ${stats.cursosUpdated} actualizados con datos del lote${stats.cursosCreated > 0 ? `, ${stats.cursosCreated} nuevos dados de alta` : ''}.`;
         }
