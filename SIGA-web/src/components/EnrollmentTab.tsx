@@ -223,6 +223,8 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           }
           return false;
         });
+        // Orden fijo: fechas de mayor a menor (más recientes primero).
+        filtered.sort((a, b) => String(b.inicio || '').localeCompare(String(a.inicio || '')));
         setFechasFiltradas(filtered);
         if (filtered.length > 0) {
           setSelectedFecha(filtered[0].inicio || '');

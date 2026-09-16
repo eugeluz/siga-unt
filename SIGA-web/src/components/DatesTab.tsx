@@ -3,7 +3,7 @@ import { collection, addDoc, deleteDoc, doc, setDoc, query, where, getDocs } fro
 import { db } from '../firebase';
 import { FormField } from './FormField';
 import { formatDateAR } from '../utils/dateAR';
-import { Plus, Trash2, Calendar, Search, ArrowUpDown, Eye, EyeOff, FileText, HelpCircle, Link2 } from 'lucide-react';
+import { Plus, Trash2, Calendar, Search, Eye, EyeOff, FileText, HelpCircle, Link2 } from 'lucide-react';
 import { useModal } from './ModalProvider';
 
 interface DatesTabProps {
@@ -22,7 +22,6 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 10;
 
@@ -131,7 +130,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
     }
   };
 
-  // Filter & sort dates based on search term and fecha de inicio
+  // Filtro + orden fijo: fechas de mayor a menor (más recientes primero).
   const filteredFechas = fechas
     .filter(f => {
       const term = searchTerm.toLowerCase();
@@ -144,8 +143,8 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
     .sort((a, b) => {
       const dateA = a.inicio || '';
       const dateB = b.inicio || '';
-      if (dateA < dateB) return sortOrder === 'asc' ? -1 : 1;
-      if (dateA > dateB) return sortOrder === 'asc' ? 1 : -1;
+      if (dateA < dateB) return 1;
+      if (dateA > dateB) return -1;
       return (a.curso || '').localeCompare(b.curso || '');
     });
 
@@ -153,7 +152,7 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
   const paginatedFechas = filteredFechas.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   // Reset page when filters change
-  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, sortOrder]);
+  React.useEffect(() => { setCurrentPage(1); }, [searchTerm]);
   React.useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [totalPages]);
 
   return (
@@ -253,15 +252,12 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Listado de Fechas Registradas</h3>
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                title="Ordenar por fecha de inicio"
+              <span
+                style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}
+                title="Orden fijo: de mayor a menor"
               >
-                <ArrowUpDown size={14} /> {sortOrder === 'asc' ? 'Fecha (Más antiguas)' : 'Fecha (Más recientes)'}
-              </button>
+                Fecha (Más recientes ▼)
+              </span>
 
               <div style={{ position: 'relative', width: '220px' }}>
                 <input
@@ -284,12 +280,9 @@ export const DatesTab: React.FC<DatesTabProps> = ({ cursos, fechas }) => {
                   <thead>
                     <tr>
                       <th>Nombre del Curso</th>
-                      <th
-                        style={{ cursor: 'pointer', userSelect: 'none', width: '130px' }}
-                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                      >
+                      <th style={{ width: '130px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Fecha Inicio {sortOrder === 'asc' ? '▲' : '▼'}
+                          Fecha Inicio ▼
                         </div>
                       </th>
                       <th style={{ width: '130px' }}>Fecha Certificado</th>
