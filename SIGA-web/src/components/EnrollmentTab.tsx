@@ -499,7 +499,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         // vacío, se procesan todas las filas por sus valores de
         // Programa/Curso/Fecha del Excel.
         if (enrollMode === 'lotes') {
-          if (selectedCurso && String(cursoEfectivo).trim().toLowerCase() !== String(selectedCurso).trim().toLowerCase()) {
+          if (selectedCurso && normalizeKey(cursoEfectivo) !== normalizeKey(selectedCurso)) {
             filtradas++;
             continue;
           }
@@ -513,26 +513,23 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         }
         // El lote SÍ crea el curso y la fecha si no existen (con valores por
         // defecto + programa/carga/resolución/cantidad de la fila si vienen).
+        // La resolución del curso es insensible a mayúsculas/minúsculas,
+        // tildes y símbolos (misma normalización que matchCurso): si el
+        // nombre coincide con un curso existente, se reutiliza y NO se duplica.
         const normTxt = (s: any) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const nk = (s: any) => normalizeKey(String(s || ''));
         let cursoObjFila: any = null;
         // Vía rápida por ID (roundtrip de la exportación)
         if (idCursoFila) {
           cursoObjFila = cursosVivos.find((c: any) => String(c.idCurso) === idCursoFila) || null;
         }
         if (!cursoObjFila && programaFila) {
-          cursoObjFila = cursosVivos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo && (c.programa?.trim() || '') === programaFila.trim()) || null;
+          const targetProg = nk(programaFila);
+          const targetName = nk(cursoEfectivo);
+          cursoObjFila = cursosVivos.find((c: any) => nk(c.nombreCompleto || c.curso) === targetName && nk(c.programa) === targetProg) || null;
         }
         if (!cursoObjFila) {
-          cursoObjFila = cursosVivos.find((c: any) => (c.nombreCompleto || c.curso) === cursoEfectivo) || null;
-        }
-        if (!cursoObjFila) {
-          // Último intento tolerante: ignora mayúsculas, tildes y espacios
-          const targetName = normTxt(cursoEfectivo);
-          const targetProg = normTxt(programaFila);
-          cursoObjFila = cursosVivos.find((c: any) =>
-            normTxt(c.nombreCompleto || c.curso) === targetName &&
-            (!programaFila || normTxt(c.programa) === targetProg || normTxt(c.programa) === 'otros' || !normTxt(c.programa))
-          ) || null;
+          cursoObjFila = matchCurso(cursosVivos, { nombre: cursoEfectivo }) || null;
         }
         if (!cursoObjFila) {
           const nuevoId = nextCursoId++;
