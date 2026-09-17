@@ -452,8 +452,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
               if (resolucionVal) updateData.resolucion = resolucionVal;
               const prog = String(getVal(['programa', 'area']) || '').trim();
               if (prog) updateData.programa = prog;
-              const carga = String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs', 'cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'clases', 'numero de clases', 'nro clases']) || '').trim();
-              if (carga) updateData.cargaHoraria = carga;
+              // Cantidad de clases y carga horaria son columnas distintas en la
+              // exportación (cargaHoraria vs cargaHorariaHs): se leen por
+              // separado para que una no pise a la otra al re-subir.
+              const cantidad = String(getVal(['cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'cant. clases', 'clases', 'numero de clases', 'nro clases']) || '').trim();
+              if (cantidad) updateData.cargaHoraria = cantidad;
+              const cargaHs = String(getVal(['carga horaria', 'cargahoraria', 'carga horaria hs', 'horas', 'hs', 'carga']) || '').trim();
+              if (cargaHs) updateData.cargaHorariaHs = cargaHs;
               if (nombreCompleto && nombreCompleto !== existing.nombreCompleto) {
                 updateData.nombreCompleto = nombreCompleto;
               }
@@ -475,7 +480,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
                 curso: cursoNombre || nombreCompleto,
                 nombreCompleto: nombreCompleto || cursoNombre,
                 programa: String(getVal(['programa', 'area']) || '').trim(),
-                cargaHoraria: String(getVal(['cargahoraria', 'carga horaria', 'horas', 'hs', 'cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'clases', 'numero de clases', 'nro clases']) || '').trim(),
+                cargaHoraria: String(getVal(['cantidad de clases', 'cantidad clases', 'cant clases', 'cantidadclases', 'cant. clases', 'clases', 'numero de clases', 'nro clases']) || '').trim(),
+                cargaHorariaHs: String(getVal(['carga horaria', 'cargahoraria', 'carga horaria hs', 'horas', 'hs', 'carga']) || '').trim(),
                 resolucion: resolucionVal,
                 idDocente: docenteData.idDocente ?? null,
                 docenteNombre: docenteData.docenteNombre || '',

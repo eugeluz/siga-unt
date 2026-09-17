@@ -406,7 +406,11 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               <FormField label="Nombre del curso" value={form.nombreCompleto} onChange={e => setForm({ ...form, nombreCompleto: e.target.value, curso: e.target.value })} placeholder="Escribir el nombre" />
             </div>
 
-            <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'nowrap' }}>
+            <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ flex: '0 0 130px', maxWidth: '140px', minWidth: '110px', margin: 0 }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Cantidad de clases</label>
+                <input className="form-control" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 8" />
+              </div>
               <div className="form-group" style={{ flex: '1 1 auto', minWidth: '180px', margin: 0 }}>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Capacitador/a</label>
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -447,10 +451,21 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
               </div>
             </div>
 
-            <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'nowrap' }}>
+            <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div style={{ flex: '0 0 200px', maxWidth: '220px', minWidth: '160px', margin: 0 }}>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Resolución</label>
                 <input className="form-control" value={form.resolucion} onChange={e => setForm({ ...form, resolucion: e.target.value })} placeholder="Ej: RES-123/24" />
+              </div>
+              <div style={{ flex: '0 0 170px', minWidth: '150px', margin: 0 }}>
+                <label style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', height: '44px' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.showOnLanding}
+                    onChange={e => setForm({ ...form, showOnLanding: e.target.checked })}
+                    style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                  />
+                  Visible en principal
+                </label>
               </div>
               <div className="form-group" style={{ margin: 0, flex: '1 1 auto', minWidth: '200px' }}>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Planificación del curso</label>
