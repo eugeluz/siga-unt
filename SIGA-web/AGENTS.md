@@ -42,7 +42,7 @@
 - **Carga horaria → Cantidad de clases**: field `cargaHoraria` kept for back-compat; label/placeholder changed, import aliases now include `cantidad de clases`/`clases`.
 - **Cursos form order**: Row1 `Programa` → `Nombre completo` → `Nombre corto`; Row2 `Cantidad de clases` → `Docente Coordinador` → `Resolución`. `Modificar Curso` dropdown shows `Programa — Nombre corto` (no `ID`, no `nombre largo`).
 - **Student form reset**: `handleNewStudent` clears `searchFeedback` (moved above definition); `Limpiar Formulario` must clear badge `✓ Apellido, Nombre`.
-- **Export/import roundtrip (cursos/fechas)**: headers/keys live in `src/utils/exportCursosFechas.ts`; `ImportModal` aliases must recognize those exact headers (`Nombre del curso`, `Fecha de inicio`, `Fecha de certificado`, `Visible en principal`) or re-upload silently skips rows. Cursos import resolves/creates docente; fechas import dedupes by `idCurso`+`inicio`.
+- **Export/import roundtrip (cursos/fechas)**: headers/keys live in `src/utils/exportCursosFechas.ts`; `ImportModal` aliases must recognize those exact headers (`Nombre del curso`, `Fecha de inicio`, `Fecha de certificado`, `Visible en principal`) or re-upload silently skips rows. Cursos export = 7 cols (sin `Cantidad de clases` ni `Visible en principal`: se gestionan por UI/fechas); el import las sigue aceptando si vienen en archivos viejos. Cursos import resolves/creates docente; fechas import dedupes by `idCurso`+`inicio`.
 - **Backup**: `BackupCard` (rendered in `DashboardHome`/Inicio) zips 7 xlsx files via `jszip` (`alumnos, inscriptos, cursos, fechas, asistencias, aprobados, docentes` — docentes included because cursos reference `idDocente`). Last-backup timestamp in `localStorage` key `siga-last-backup`.
 
 ## Verification

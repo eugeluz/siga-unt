@@ -4,24 +4,20 @@ export const CURSOS_EXPORT_HEADERS = [
   'ID Curso',
   'Programa',
   'Nombre del curso',
-  'Cantidad de clases',
   'Carga horaria',
   'ID Docente',
   'Docente Coordinador',
   'Resolución',
-  'Visible en principal',
 ];
 
 export const CURSOS_EXPORT_KEYS = [
   'idCurso',
   'programa',
   'curso',
-  'cantidadClases',
   'cargaHoraria',
   'idDocente',
   'docente',
   'resolucion',
-  'visible',
 ];
 
 export const FECHAS_EXPORT_HEADERS = [
@@ -59,12 +55,10 @@ export const buildCursosExportRows = (cursos: any[], docentes: any[] = []) =>
       idCurso: c.idCurso ?? '',
       programa: c.programa || '',
       curso: c.nombreCompleto || c.curso || '',
-      cantidadClases: c.cargaHoraria || '',
       cargaHoraria: c.cargaHorariaHs || c.horas || '',
       idDocente: c.idDocente ?? '',
       docente: docenteDisplay(docentes, c.idDocente, c.docenteNombre || ''),
       resolucion: c.resolucion || '',
-      visible: c.showOnLanding !== false ? 'Sí' : 'No',
     }));
 
 /** Filas de fechas ordenadas por inicio, listas para downloadExcel/downloadCSV. */
