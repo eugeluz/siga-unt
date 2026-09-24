@@ -11,6 +11,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImg from '../img/logoCentro.png';
 import { useModal } from './ModalProvider';
+import { BulkWhatsAppPanel } from './BulkWhatsAppPanel';
 
 interface AttendanceTabProps {
   cursos: any[];
@@ -36,6 +37,10 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas, al
   const [certificadoFecha, setCertificadoFecha] = useState('');
   const [cursoCerrado, setCursoCerrado] = useState(false);
   const [asistenciaPanel, setAsistenciaPanel] = useState<'generar' | 'cerrar' | null>(null);
+
+  // Mensaje masivo: selección múltiple de alumnos + texto libre
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMessage, setBulkMessage] = useState('');
 
   // Informes PDF de docentes
   const [informes, setInformes] = useState<any[]>([]);
@@ -287,6 +292,10 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas, al
       }
 
       setAlumnosAsistencia(list);
+      setSelectedIds(new Set());
+      if (!bulkMessage) {
+        setBulkMessage(`Te escribimos del Centro de Capacitación UNT respecto al curso "${asistenciaCurso}" (inicio ${formatDateAR(asistenciaFecha)}): mañana no se dictará la clase. Te avisaremos la reprogramación. ¡Gracias!`);
+      }
     } catch (err) {
       console.error('Error fetching inscriptions:', err);
       if (err instanceof Error && (err as any).code === 'failed-precondition') {
@@ -390,6 +399,24 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas, al
 
     const waUrl = `https://wa.me/${finalPhone}?text=${mensaje}`;
     window.open(waUrl, '_blank');
+  };
+
+  // --- Mensaje masivo (UI en BulkWhatsAppPanel.tsx, archivo aparte) ---
+  const toggleSelectAlumno = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size >= sortedAlumnos.length && sortedAlumnos.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedAlumnos.map(a => a.id)));
+    }
   };
 
   // Ordenar lista automáticamente por Apellido (A-Z)
@@ -869,10 +896,30 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas, al
             </div>
           </div>
 
+          {/* Panel de mensaje masivo por WhatsApp (componente en archivo aparte) */}
+          <BulkWhatsAppPanel
+            alumnos={sortedAlumnos}
+            curso={asistenciaCurso}
+            selectedIds={selectedIds}
+            message={bulkMessage}
+            onMessageChange={setBulkMessage}
+            onToggleAll={toggleSelectAll}
+            onClearSelection={() => setSelectedIds(new Set())}
+          />
+
           <div className="listbox-wrapper" style={{ overflowX: 'auto' }}>
             <table className="listbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
+                  <th style={{ width: '38px', textAlign: 'center' }} title="Seleccionar para mensaje masivo">
+                    <input
+                      type="checkbox"
+                      checked={sortedAlumnos.length > 0 && selectedIds.size >= sortedAlumnos.length}
+                      onChange={toggleSelectAll}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                      title="Seleccionar / quitar todos"
+                    />
+                  </th>
                   <th
                     style={{ cursor: 'pointer', userSelect: 'none', minWidth: '150px' }}
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
@@ -935,6 +982,15 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas, al
                         background: alertInasistencias ? 'rgba(239, 68, 68, 0.05)' : 'inherit'
                       }}
                     >
+                      <td data-label="Sel" style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item.id)}
+                          onChange={() => toggleSelectAlumno(item.id)}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                          title={`Seleccionar a ${item.apellido}, ${item.nombre} para mensaje masivo`}
+                        />
+                      </td>
                       <td data-label="Apellido" style={{ fontWeight: 600 }}>{item.apellido}</td>
                       <td data-label="Nombre">{item.nombre}</td>
                       <td data-label="DNI">{item.dni}</td>

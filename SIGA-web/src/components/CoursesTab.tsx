@@ -407,10 +407,6 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
             </div>
 
             <div className="form-row" style={{ width: '100%', marginTop: '15px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: '0 0 130px', maxWidth: '140px', minWidth: '110px', margin: 0 }}>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Cantidad de clases</label>
-                <input className="form-control" value={form.cargaHoraria} onChange={e => setForm({ ...form, cargaHoraria: e.target.value })} placeholder="Ej: 8" />
-              </div>
               <div className="form-group" style={{ flex: '1 1 auto', minWidth: '180px', margin: 0 }}>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Capacitador/a</label>
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -429,7 +425,9 @@ export const CoursesTab: React.FC<CoursesTabProps> = ({ cursos, docentes, fechas
                     style={{ flex: 1 }}
                   >
                     <option value="">-- Seleccionar--</option>
-                    {docentes.map(d => (
+                    {[...docentes]
+                      .sort((a, b) => (`${a.apellido || ''} ${a.nombre || ''}`).localeCompare(`${b.apellido || ''} ${b.nombre || ''}`, 'es'))
+                      .map(d => (
                       <option key={d.idDocente} value={d.idDocente}>
                         {toTitleCase(d.apellido)}, {toTitleCase(d.nombre)}
                       </option>
