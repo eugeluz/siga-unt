@@ -387,7 +387,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImportCompl
             dni: dniVal,
             idCurso: matchedCurso.idCurso,
             fechaId: fechaIdVal,
-            resultado: normalizeResultado(getVal(['resultado', 'estado', 'condicion', 'situacion', 'condición', 'situación']))
+            resultado: normalizeResultado(getVal(['resultado', 'estado', 'condicion', 'condición', 'condicion final', 'situacion', 'situación', 'cond']))
           };
           if (apellidoRow) insData.apellido = apellidoRow;
           if (nombreRow) insData.nombre = nombreRow;

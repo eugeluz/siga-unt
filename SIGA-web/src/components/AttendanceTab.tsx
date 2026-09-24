@@ -1029,7 +1029,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ cursos, fechas, al
                           <option value="Cursando">Cursando</option>
                           <option value="Aprobado">Aprobado</option>
                           <option value="Desaprobado">Desaprobado</option>
-                          <option value="Abandonó">Abandonó</option>
                         </select>
                       </td>
 

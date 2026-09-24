@@ -55,6 +55,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   const [studentForm, setStudentForm] = useState({ ...emptyStudentForm });
   const [selectedCurso, setSelectedCurso] = useState('');
   const [selectedFecha, setSelectedFecha] = useState('');
+  const [selectedResultado, setSelectedResultado] = useState('Cursando');
   const [cursoFilterIndiv, setCursoFilterIndiv] = useState('');
   const [cursoFilterLotes, setCursoFilterLotes] = useState('');
   const [fechasFiltradas, setFechasFiltradas] = useState<any[]>([]);
@@ -243,6 +244,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     setSearchDni('');
     setSelectedCurso('');
     setSelectedFecha('');
+    setSelectedResultado('Cursando');
     setNotFound(false);
     setShowAltaForm(false);
   };
@@ -324,7 +326,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         dni: Number(searchDni),
         idCurso: courseObj ? courseObj.idCurso : '',
         fechaId,
-        resultado: 'Cursando'
+        resultado: normalizeResultado(selectedResultado)
       };
       await addDoc(collection(db, 'inscripciones'), enrollmentData);
       await logAudit('Alta e inscripción individual', `${enrollmentData.apellido}, ${enrollmentData.nombre} (DNI ${searchDni}) — ${selectedCurso} (${selectedFecha})`);
@@ -350,7 +352,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
         dni: Number(studentForm.dni),
         idCurso: courseObj ? courseObj.idCurso : '',
         fechaId,
-        resultado: 'Cursando'
+        resultado: normalizeResultado(selectedResultado)
       };
 
       await addDoc(collection(db, 'inscripciones'), enrollmentData);
@@ -361,6 +363,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       setSearchDni('');
       setSelectedCurso('');
       setSelectedFecha('');
+      setSelectedResultado('Cursando');
     } catch (err) {
       console.error(err);
       await alert({ title: 'Error', message: 'No se pudo registrar la inscripción. Intente nuevamente.', variant: 'danger' });
@@ -1557,6 +1560,19 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
               </select>
             </div>
 
+            <div className="form-group">
+              <label>Condición</label>
+              <select
+                className="form-control"
+                value={selectedResultado}
+                onChange={e => setSelectedResultado(e.target.value)}
+              >
+                <option value="Cursando">Cursando</option>
+                <option value="Aprobado">Aprobado</option>
+                <option value="Desaprobado">Desaprobado</option>
+              </select>
+            </div>
+
             {showAltaForm ? (
               <button
                 type="button"
@@ -1636,7 +1652,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
           <div className="details-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Paso 2: Cargar Excel / CSV
-              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel', message: 'Dos formatos válidos:\n\n1) Simple (4 columnas): DNI | Apellido | Nombre | Condición — requiere Paso 1 con curso y fecha (se aplican a todas las filas).\n\n2) Por fila (9 columnas): DNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ Resolución e ID Curso/ID Fecha opcionales) — el Paso 1 queda vacío o actúa como filtro.\n\nValores de Condición: Cursando, Aprobado, Desaprobado, Abandonó (por defecto Cursando).\n\nEl padrón no se modifica: la inscripción guarda los nombres del archivo y la vista muestra el nombre del padrón por DNI cuando existe.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
+              <button type="button" onClick={() => alert({ title: 'Paso 2 — Excel', message: 'Dos formatos válidos:\n\n1) Simple (4 columnas): DNI | Apellido | Nombre | Condición — requiere Paso 1 con curso y fecha (se aplican a todas las filas).\n\n2) Por fila (9 columnas): DNI | Apellido | Nombre | Programa | Curso | Fecha de inicio | Condición | Cantidad clases | Carga horaria (+ Resolución e ID Curso/ID Fecha opcionales) — el Paso 1 queda vacío o actúa como filtro.\n\nValores de Condición: Cursando, Aprobado, Desaprobado (por defecto Cursando).\n\nEl padrón no se modifica: la inscripción guarda los nombres del archivo y la vista muestra el nombre del padrón por DNI cuando existe.', variant: 'info' })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'inline-flex', color: '#E8BC00' }} title="¿De qué se trata?"><HelpCircle size={16} /></button>
             </h3>
             
             <div className="form-group">

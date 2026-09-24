@@ -66,13 +66,14 @@ export const CONDICION_ALIASES = ['condicion', 'condición', 'condicion final', 
 export const CANTIDAD_CLASES_ALIASES = ['cantidad clases', 'cant clases', 'cantidad de clases', 'clases', 'cant. clases'];
 export const CARGA_HORARIA_ALIASES = ['carga horaria', 'carga horaria hs', 'horas', 'carga'];
 
-/** Normaliza la condición del Excel a los valores permitidos. */
+/** Normaliza la condición del Excel a los valores permitidos (Cursando | Aprobado | Desaprobado). */
 export const normalizeResultado = (raw: unknown): string => {
   const s = String(raw ?? '').trim();
   if (!s) return 'Cursando';
   const lower = s.toLowerCase();
-  if (lower.includes('aprob')) return 'Aprobado';
+  // OJO: 'desaprobado' contiene 'aprob' → chequear desaprob ANTES que aprob.
   if (lower.includes('desaprob')) return 'Desaprobado';
+  if (lower.includes('aprob')) return 'Aprobado';
   if (lower.includes('abandon')) return 'Abandonó';
   if (lower.includes('cursando')) return 'Cursando';
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -201,8 +202,9 @@ export const displayInscripcion = (
 /** Prioridad para fusionar condiciones duplicadas (gana la más avanzada). */
 export const rankResultado = (r: unknown): number => {
   const n = String(r || '').toLowerCase();
-  if (n.includes('aprob')) return 4;
+  // OJO: 'desaprobado' contiene 'aprob' → chequear desaprob ANTES que aprob.
   if (n.includes('desaprob')) return 3;
+  if (n.includes('aprob')) return 4;
   if (n.includes('abandon')) return 2;
   if (n.includes('cursan')) return 1;
   return 0;
