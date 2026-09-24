@@ -31,14 +31,12 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
 
   // 1. Process Status Counts for Donut Chart
-  // Claves canónicas = las de normalizeResultado (utils/inscripciones.ts).
-  // Se normaliza al contar para que valores legacy ('Abandono' sin tilde,
-  // 'Aprobada', etc.) no caigan en 'Cursando'.
+  // Solo 3 condiciones: Cursando | Aprobado | Desaprobado.
+  // Valores legacy ('Abandono', 'Aprobada', etc.) se mapean a Cursando.
   const statusCounts: Record<string, number> = {
     'Aprobado': 0,
     'Cursando': 0,
-    'Desaprobado': 0,
-    'Abandonó': 0
+    'Desaprobado': 0
   };
 
   inscripciones.forEach(ins => {
@@ -46,8 +44,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     let res = 'Cursando';
     if (raw.includes('desaprob')) res = 'Desaprobado';
     else if (raw.includes('aprob')) res = 'Aprobado';
-    else if (raw.includes('abandon')) res = 'Abandonó';
-    else if (raw.includes('cursando')) res = 'Cursando';
+    else res = 'Cursando';
     statusCounts[res]++;
   });
 
@@ -79,7 +76,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     let color = 'var(--accent)'; // Cursando (default)
     if (status === 'Aprobado') color = 'var(--success)';
     if (status === 'Desaprobado') color = 'var(--danger-text)';
-    if (status === 'Abandonó') color = 'var(--warning)';
 
     return {
       status,
