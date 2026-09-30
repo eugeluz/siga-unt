@@ -19,7 +19,16 @@ export const DIFUSION_ADMIN_EMAIL = 'eugenia.gonzalez@webmail.unt.edu.ar';
 export const DIFUSION_SHEET_ID = '';
 
 /** Nombres exactos de las hojas de la planilla (una por lote). */
-export const DIFUSION_LOTES: string[] = [];
+export const DIFUSION_LOTES: string[] = [
+  'Lote 1',
+  'Lote 2',
+  'Lote 3',
+  'Lote 4',
+  'Lote 5',
+  'Lote 6',
+  'Lote 7',
+  'Lote 8',
+];
 
 /** Destinatarios por tramo de CCO (Gmail tolera ~40-50 por vez sin marcar spam). */
 export const DIFUSION_TRAMO_DEFAULT = 40;
