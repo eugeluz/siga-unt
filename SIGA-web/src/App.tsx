@@ -543,7 +543,7 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'noticias' && (
-                  <NewsTab />
+                  <NewsTab userEmail={user?.email || ''} alumnos={alumnos} />
                 )}
                 {(activeTab === 'reportes' || activeTab === 'facultades') && (
                   <ReportsTab

@@ -30,3 +30,6 @@ dist
 extracted_zip/
 PDFs/
 videos/
+
+# Difusión: padrones con emails/DNI/teléfonos — datos personales, no versionar
+Difusion/

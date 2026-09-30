@@ -4,9 +4,17 @@ import { db } from '../firebase';
 import { logAudit } from '../utils/audit';
 import { Save, Megaphone, Download, X, Image as ImageIcon } from 'lucide-react';
 import { useModal } from './ModalProvider';
+import { BulkEmailPanel } from './BulkEmailPanel';
+import { DIFUSION_ADMIN_EMAIL } from '../config/difusion';
 
-export const NewsTab: React.FC = () => {
+interface NewsTabProps {
+  userEmail?: string;
+  alumnos?: any[];
+}
+
+export const NewsTab: React.FC<NewsTabProps> = ({ userEmail = '', alumnos = [] }) => {
   const { alert } = useModal();
+  const isDifusionAdmin = (userEmail || '').toLowerCase() === DIFUSION_ADMIN_EMAIL;
   const [noticias, setNoticias] = useState([
     { titulo: '', texto: '', imagenUrl: '' },
     { titulo: '', texto: '', imagenUrl: '' }
@@ -171,6 +179,8 @@ export const NewsTab: React.FC = () => {
           </>
         )}
       </div>
+
+      {isDifusionAdmin && <BulkEmailPanel alumnos={alumnos} />}
     </div>
   );
 };
