@@ -26,15 +26,11 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
   const [alumnosFacultad, setAlumnosFacultad] = useState<any[]>([]);
   const [loadingFacultad, setLoadingFacultad] = useState(false);
 
-  // Filter & Sort States
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filter & Sort States (solo: Curso, Condición, Rango fecha de inicio Desde/Hasta)
   const [filterCurso, setFilterCurso] = useState('');
   const [filterResultado, setFilterResultado] = useState('');
-  const [filterFecha, setFilterFecha] = useState('');
   const [filterFechaDesde, setFilterFechaDesde] = useState('');
   const [filterFechaHasta, setFilterFechaHasta] = useState('');
-  const [filterDniDesde, setFilterDniDesde] = useState('');
-  const [filterDniHasta, setFilterDniHasta] = useState('');
   const [sortDateOrder, setSortDateOrder] = useState<'asc' | 'desc' | 'none'>('none');
 
   // Pagination State
@@ -44,7 +40,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
   // Reset pagination on filter or sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterCurso, filterResultado, filterFecha, filterFechaDesde, filterFechaHasta, filterDniDesde, filterDniHasta, selectedFacultad, sortDateOrder]);
+  }, [filterCurso, filterResultado, filterFechaDesde, filterFechaHasta, selectedFacultad, sortDateOrder]);
 
   const searchFacultad = async () => {
     if (!selectedFacultad) return;
@@ -121,33 +117,18 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
   // Get unique lists from fetched data for select dropdowns
   const uniqueCursos = Array.from(new Set(alumnosFacultad.map(item => item.curso))).filter(Boolean).sort();
   const uniqueResultados = Array.from(new Set(alumnosFacultad.map(item => item.resultado))).filter(Boolean).sort();
-  const uniqueFechas = Array.from(new Set(alumnosFacultad.map(item => item.fechaInicio))).filter(Boolean).sort();
 
   // Client-side filtering logic
   const filteredAlumnos = alumnosFacultad
     .filter(item => {
-      const queryStr = searchQuery.toLowerCase();
-      const matchesQuery = !queryStr ||
-        String(item.dni).toLowerCase().includes(queryStr) ||
-        (item.apellido || '').toLowerCase().includes(queryStr) ||
-        (item.nombre || '').toLowerCase().includes(queryStr) ||
-        (item.curso || '').toLowerCase().includes(queryStr) ||
-        (item.email || '').toLowerCase().includes(queryStr);
-
       const matchesCurso = !filterCurso || item.curso === filterCurso;
       const matchesResultado = !filterResultado || item.resultado === filterResultado;
-      const matchesFecha = !filterFecha || (item.fechaInicio || '').includes(filterFecha);
 
       const itemFecha = item.fechaInicio || '';
       const matchesFechaDesde = !filterFechaDesde || itemFecha >= filterFechaDesde;
       const matchesFechaHasta = !filterFechaHasta || itemFecha <= filterFechaHasta;
 
-      const itemDni = Number(item.dni) || 0;
-      const matchesDniDesde = !filterDniDesde || itemDni >= Number(filterDniDesde);
-      const matchesDniHasta = !filterDniHasta || itemDni <= Number(filterDniHasta);
-
-      return matchesQuery && matchesCurso && matchesResultado && matchesFecha &&
-        matchesFechaDesde && matchesFechaHasta && matchesDniDesde && matchesDniHasta;
+      return matchesCurso && matchesResultado && matchesFechaDesde && matchesFechaHasta;
     })
     .sort((a, b) => {
       if (sortDateOrder === 'none') return 0;
@@ -193,7 +174,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
     doc.setLineWidth(0.5);
     doc.line(14, 32, 196, 32);
 
-    const tableColumn = ["DNI", "Apellido", "Nombre", "Curso", "Fecha Inicio", "Resultado"];
+    const tableColumn = ["DNI", "Apellido", "Nombre", "Curso", "Fecha Inicio", "Condición"];
     const tableRows = filteredAlumnos.map(item => [
       item.dni,
       item.apellido || '',
@@ -270,7 +251,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
                   style={{ margin: 0, width: '140px', height: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
                   onClick={() => downloadCSV(
                     filteredAlumnos,
-                    ['DNI', 'Apellido', 'Nombre', 'Curso', 'Fecha Inicio', 'Resultado'],
+                    ['DNI', 'Apellido', 'Nombre', 'Curso', 'Fecha Inicio', 'Condición'],
                     ['dni', 'apellido', 'nombre', 'curso', 'fechaInicio', 'resultado'],
                     `informe_facultad_${selectedFacultad.replace(/\s+/g, '_')}.csv`
                   )}
@@ -302,18 +283,6 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
             <h4 style={{ fontSize: '0.85rem', color: 'var(--primary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filtros avanzados sobre los resultados</h4>
             <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Búsqueda General</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                  placeholder="DNI, nombre, curso..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
                 <label style={{ fontSize: '0.75rem' }}>Filtrar por Curso</label>
                 <select
                   className="form-control"
@@ -329,37 +298,20 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Filtrar por Estado</label>
+                <label style={{ fontSize: '0.75rem' }}>Filtrar por Condición</label>
                 <select
                   className="form-control"
                   style={{ padding: '8px 12px', fontSize: '0.85rem' }}
                   value={filterResultado}
                   onChange={e => setFilterResultado(e.target.value)}
                 >
-                  <option value="">-- Todos los Estados --</option>
+                  <option value="">-- Todas las Condiciones --</option>
                   {uniqueResultados.map((r, idx) => (
                     <option key={idx} value={r}>{r}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Filtrar por Fecha (Inicio)</label>
-                <select
-                  className="form-control"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                  value={filterFecha}
-                  onChange={e => setFilterFecha(e.target.value)}
-                >
-                  <option value="">-- Todas las Fechas --</option>
-                  {uniqueFechas.map((f, idx) => (
-                    <option key={idx} value={f}>{f}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginTop: '15px' }}>
               <div className="form-group" style={{ margin: 0 }}>
                 <label style={{ fontSize: '0.75rem' }}>Rango de Fecha Inicio — Desde</label>
                 <input
@@ -378,28 +330,6 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
                   style={{ padding: '8px 12px', fontSize: '0.85rem' }}
                   value={filterFechaHasta}
                   onChange={e => setFilterFechaHasta(e.target.value)}
-                />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Rango de DNI — Desde</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                  placeholder="Ej: 20000000"
-                  value={filterDniDesde}
-                  onChange={e => setFilterDniDesde(e.target.value)}
-                />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Rango de DNI — Hasta</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                  placeholder="Ej: 45000000"
-                  value={filterDniHasta}
-                  onChange={e => setFilterDniHasta(e.target.value)}
                 />
               </div>
             </div>
@@ -425,7 +355,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
                       {sortDateOrder === 'desc' && <span style={{ fontSize: '0.75rem' }}>▼</span>}
                     </div>
                   </th>
-                  <th>Resultado</th>
+                  <th>Condición</th>
                 </tr>
               </thead>
               <tbody>
@@ -436,7 +366,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
                     <td data-label="Nombre">{item.nombre}</td>
                     <td data-label="Curso">{item.curso}</td>
                     <td data-label="Fecha Inicio">{formatDateAR(item.fechaInicio)}</td>
-                    <td data-label="Resultado">
+                    <td data-label="Condición">
                       <span className={`badge badge-${(item.resultado || 'cursando').toLowerCase().replace('ó', 'o')}`}>
                         {item.resultado}
                       </span>

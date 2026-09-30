@@ -138,7 +138,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
   // cuántas filas se procesarán y mostrar qué detecta en cada columna.
   const loteFiltroInfo = useMemo(() => {
     const total = parsedLoteData.length;
-    const vacio = { total, incluidas: total, excluidas: 0, hayFiltro: false, muestra: [] as Array<{ n: number; cursoRaw: string; cursoEfectivo: string; fechaRaw: string; fechaISO: string; condRaw: string; condNorm: string }> };
+    const vacio = { total, incluidas: total, excluidas: 0, hayFiltro: false, muestra: [] as Array<{ n: number; cursoRaw: string; cursoEfectivo: string; fechaRaw: string; fechaISO: string; condRaw: string; condNorm: string }>, fechasInvalidas: [] as Array<{ n: number; fechaRaw: string }> };
     if (total === 0) return vacio;
     const hayFiltro = !!(selectedCurso || selectedFecha);
     const nk = (s: any) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -174,7 +174,17 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       };
     };
     const muestra = parsedLoteData.slice(0, 5).map((row, idx) => ({ n: idx + 1, ...resolver(row) }));
-    if (!hayFiltro) return { total, incluidas: total, excluidas: 0, hayFiltro, muestra };
+    // Fechas escritas en la planilla pero con formato no reconocido: bloquean
+    // la carga hasta corregirse (formato esperado dd/mm/aa, ej: 05/03/26).
+    // Las celdas vacías no cuentan: usan la fecha del Paso 1 o se omiten.
+    const fechasInvalidas: Array<{ n: number; fechaRaw: string }> = [];
+    parsedLoteData.forEach((row, idx) => {
+      const r = resolver(row);
+      if (r.fechaRaw.trim() !== '' && !r.fechaISO) {
+        fechasInvalidas.push({ n: idx + 1, fechaRaw: r.fechaRaw });
+      }
+    });
+    if (!hayFiltro) return { total, incluidas: total, excluidas: 0, hayFiltro, muestra, fechasInvalidas };
     let incluidas = 0;
     let excluidas = 0;
     for (const row of parsedLoteData) {
@@ -185,7 +195,7 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
       if (selectedFecha && fechaEfectiva !== fechaSelCanon) { excluidas++; continue; }
       incluidas++;
     }
-    return { total, incluidas, excluidas, hayFiltro, muestra };
+    return { total, incluidas, excluidas, hayFiltro, muestra, fechasInvalidas };
   }, [parsedLoteData, selectedCurso, selectedFecha]);
 
   const secOptions = useMemo(() => {
@@ -424,6 +434,40 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
     if (!hasPerRowCurso && (!selectedCurso || !selectedFecha)) {
       await alert({ title: 'Campos incompletos', message: 'Debe seleccionar un curso y una fecha de inicio, o incluir las columnas Programa / Curso / Fecha de inicio en el Excel.', variant: 'warning' });
       return;
+    }
+
+    // Bloqueo por fechas no reconocidas: si la planilla trae una fecha
+    // escrita pero con formato inválido, se avisa y NO se carga nada hasta
+    // corregirla (formato esperado dd/mm/aa, ej: 05/03/26). Las celdas
+    // vacías no bloquean: usan la fecha del Paso 1.
+    {
+      const nkTmp = (s: string) =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const parseTmp = (raw: any): string | undefined => {
+        if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
+        const normalized = (typeof raw === 'number' || raw instanceof Date)
+          ? raw
+          : String(raw).trim().replace(/\//g, '-');
+        return excelDateToJSDate(normalized) || undefined;
+      };
+      const invalidas: Array<{ n: number; fechaRaw: string }> = [];
+      parsedLoteData.forEach((row: any, idx: number) => {
+        const keys: Record<string, any> = {};
+        Object.keys(row || {}).forEach(k => { keys[nkTmp(k)] = (row as any)[k]; });
+        const fechaRaw = keys[nkTmp('fecha de inicio')] ?? keys[nkTmp('fecha inicio')] ?? keys[nkTmp('inicio')] ?? keys[nkTmp('fecha')] ?? keys[nkTmp('fechainicio')];
+        if (fechaRaw !== undefined && fechaRaw !== null && String(fechaRaw).trim() !== '' && !parseTmp(fechaRaw)) {
+          invalidas.push({ n: idx + 1, fechaRaw: String(fechaRaw) });
+        }
+      });
+      if (invalidas.length > 0) {
+        const detalle = invalidas.slice(0, 10).map(v => `fila ${v.n}: “${v.fechaRaw}”`).join('; ');
+        await alert({
+          title: 'Fecha no reconocida',
+          message: `Hay ${invalidas.length} fila(s) con fecha de inicio no reconocida. Corregí la planilla usando el formato dd/mm/aa (ej: 05/03/26) y volvé a cargarla. La carga está bloqueada hasta corregirlo.\n\nEj.: ${detalle}${invalidas.length > 10 ? '…' : ''}`,
+          variant: 'warning',
+        });
+        return;
+      }
     }
 
     setIsImportingLote(true);
@@ -1723,13 +1767,26 @@ export const EnrollmentTab: React.FC<EnrollmentTabProps> = ({ cursos, fechas, fa
                   </div>
                 )}
 
+                {loteFiltroInfo.fechasInvalidas.length > 0 && (
+                  <div style={{ marginTop: '10px', fontSize: '0.82rem', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <strong>⛔ Hay {loteFiltroInfo.fechasInvalidas.length} fecha(s) no reconocida(s). La carga está bloqueada hasta corregirlo.</strong>
+                    <span>Usá el formato dd/mm/aa (ej: 05/03/26). Corregí la planilla y volvé a cargarla.</span>
+                    {loteFiltroInfo.fechasInvalidas.slice(0, 10).map(v => (
+                      <span key={v.n}>Fila {v.n}: “{v.fechaRaw}”</span>
+                    ))}
+                    {loteFiltroInfo.fechasInvalidas.length > 10 && (
+                      <span>…y {loteFiltroInfo.fechasInvalidas.length - 10} más.</span>
+                    )}
+                  </div>
+                )}
                 {!isImportingLote ? (
-                  <button 
+                  <button
                     type="button"
-                    className="btn-primary" 
-                    style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%' }} 
+                    className="btn-primary"
+                    style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%' }}
                     onClick={executeLoteEnrollment}
-                    disabled={parsedLoteData.length === 0 || isImportingLote || (loteFiltroInfo.hayFiltro && loteFiltroInfo.incluidas === 0)}
+                    disabled={parsedLoteData.length === 0 || isImportingLote || (loteFiltroInfo.hayFiltro && loteFiltroInfo.incluidas === 0) || loteFiltroInfo.fechasInvalidas.length > 0}
+                    title={loteFiltroInfo.fechasInvalidas.length > 0 ? 'Corregí las fechas no reconocidas (formato dd/mm/aa) y volvé a cargar la planilla' : undefined}
                   >
                     <Database size={16} /> Confirmar Inscripción Masiva ({loteFiltroInfo.hayFiltro ? loteFiltroInfo.incluidas : parsedLoteData.length} alumnos)
                   </button>
