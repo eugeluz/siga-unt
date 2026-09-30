@@ -108,7 +108,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
       setAlumnosFacultad(results);
     } catch (err) {
       console.error('Error al consultar alumnos por facultad:', err);
-      await alert({ title: 'Error', message: 'No se pudieron obtener los alumnos de la facultad. Intente nuevamente.', variant: 'danger' });
+      await alert({ title: 'Error', message: 'No se pudieron obtener los alumnos de la unidad académica / dependencia. Intente nuevamente.', variant: 'danger' });
     } finally {
       setLoadingFacultad(false);
     }
@@ -167,7 +167,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(60, 60, 60);
-    doc.text(`Dependencia: ${selectedFacultad}`, textLeftMargin, 21);
+    doc.text(`Unidad Académica / Dependencia: ${selectedFacultad}`, textLeftMargin, 21);
     doc.text(`Fecha Reporte: ${formatDateAR(new Date())} | Registros: ${filteredAlumnos.length}`, textLeftMargin, 27);
 
     doc.setDrawColor(30, 78, 140);
@@ -202,26 +202,26 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
       }
     });
 
-    const fileName = `informe_facultad_${selectedFacultad.replace(/\s+/g, '_')}.pdf`;
+    const fileName = `informe_unidad_academica_${selectedFacultad.replace(/\s+/g, '_')}.pdf`;
     doc.save(fileName);
   };
 
   return (
     <div className="alumnos-institucional">
       <h2 className="section-title" style={{ marginBottom: '16px' }}>
-        <FileText size={24} color="currentColor" /> Reportes y Consultas por Facultad / Dependencia
+        <FileText size={24} color="currentColor" /> Reportes y Consultas por Unidad Académica / Dependencia
       </h2>
 
       <div className="details-box" style={{ marginBottom: '25px' }}>
         <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
           <div className="form-group" style={{ margin: 0 }}>
-            <label>Seleccionar Facultad / Dependencia</label>
+            <label>Seleccionar Unidad Académica / Dependencia</label>
             <select
               className="form-control"
               value={selectedFacultad}
               onChange={e => setSelectedFacultad(e.target.value)}
             >
-              <option value="">-- Seleccione una Dependencia --</option>
+              <option value="">-- Seleccione una Unidad Académica / Dependencia --</option>
               {facultades.map((f, i) => {
                 const name = f.unidadAcademica || f.facultad || '';
                 const code = f.codigo || f.idFac || f.ua || '';
@@ -253,7 +253,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
                     filteredAlumnos,
                     ['DNI', 'Apellido', 'Nombre', 'Curso', 'Fecha Inicio', 'Condición'],
                     ['dni', 'apellido', 'nombre', 'curso', 'fechaInicio', 'resultado'],
-                    `informe_facultad_${selectedFacultad.replace(/\s+/g, '_')}.csv`
+                    `informe_unidad_academica_${selectedFacultad.replace(/\s+/g, '_')}.csv`
                   )}
                   title="Exportar archivo CSV"
                 >
@@ -410,7 +410,7 @@ export const FacultiesTab: React.FC<FacultiesTabProps> = ({ facultades }) => {
 
       {alumnosFacultad.length === 0 && !loadingFacultad && selectedFacultad && (
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>
-          No se encontraron alumnos de esta facultad registrados en ningún curso.
+          No se encontraron alumnos de esta unidad académica / dependencia registrados en ningún curso.
         </p>
       )}
     </div>

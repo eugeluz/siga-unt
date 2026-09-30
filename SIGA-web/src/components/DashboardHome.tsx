@@ -134,7 +134,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
         </div>
         <div className="stat-card" style={{ padding: '16px' }}>
           <div className="stat-val" style={{ fontSize: '1.8rem' }}>{facultadesCount}</div>
-          <div className="stat-lbl" style={{ fontSize: '0.8rem' }}>Facultades / Dependencias</div>
+          <div className="stat-lbl" style={{ fontSize: '0.8rem' }}>Unidad Académica / Dependencia</div>
         </div>
         <div className="stat-card" style={{ cursor: 'default', padding: '16px' }}>
           <div className="stat-val" style={{ fontSize: '1.8rem' }}>{alumnosAprobados}</div>

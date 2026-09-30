@@ -6,7 +6,7 @@ interface ReportsTabProps {
 }
 
 /**
- * ReportsTab component displaying Reportes y Consultas por Facultad/Dependencia
+ * ReportsTab component displaying Reportes y Consultas por Unidad Académica / Dependencia
  */
 export const ReportsTab: React.FC<ReportsTabProps> = ({ facultades }) => {
   return <FacultiesTab facultades={facultades} />;
