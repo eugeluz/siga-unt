@@ -13,7 +13,7 @@
  * No se guarda NADA en Firebase: la planilla se lee en vivo, el flyer va
  * como link de Drive en el cuerpo, y el envío se hace por Gmail (CCO).
  */
-export const DIFUSION_ADMIN_EMAIL = 'centrocapacitacionunt@gmail.com';
+export const DIFUSION_ADMIN_EMAIL = 'eugenia.gonzalez@webmail.unt.edu.ar';
 
 /**
  * URL publicada de la planilla (Archivo → Publicar en la web) o ID clásico
