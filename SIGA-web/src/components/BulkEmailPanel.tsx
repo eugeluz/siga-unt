@@ -38,7 +38,7 @@ const pickVal = (row: Record<string, any>, aliases: string[]): string => {
  */
 export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({ alumnos = [] }) => {
   const { alert } = useModal();
-  const [lote, setLote] = useState(DIFUSION_LOTES[0] || '');
+  const [lote, setLote] = useState(DIFUSION_LOTES[0]?.nombre || '');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<DifusionRow[]>([]);
   const [sinEmail, setSinEmail] = useState(0);
@@ -70,7 +70,17 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({ alumnos = [] }) 
     }
     setLoading(true);
     try {
-      const url = `https://docs.google.com/spreadsheets/d/${DIFUSION_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(lote)}`;
+      // URL publicada (/d/e/…) → CSV por gid; ID clásico → gviz por nombre de hoja.
+      const sid = DIFUSION_SHEET_ID.trim();
+      const loteCfg = DIFUSION_LOTES.find((l) => l.nombre === lote);
+      const pubMatch = sid.match(/\/d\/e\/([^/?#]+)/) || (sid.startsWith('2PACX-') ? [null, sid] : null);
+      let url: string;
+      if (pubMatch && loteCfg?.gid) {
+        url = `https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?gid=${loteCfg.gid}&single=true&output=csv`;
+      } else {
+        const hoja = loteCfg?.hoja || lote;
+        url = `https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(hoja)}`;
+      }
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const csv = await res.text();
@@ -176,7 +186,7 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({ alumnos = [] }) 
         <div className="form-group" style={{ margin: 0, flex: '1 1 220px' }}>
           <label>Lote (hoja de la planilla)</label>
           <select className="form-control" value={lote} onChange={(e) => setLote(e.target.value)} disabled={loading}>
-            {DIFUSION_LOTES.map((t) => (<option key={t} value={t}>{t}</option>))}
+            {DIFUSION_LOTES.map((t) => (<option key={t.nombre} value={t.nombre}>{t.nombre}</option>))}
           </select>
         </div>
         <button type="button" className="btn-primary" onClick={cargarLote} disabled={loading || !lote} style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
