@@ -148,6 +148,32 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({ alumnos = [] }) 
     return flyerUrl.trim() ? `${base}\n\nFlyer del curso: ${flyerUrl.trim()}` : base;
   };
 
+  // Vista previa del flyer: si es link de Drive se usa la miniatura pública;
+  // si es URL directa de imagen, se muestra tal cual. Gmail por URL solo
+  // admite texto, por eso el flyer se pega con Ctrl+V en el compose abierto.
+  const flyerPreview = useMemo(() => {
+    const t = flyerUrl.trim();
+    if (!t) return '';
+    const m = t.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([A-Za-z0-9_-]+)/) || t.match(/[?&]id=([A-Za-z0-9_-]+)/);
+    if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000`;
+    return /\.(png|jpe?g|gif|webp)(\?|$)/i.test(t) ? t : '';
+  }, [flyerUrl]);
+
+  const copiarFlyer = async () => {
+    if (!flyerPreview) {
+      await alert({ title: 'Sin flyer', message: 'Pegá primero el link del flyer (Drive o imagen directa).', variant: 'info' });
+      return;
+    }
+    try {
+      const res = await fetch(flyerPreview);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+      await alert({ title: 'Flyer copiado', message: 'Abrí el tramo en Gmail y pegalo con Ctrl+V: queda incrustado en el cuerpo.', variant: 'success' });
+    } catch {
+      await alert({ title: 'Copiado manual', message: 'El navegador bloqueó la copia automática. Abrí el flyer y copialo con clic derecho → Copiar imagen, luego pegalo con Ctrl+V en el Gmail abierto.', variant: 'warning' });
+    }
+  };
+
   const toggleAll = () => {
     setSelected((prev) => (prev.size >= rows.length && rows.length > 0 ? new Set() : new Set(rows.map((r) => r.key))));
   };
@@ -250,6 +276,22 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({ alumnos = [] }) 
             <div className="form-group" style={{ margin: 0, flex: '1 1 260px' }}>
               <label>Link del flyer en Drive</label>
               <input type="text" className="form-control" value={flyerUrl} onChange={(e) => setFlyerUrl(e.target.value)} placeholder="https://drive.google.com/…" />
+              {flyerPreview && (
+                <div style={{ marginTop: '8px', display: 'flex', gap: '10px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <img src={flyerPreview} alt="Flyer" style={{ maxHeight: '160px', maxWidth: '100%', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'contain' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <button type="button" className="btn-secondary" onClick={copiarFlyer} style={{ margin: 0, fontSize: '0.8rem' }}>
+                      Copiar imagen
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={() => window.open(flyerUrl.trim(), '_blank')} style={{ margin: 0, fontSize: '0.8rem' }}>
+                      Abrir flyer
+                    </button>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '220px', lineHeight: 1.5 }}>
+                      Gmail no admite incrustar por enlace: copiá la imagen y pegala con Ctrl+V en el Gmail abierto (1 pegado por tramo).
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="form-group" style={{ margin: 0, flex: '0 1 140px' }}>
               <label>Destinatarios por tramo</label>
